@@ -6,9 +6,20 @@
 // Provider ordering
 // ============================================================
 
-/** Popular providers shown prominently in onboarding and settings, in display order */
-export const POPULAR_PROVIDER_IDS = [
-	"opencode",
+/** Chinese providers shown first for the Windows China-focused experience. */
+export const CHINA_PROVIDER_IDS = [
+	"deepseek",
+	"alibaba-cn",
+	"kimi-for-coding",
+	"moonshotai-cn",
+	"zhipuai",
+	"siliconflow-cn",
+	"minimax-cn",
+	"modelscope",
+] as const
+
+/** Globally popular providers shown in the alternate onboarding segment. */
+export const GLOBAL_PROVIDER_IDS = [
 	"anthropic",
 	"openai",
 	"google",
@@ -17,6 +28,19 @@ export const POPULAR_PROVIDER_IDS = [
 	"openrouter",
 	"xai",
 ] as const
+
+/** Popular providers shown prominently in onboarding and settings, in display order */
+export const POPULAR_PROVIDER_IDS = [
+	"opencode",
+	...CHINA_PROVIDER_IDS,
+	...GLOBAL_PROVIDER_IDS,
+] as const
+
+const CHINA_PROVIDER_ID_SET = new Set<string>(CHINA_PROVIDER_IDS)
+
+export function isChinaProvider(providerId: string): boolean {
+	return CHINA_PROVIDER_ID_SET.has(providerId)
+}
 
 // ============================================================
 // OpenCode Zen
@@ -46,6 +70,30 @@ export const PROVIDER_KEY_URLS: Record<string, { label: string; url: string }> =
 	xai: { label: "Get API key", url: "https://console.x.ai/" },
 	mistral: { label: "Get API key", url: "https://console.mistral.ai/api-keys/" },
 	deepseek: { label: "Get API key", url: "https://platform.deepseek.com/api_keys" },
+	"alibaba-cn": { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
+	alibaba: { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
+	"kimi-for-coding": { label: "Get API key", url: "https://www.kimi.com/code" },
+	"moonshotai-cn": {
+		label: "Get API key",
+		url: "https://platform.moonshot.cn/console/api-keys",
+	},
+	moonshotai: { label: "Get API key", url: "https://platform.moonshot.ai/console/api-keys" },
+	zhipuai: { label: "Get API key", url: "https://open.bigmodel.cn/usercenter/apikeys" },
+	"zhipuai-coding-plan": {
+		label: "Get API key",
+		url: "https://open.bigmodel.cn/usercenter/apikeys",
+	},
+	"siliconflow-cn": { label: "Get API key", url: "https://cloud.siliconflow.cn/account/ak" },
+	siliconflow: { label: "Get API key", url: "https://cloud.siliconflow.com/account/ak" },
+	"minimax-cn": {
+		label: "Get API key",
+		url: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
+	},
+	"minimax-cn-coding-plan": {
+		label: "Get API key",
+		url: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
+	},
+	modelscope: { label: "Get API key", url: "https://modelscope.cn/my/myaccesstoken" },
 	cohere: { label: "Get API key", url: "https://dashboard.cohere.com/api-keys" },
 	fireworks: { label: "Get API key", url: "https://fireworks.ai/account/api-keys" },
 	perplexity: { label: "Get API key", url: "https://www.perplexity.ai/settings/api" },

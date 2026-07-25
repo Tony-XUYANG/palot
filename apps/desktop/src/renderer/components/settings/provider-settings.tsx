@@ -62,7 +62,9 @@ import {
 } from "../../hooks/use-opencode-data"
 import { createLogger } from "../../lib/logger"
 import {
+	CHINA_PROVIDER_IDS,
 	compareByPopularity,
+	isChinaProvider,
 	isSubscriptionConnected,
 	isZenFreeTier,
 	POPULAR_PROVIDER_IDS,
@@ -168,6 +170,14 @@ export function ProviderSettings() {
 		.filter(
 			(p) =>
 				POPULAR_PROVIDER_IDS.includes(p.id as (typeof POPULAR_PROVIDER_IDS)[number]) &&
+				!isChinaProvider(p.id) &&
+				!connectedSet.has(p.id),
+		)
+		.sort(compareByPopularity)
+	const chinaUnconnected = allProviders.all
+		.filter(
+			(p) =>
+				CHINA_PROVIDER_IDS.includes(p.id as (typeof CHINA_PROVIDER_IDS)[number]) &&
 				!connectedSet.has(p.id),
 		)
 		.sort(compareByPopularity)
@@ -190,8 +200,20 @@ export function ProviderSettings() {
 				</SettingsSection>
 			)}
 
+			{chinaUnconnected.length > 0 && (
+				<SettingsSection title="Recommended in China">
+					{chinaUnconnected.map((provider) => (
+						<AvailableProviderRow
+							key={provider.id}
+							provider={provider}
+							onConnect={() => setConnectDialogProvider(provider)}
+						/>
+					))}
+				</SettingsSection>
+			)}
+
 			{popularUnconnected.length > 0 && (
-				<SettingsSection title="Available">
+				<SettingsSection title="Other popular providers">
 					{popularUnconnected.map((provider) => (
 						<AvailableProviderRow
 							key={provider.id}
@@ -322,11 +344,11 @@ function ConnectedProviderRow({
 	const keyUrl = isSubscription ? undefined : PROVIDER_KEY_URLS[provider.id]
 
 	return (
-		<div className="flex items-center gap-3 px-4 py-3">
+		<div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
 			<ProviderIcon id={provider.id} name={provider.name} />
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<div className="flex items-center gap-2">
-					<span className="text-sm font-medium">{provider.name}</span>
+				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+					<span className="break-words text-sm font-medium">{provider.name}</span>
 					{zenFree && (
 						<span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
 							<ZapIcon className="size-2" aria-hidden="true" />
@@ -354,7 +376,7 @@ function ConnectedProviderRow({
 					)}
 				</div>
 			</div>
-			<div className="flex items-center gap-2">
+			<div className="flex w-full items-center justify-end gap-2 pl-11 sm:w-auto sm:pl-0">
 				<TooltipProvider>
 					{zenFree ? (
 						<Button variant="outline" size="sm" className="h-7 text-xs" onClick={onConnect}>
@@ -479,15 +501,15 @@ function AvailableProviderRow({
 	const keyUrl = PROVIDER_KEY_URLS[provider.id]
 
 	return (
-		<div className="flex items-center gap-3 px-4 py-3">
+		<div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
 			<ProviderIcon id={provider.id} name={provider.name} />
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<span className="text-sm font-medium">{provider.name}</span>
+				<span className="break-words text-sm font-medium">{provider.name}</span>
 				<span className="text-xs text-muted-foreground">
 					{modelCount} {modelCount === 1 ? "model" : "models"}
 				</span>
 			</div>
-			<div className="flex items-center gap-2">
+			<div className="flex w-full items-center justify-end gap-2 pl-11 sm:w-auto sm:pl-0">
 				{keyUrl && (
 					<a
 						href={keyUrl.url}

@@ -21,9 +21,10 @@ import {
 } from "../../../hooks/use-opencode-data"
 import { useServerConnection } from "../../../hooks/use-server"
 import {
+	CHINA_PROVIDER_IDS,
 	compareConnectedFirst,
+	GLOBAL_PROVIDER_IDS,
 	isZenFreeTier,
-	POPULAR_PROVIDER_IDS,
 	ZEN_PROVIDER_ID,
 	ZEN_SIGNUP_URL,
 } from "../../../lib/providers"
@@ -47,6 +48,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 	const queryClient = useQueryClient()
 
 	const [connectDialogProvider, setConnectDialogProvider] = useState<CatalogProvider | null>(null)
+	const [providerRegion, setProviderRegion] = useState<"china" | "global">("china")
 
 	const loading = catalogLoading || connectedLoading
 	const connectedIds = useMemo(
@@ -60,15 +62,17 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 		[allProviders],
 	)
 
-	const otherProviders = useMemo(() => {
+	const recommendedProviderIds =
+		providerRegion === "china" ? CHINA_PROVIDER_IDS : GLOBAL_PROVIDER_IDS
+	const recommendedProviders = useMemo(() => {
 		if (!allProviders) return []
 		const filtered = allProviders.all.filter(
 			(p) =>
 				p.id !== ZEN_PROVIDER_ID &&
-				POPULAR_PROVIDER_IDS.includes(p.id as (typeof POPULAR_PROVIDER_IDS)[number]),
+				recommendedProviderIds.some((providerId) => providerId === p.id),
 		)
 		return [...filtered].sort((a, b) => compareConnectedFirst(connectedIds, a, b))
-	}, [allProviders, connectedIds])
+	}, [allProviders, connectedIds, recommendedProviderIds])
 
 	const zenIsConnected = connectedIds.has(ZEN_PROVIDER_ID)
 	const zenHasApiKey = zenIsConnected && zenProvider !== null && !isZenFreeTier(zenProvider.models)
@@ -142,7 +146,40 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 					/>
 				) : null}
 
-				{/* Other providers grid */}
+				<div
+					role="tablist"
+					aria-label="Provider region"
+					className="grid h-9 grid-cols-2 rounded-md border border-border bg-muted/30 p-0.5"
+				>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={providerRegion === "china"}
+						onClick={() => setProviderRegion("china")}
+						className={`rounded-sm text-xs font-medium transition-colors ${
+							providerRegion === "china"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground"
+						}`}
+					>
+						China
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={providerRegion === "global"}
+						onClick={() => setProviderRegion("global")}
+						className={`rounded-sm text-xs font-medium transition-colors ${
+							providerRegion === "global"
+								? "bg-background text-foreground shadow-sm"
+								: "text-muted-foreground hover:text-foreground"
+						}`}
+					>
+						Global
+					</button>
+				</div>
+
+				{/* Recommended providers grid */}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{loading
 						? ["s1", "s2", "s3", "s4", "s5", "s6"].map((key) => (
@@ -154,7 +191,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 									<div className="h-4 w-24 animate-pulse rounded bg-muted" />
 								</div>
 							))
-						: otherProviders.map((provider) => {
+						: recommendedProviders.map((provider) => {
 								const isConnected = connectedIds.has(provider.id)
 								return (
 									<button
