@@ -22,6 +22,7 @@ import {
 import { useServerConnection } from "../../../hooks/use-server"
 import {
 	CHINA_PROVIDER_IDS,
+	CODEX_PROVIDER_IDS,
 	compareConnectedFirst,
 	GLOBAL_PROVIDER_IDS,
 	isZenFreeTier,
@@ -40,6 +41,20 @@ interface ProviderSetupStepProps {
 	onSkip: () => void
 }
 
+type ProviderRegion = "china" | "codex" | "global"
+
+const PROVIDER_REGION_IDS: Record<ProviderRegion, readonly string[]> = {
+	china: CHINA_PROVIDER_IDS,
+	codex: CODEX_PROVIDER_IDS,
+	global: GLOBAL_PROVIDER_IDS,
+}
+
+const PROVIDER_REGION_OPTIONS: Array<{ id: ProviderRegion; label: string }> = [
+	{ id: "china", label: "China" },
+	{ id: "codex", label: "Codex" },
+	{ id: "global", label: "Global" },
+]
+
 export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps) {
 	const { connected: serverConnected } = useServerConnection()
 	const { data: allProviders, loading: catalogLoading, reload: reloadCatalog } = useAllProviders()
@@ -48,7 +63,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 	const queryClient = useQueryClient()
 
 	const [connectDialogProvider, setConnectDialogProvider] = useState<CatalogProvider | null>(null)
-	const [providerRegion, setProviderRegion] = useState<"china" | "global">("china")
+	const [providerRegion, setProviderRegion] = useState<ProviderRegion>("china")
 
 	const loading = catalogLoading || connectedLoading
 	const connectedIds = useMemo(
@@ -62,8 +77,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 		[allProviders],
 	)
 
-	const recommendedProviderIds =
-		providerRegion === "china" ? CHINA_PROVIDER_IDS : GLOBAL_PROVIDER_IDS
+	const recommendedProviderIds = PROVIDER_REGION_IDS[providerRegion]
 	const recommendedProviders = useMemo(() => {
 		if (!allProviders) return []
 		const filtered = allProviders.all.filter(
@@ -149,34 +163,24 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 				<div
 					role="tablist"
 					aria-label="Provider region"
-					className="grid h-9 grid-cols-2 rounded-md border border-border bg-muted/30 p-0.5"
+					className="grid h-9 grid-cols-3 rounded-md border border-border bg-muted/30 p-0.5"
 				>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={providerRegion === "china"}
-						onClick={() => setProviderRegion("china")}
-						className={`rounded-sm text-xs font-medium transition-colors ${
-							providerRegion === "china"
-								? "bg-background text-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						China
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={providerRegion === "global"}
-						onClick={() => setProviderRegion("global")}
-						className={`rounded-sm text-xs font-medium transition-colors ${
-							providerRegion === "global"
-								? "bg-background text-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
-					>
-						Global
-					</button>
+					{PROVIDER_REGION_OPTIONS.map((option) => (
+						<button
+							key={option.id}
+							type="button"
+							role="tab"
+							aria-selected={providerRegion === option.id}
+							onClick={() => setProviderRegion(option.id)}
+							className={`rounded-sm text-xs font-medium transition-colors ${
+								providerRegion === option.id
+									? "bg-background text-foreground shadow-sm"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{option.label}
+						</button>
+					))}
 				</div>
 
 				{/* Recommended providers grid */}

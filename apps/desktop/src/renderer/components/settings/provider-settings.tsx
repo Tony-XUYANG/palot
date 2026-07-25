@@ -63,8 +63,10 @@ import {
 import { createLogger } from "../../lib/logger"
 import {
 	CHINA_PROVIDER_IDS,
+	CODEX_PROVIDER_IDS,
 	compareByPopularity,
 	isChinaProvider,
+	isCodexProvider,
 	isSubscriptionConnected,
 	isZenFreeTier,
 	POPULAR_PROVIDER_IDS,
@@ -171,6 +173,7 @@ export function ProviderSettings() {
 			(p) =>
 				POPULAR_PROVIDER_IDS.includes(p.id as (typeof POPULAR_PROVIDER_IDS)[number]) &&
 				!isChinaProvider(p.id) &&
+				!isCodexProvider(p.id) &&
 				!connectedSet.has(p.id),
 		)
 		.sort(compareByPopularity)
@@ -178,6 +181,13 @@ export function ProviderSettings() {
 		.filter(
 			(p) =>
 				CHINA_PROVIDER_IDS.includes(p.id as (typeof CHINA_PROVIDER_IDS)[number]) &&
+				!connectedSet.has(p.id),
+		)
+		.sort(compareByPopularity)
+	const codexUnconnected = allProviders.all
+		.filter(
+			(p) =>
+				CODEX_PROVIDER_IDS.includes(p.id as (typeof CODEX_PROVIDER_IDS)[number]) &&
 				!connectedSet.has(p.id),
 		)
 		.sort(compareByPopularity)
@@ -195,6 +205,18 @@ export function ProviderSettings() {
 							sourceInfo={connectedInfo?.get(provider.id) ?? null}
 							onConnect={() => setConnectDialogProvider(provider)}
 							onReload={reload}
+						/>
+					))}
+				</SettingsSection>
+			)}
+
+			{codexUnconnected.length > 0 && (
+				<SettingsSection title="OpenAI Codex">
+					{codexUnconnected.map((provider) => (
+						<AvailableProviderRow
+							key={provider.id}
+							provider={provider}
+							onConnect={() => setConnectDialogProvider(provider)}
 						/>
 					))}
 				</SettingsSection>

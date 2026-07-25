@@ -18,15 +18,23 @@ export const CHINA_PROVIDER_IDS = [
 	"modelscope",
 ] as const
 
+/** OpenAI is featured separately because it exposes Codex models and ChatGPT OAuth. */
+export const CODEX_PROVIDER_IDS = ["openai"] as const
+
 /** Globally popular providers shown in the alternate onboarding segment. */
 export const GLOBAL_PROVIDER_IDS = [
 	"anthropic",
-	"openai",
 	"google",
 	"github-copilot",
 	"groq",
 	"openrouter",
 	"xai",
+] as const
+
+/** Codex models verified against the OpenCode 1.18.5 provider catalog. */
+export const CODEX_RECOMMENDED_MODELS = [
+	{ providerID: "openai", modelID: "gpt-5.3-codex" },
+	{ providerID: "openai", modelID: "gpt-5.3-codex-spark" },
 ] as const
 
 /** Low-cost or coding-focused models verified against the OpenCode 1.18.5 catalog. */
@@ -44,14 +52,20 @@ export const CHINA_RECOMMENDED_MODELS = [
 /** Popular providers shown prominently in onboarding and settings, in display order */
 export const POPULAR_PROVIDER_IDS = [
 	"opencode",
+	...CODEX_PROVIDER_IDS,
 	...CHINA_PROVIDER_IDS,
 	...GLOBAL_PROVIDER_IDS,
 ] as const
 
 const CHINA_PROVIDER_ID_SET = new Set<string>(CHINA_PROVIDER_IDS)
+const CODEX_PROVIDER_ID_SET = new Set<string>(CODEX_PROVIDER_IDS)
 
 export function isChinaProvider(providerId: string): boolean {
 	return CHINA_PROVIDER_ID_SET.has(providerId)
+}
+
+export function isCodexProvider(providerId: string): boolean {
+	return CODEX_PROVIDER_ID_SET.has(providerId)
 }
 
 // ============================================================

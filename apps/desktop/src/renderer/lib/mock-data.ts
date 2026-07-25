@@ -174,10 +174,38 @@ export const MOCK_PROVIDERS = {
 				},
 			},
 		},
+		{
+			id: "openai",
+			name: "OpenAI",
+			source: "builtin" as const,
+			env: {},
+			options: {},
+			models: {
+				"gpt-5.3-codex": {
+					id: "gpt-5.3-codex",
+					name: "GPT-5.3 Codex",
+					capabilities: {
+						reasoning: true,
+						input: { image: true, pdf: true },
+						attachment: true,
+					},
+				},
+				"gpt-5.3-codex-spark": {
+					id: "gpt-5.3-codex-spark",
+					name: "GPT-5.3 Codex Spark",
+					capabilities: {
+						reasoning: true,
+						input: { image: true, pdf: true },
+						attachment: true,
+					},
+				},
+			},
+		},
 	],
 	defaults: {
 		bedrock: "anthropic.claude-opus-4-6",
 		anthropic: "claude-sonnet-4-20250514",
+		openai: "gpt-5.3-codex",
 	},
 }
 

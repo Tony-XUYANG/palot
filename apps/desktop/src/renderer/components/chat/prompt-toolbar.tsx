@@ -42,7 +42,7 @@ import type {
 	VcsData,
 } from "../../hooks/use-opencode-data"
 import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
-import { CHINA_RECOMMENDED_MODELS } from "../../lib/providers"
+import { CHINA_RECOMMENDED_MODELS, CODEX_RECOMMENDED_MODELS } from "../../lib/providers"
 import {
 	computeContextUsage,
 	formatPercentage,
@@ -199,11 +199,16 @@ export function ModelSelector({
 	disabled,
 }: ModelSelectorProps) {
 	const models = useMemo(() => (providers ? flattenModels(providers.providers) : []), [providers])
-	const recommendedModels = useMemo(() => {
+	const recommendationGroups = useMemo(() => {
 		const modelsByValue = new Map(models.map((model) => [model.value, model]))
-		return CHINA_RECOMMENDED_MODELS.map((model) =>
-			modelsByValue.get(`${model.providerID}/${model.modelID}`),
-		).filter((model): model is ModelOption => model !== undefined)
+		const resolveModels = (recommendations: ReadonlyArray<{ providerID: string; modelID: string }>) =>
+			recommendations
+				.map((model) => modelsByValue.get(`${model.providerID}/${model.modelID}`))
+				.filter((model): model is ModelOption => model !== undefined)
+		return {
+			codex: resolveModels(CODEX_RECOMMENDED_MODELS),
+			china: resolveModels(CHINA_RECOMMENDED_MODELS),
+		}
 	}, [models])
 
 	// Build "Last used" group from recentModels (up to 3, only models that exist in providers)
@@ -272,7 +277,8 @@ export function ModelSelector({
 				<ModelSelectorList
 					models={models}
 					lastUsedModels={lastUsedModels}
-					recommendedModels={recommendedModels}
+					codexRecommendedModels={recommendationGroups.codex}
+					chinaRecommendedModels={recommendationGroups.china}
 					activeValue={activeValue}
 					onSelect={handleSelect}
 				/>
@@ -285,13 +291,15 @@ export function ModelSelector({
 function ModelSelectorList({
 	models,
 	lastUsedModels,
-	recommendedModels,
+	codexRecommendedModels,
+	chinaRecommendedModels,
 	activeValue,
 	onSelect,
 }: {
 	models: ModelOption[]
 	lastUsedModels: ModelOption[]
-	recommendedModels: ModelOption[]
+	codexRecommendedModels: ModelOption[]
+	chinaRecommendedModels: ModelOption[]
 	activeValue: string | null
 	onSelect: (value: string) => void
 }) {
@@ -343,31 +351,22 @@ function ModelSelectorList({
 						</SearchableListPopoverGroup>
 					)}
 
-					{!search && recommendedModels.length > 0 && (
-						<SearchableListPopoverGroup label="Recommended in China">
-							{recommendedModels.map((model) => (
-								<SearchableListPopoverItem
-									key={`recommended-${model.value}`}
-									onSelect={() => onSelect(model.value)}
-								>
-									<ProviderIcon
-										id={model.providerID}
-										name={model.providerName}
-										size="xs"
-									/>
-									<div className="min-w-0 flex-1">
-										<div className="truncate">{model.displayName}</div>
-										<div className="truncate text-[10px] text-muted-foreground/40">
-											{model.providerName}
-										</div>
-									</div>
-									{model.value === activeValue && (
-										<CheckIcon className="size-3.5 shrink-0 text-primary" />
-									)}
-								</SearchableListPopoverItem>
-							))}
-						</SearchableListPopoverGroup>
-					)}
+					{!search ? (
+						<>
+							<RecommendedModelGroup
+								label="OpenAI Codex"
+								models={codexRecommendedModels}
+								activeValue={activeValue}
+								onSelect={onSelect}
+							/>
+							<RecommendedModelGroup
+								label="Recommended in China"
+								models={chinaRecommendedModels}
+								activeValue={activeValue}
+								onSelect={onSelect}
+							/>
+						</>
+					) : null}
 
 					{/* Provider-grouped models */}
 					{Array.from(grouped.entries()).map(([providerName, providerModels]) => {
@@ -405,6 +404,42 @@ function ModelSelectorList({
 				</>
 			)}
 		</SearchableListPopoverList>
+	)
+}
+
+function RecommendedModelGroup({
+	label,
+	models,
+	activeValue,
+	onSelect,
+}: {
+	label: string
+	models: ModelOption[]
+	activeValue: string | null
+	onSelect: (value: string) => void
+}) {
+	if (models.length === 0) return null
+
+	return (
+		<SearchableListPopoverGroup label={label}>
+			{models.map((model) => (
+				<SearchableListPopoverItem
+					key={`recommended-${model.value}`}
+					onSelect={() => onSelect(model.value)}
+				>
+					<ProviderIcon id={model.providerID} name={model.providerName} size="xs" />
+					<div className="min-w-0 flex-1">
+						<div className="truncate">{model.displayName}</div>
+						<div className="truncate text-[10px] text-muted-foreground/40">
+							{model.providerName}
+						</div>
+					</div>
+					{model.value === activeValue ? (
+						<CheckIcon className="size-3.5 shrink-0 text-primary" />
+					) : null}
+				</SearchableListPopoverItem>
+			))}
+		</SearchableListPopoverGroup>
 	)
 }
 
