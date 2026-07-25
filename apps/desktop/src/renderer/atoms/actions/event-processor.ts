@@ -118,7 +118,7 @@ export function processEvent(event: Event): void {
 			if (sessionID && error) {
 				set(setSessionErrorAtom, {
 					sessionId: sessionID,
-					error: { name: error.name, data: error.data },
+					error,
 				})
 			}
 			break

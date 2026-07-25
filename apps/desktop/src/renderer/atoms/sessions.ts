@@ -1,6 +1,12 @@
 import { atom } from "jotai"
 import { atomFamily } from "jotai-family"
-import type { PermissionRequest, QuestionRequest, Session, SessionStatus } from "../lib/types"
+import type {
+	EventSessionError,
+	PermissionRequest,
+	QuestionRequest,
+	Session,
+	SessionStatus,
+} from "../lib/types"
 import { messagesFamily } from "./messages"
 import { partsFamily } from "./parts"
 
@@ -16,10 +22,7 @@ export const SESSIONS_PAGE_SIZE = 5
 // ============================================================
 
 /** Error type from session.error events */
-export type SessionError = {
-	name: string
-	data: Record<string, unknown>
-}
+export type SessionError = NonNullable<EventSessionError["properties"]["error"]>
 
 /** Phases of worktree setup shown in the chat view's empty state */
 export type SessionSetupPhase = "creating-worktree" | "starting-session" | null

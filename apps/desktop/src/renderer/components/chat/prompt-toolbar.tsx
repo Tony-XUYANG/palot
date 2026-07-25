@@ -42,6 +42,7 @@ import type {
 	VcsData,
 } from "../../hooks/use-opencode-data"
 import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
+import { CHINA_RECOMMENDED_MODELS } from "../../lib/providers"
 import {
 	computeContextUsage,
 	formatPercentage,
@@ -198,6 +199,12 @@ export function ModelSelector({
 	disabled,
 }: ModelSelectorProps) {
 	const models = useMemo(() => (providers ? flattenModels(providers.providers) : []), [providers])
+	const recommendedModels = useMemo(() => {
+		const modelsByValue = new Map(models.map((model) => [model.value, model]))
+		return CHINA_RECOMMENDED_MODELS.map((model) =>
+			modelsByValue.get(`${model.providerID}/${model.modelID}`),
+		).filter((model): model is ModelOption => model !== undefined)
+	}, [models])
 
 	// Build "Last used" group from recentModels (up to 3, only models that exist in providers)
 	const lastUsedModels = useMemo(() => {
@@ -265,6 +272,7 @@ export function ModelSelector({
 				<ModelSelectorList
 					models={models}
 					lastUsedModels={lastUsedModels}
+					recommendedModels={recommendedModels}
 					activeValue={activeValue}
 					onSelect={handleSelect}
 				/>
@@ -277,11 +285,13 @@ export function ModelSelector({
 function ModelSelectorList({
 	models,
 	lastUsedModels,
+	recommendedModels,
 	activeValue,
 	onSelect,
 }: {
 	models: ModelOption[]
 	lastUsedModels: ModelOption[]
+	recommendedModels: ModelOption[]
 	activeValue: string | null
 	onSelect: (value: string) => void
 }) {
@@ -325,6 +335,32 @@ function ModelSelectorList({
 											reasoning
 										</span>
 									)}
+									{model.value === activeValue && (
+										<CheckIcon className="size-3.5 shrink-0 text-primary" />
+									)}
+								</SearchableListPopoverItem>
+							))}
+						</SearchableListPopoverGroup>
+					)}
+
+					{!search && recommendedModels.length > 0 && (
+						<SearchableListPopoverGroup label="Recommended in China">
+							{recommendedModels.map((model) => (
+								<SearchableListPopoverItem
+									key={`recommended-${model.value}`}
+									onSelect={() => onSelect(model.value)}
+								>
+									<ProviderIcon
+										id={model.providerID}
+										name={model.providerName}
+										size="xs"
+									/>
+									<div className="min-w-0 flex-1">
+										<div className="truncate">{model.displayName}</div>
+										<div className="truncate text-[10px] text-muted-foreground/40">
+											{model.providerName}
+										</div>
+									</div>
 									{model.value === activeValue && (
 										<CheckIcon className="size-3.5 shrink-0 text-primary" />
 									)}

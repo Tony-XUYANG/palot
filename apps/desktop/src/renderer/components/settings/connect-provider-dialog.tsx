@@ -1171,9 +1171,9 @@ function SuccessView({ provider, onDone }: { provider: CatalogProvider; onDone: 
 		<>
 			<div className="flex flex-col items-center gap-3 py-6">
 				<CheckCircle2Icon className="size-8 text-green-500" aria-hidden="true" />
-				<p className="text-sm font-medium">Connected to {provider.name}</p>
+				<p className="text-sm font-medium">Credentials saved for {provider.name}</p>
 				<p className="text-xs text-muted-foreground">
-					You can now use {provider.name} models in your conversations
+					Palot will verify them when you send your first request
 				</p>
 			</div>
 			<DialogFooter>

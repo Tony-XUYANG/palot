@@ -29,6 +29,18 @@ export const GLOBAL_PROVIDER_IDS = [
 	"xai",
 ] as const
 
+/** Low-cost or coding-focused models verified against the OpenCode 1.18.5 catalog. */
+export const CHINA_RECOMMENDED_MODELS = [
+	{ providerID: "deepseek", modelID: "deepseek-chat" },
+	{ providerID: "alibaba-cn", modelID: "qwen-flash" },
+	{ providerID: "kimi-for-coding", modelID: "kimi-for-coding" },
+	{ providerID: "moonshotai-cn", modelID: "kimi-k2.5" },
+	{ providerID: "zhipuai", modelID: "glm-4.7-flash" },
+	{ providerID: "siliconflow-cn", modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct" },
+	{ providerID: "minimax-cn", modelID: "MiniMax-M2.5" },
+	{ providerID: "modelscope", modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct" },
+] as const
+
 /** Popular providers shown prominently in onboarding and settings, in display order */
 export const POPULAR_PROVIDER_IDS = [
 	"opencode",

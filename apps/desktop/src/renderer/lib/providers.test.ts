@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
 	CHINA_PROVIDER_IDS,
+	CHINA_RECOMMENDED_MODELS,
 	GLOBAL_PROVIDER_IDS,
 	isChinaProvider,
 	POPULAR_PROVIDER_IDS,
@@ -25,6 +26,17 @@ describe("provider recommendations", () => {
 	it("does not classify global providers as China recommendations", () => {
 		for (const providerId of GLOBAL_PROVIDER_IDS) {
 			assert.equal(isChinaProvider(providerId), false)
+		}
+	})
+
+	it("keeps China model recommendations unique and scoped to China providers", () => {
+		const modelKeys = CHINA_RECOMMENDED_MODELS.map(
+			(model) => `${model.providerID}/${model.modelID}`,
+		)
+		assert.equal(new Set(modelKeys).size, modelKeys.length)
+		for (const model of CHINA_RECOMMENDED_MODELS) {
+			assert.equal(isChinaProvider(model.providerID), true)
+			assert.ok(model.modelID.length > 0)
 		}
 	})
 })

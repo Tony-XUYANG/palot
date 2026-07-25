@@ -38,6 +38,7 @@ import {
 	useRef,
 	useState,
 } from "react"
+import { toast } from "sonner"
 import { messagesFamily, removeMessageAtom } from "../../atoms/messages"
 import { projectModelsAtom, setProjectModelAtom } from "../../atoms/preferences"
 import type { SessionSetupPhase } from "../../atoms/sessions"
@@ -63,6 +64,7 @@ import {
 } from "../../hooks/use-opencode-data"
 import type { ChatTurn } from "../../hooks/use-session-chat"
 import { createLogger } from "../../lib/logger"
+import { formatModelError, formatRequestError } from "../../lib/model-errors"
 import { computeTurnWorkTimeSplit, formatWorkDuration } from "../../lib/session-metrics"
 import type { Agent, FileAttachment, FilePart, QuestionAnswer, TextPart } from "../../lib/types"
 import { getProjectClient } from "../../services/connection-manager"
@@ -483,10 +485,7 @@ export function ChatView({
 	// both would duplicate the message).
 	const sessionErrorText = useMemo(() => {
 		if (!sessionError) return undefined
-		if ("message" in sessionError.data && sessionError.data.message) {
-			return String(sessionError.data.message)
-		}
-		return `${sessionError.name}: ${JSON.stringify(sessionError.data)}`
+		return formatModelError(sessionError)
 	}, [sessionError])
 
 	const lastTurnHasError = useMemo(() => {
@@ -1090,6 +1089,7 @@ function ChatInputSection({
 				})
 			} catch (err) {
 				log.error("handleSend failed", { sessionId: agent.sessionId }, err)
+				toast.error("Could not send message", { description: formatRequestError(err) })
 			} finally {
 				setSending(false)
 			}

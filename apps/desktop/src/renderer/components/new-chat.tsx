@@ -48,6 +48,7 @@ import {
 	useVcs,
 } from "../hooks/use-opencode-data"
 import { useAgentActions } from "../hooks/use-server"
+import { formatRequestError } from "../lib/model-errors"
 import type { FileAttachment } from "../lib/types"
 import { createWorktree, randomWorktreeName } from "../services/worktree-service"
 import { useSetAppBarContent } from "./app-bar-context"
@@ -550,7 +551,7 @@ export function NewChat() {
 					console.error("Worktree launch failed:", err)
 					// Remove the stub and navigate back to new chat
 					appStore.set(removeSessionAtom, stubId)
-					setError(`Worktree setup failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+					setError(`Worktree setup failed: ${formatRequestError(err)}`)
 					navigate({ to: "/" })
 				}
 			}
@@ -586,7 +587,7 @@ export function NewChat() {
 					await launchLocal(promptText, files)
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : "Failed to create session")
+				setError(formatRequestError(err))
 			} finally {
 				setLaunching(false)
 			}

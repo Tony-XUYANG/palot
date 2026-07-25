@@ -31,6 +31,7 @@ import {
 import { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from "react"
 import { useDisplayMode } from "../../hooks/use-agents"
 import type { ChatMessageEntry, ChatTurn as ChatTurnType } from "../../hooks/use-session-chat"
+import { formatModelError } from "../../lib/model-errors"
 import {
 	computeTurnCost,
 	computeTurnWorkTime,
@@ -303,17 +304,7 @@ function getLastResponseText(orderedParts: RenderablePart[]): string | undefined
 function getError(assistantMessages: ChatMessageEntry[]): string | undefined {
 	for (const msg of assistantMessages) {
 		if (msg.info.role === "assistant" && msg.info.error) {
-			const error = msg.info.error
-			const errorData = error.data
-			// Most error types have a `message` string in data
-			if ("message" in errorData && errorData.message) {
-				return typeof errorData.message === "string" ? errorData.message : String(errorData.message)
-			}
-			// Fallback: use the error name (e.g. "MessageOutputLengthError") +
-			// any stringifiable data for types like MessageOutputLengthError
-			// whose data is { [key: string]: unknown }
-			const dataStr = Object.keys(errorData).length > 0 ? JSON.stringify(errorData) : undefined
-			return dataStr ? `${error.name}: ${dataStr}` : error.name
+			return formatModelError(msg.info.error)
 		}
 	}
 	return undefined
