@@ -14,6 +14,7 @@ import { NewChat } from "./components/new-chat"
 import { NotFoundPage } from "./components/not-found-page"
 import { RootLayout } from "./components/root-layout"
 import { SessionRoute } from "./components/session-route"
+import { SealosDeployPage } from "./components/sealos-deploy-page"
 import { AboutSettings } from "./components/settings/about-settings"
 import { GeneralSettings } from "./components/settings/general-settings"
 import { NotificationSettings } from "./components/settings/notification-settings"
@@ -125,6 +126,12 @@ const automationsRoute = createRoute({
 	component: AutomationsPage,
 })
 
+const deployRoute = createRoute({
+	getParentRoute: () => sidebarLayout,
+	path: "deploy",
+	component: SealosDeployPage,
+})
+
 const automationsIndexRoute = createRoute({
 	getParentRoute: () => automationsRoute,
 	path: "/",
@@ -151,6 +158,7 @@ const automationRunRoute = createRoute({
 const routeTree = rootRoute.addChildren([
 	sidebarLayout.addChildren([
 		indexRoute,
+		deployRoute,
 		projectRoute.addChildren([projectIndexRoute, sessionRoute]),
 		automationsRoute.addChildren([
 			automationsIndexRoute,

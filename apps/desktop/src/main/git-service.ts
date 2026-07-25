@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises"
 import path from "node:path"
 import type { BranchSummary, StatusResult } from "simple-git"
 import simpleGit from "simple-git"
@@ -199,6 +200,15 @@ export interface GitDiffStat {
 	files: { path: string; insertions: number; deletions: number }[]
 }
 
+export interface GitWorkingTreeDiff {
+	file: string
+	before: string
+	after: string
+	additions: number
+	deletions: number
+	status: "added" | "deleted" | "modified"
+}
+
 export interface GitCommitResult {
 	success: boolean
 	commitHash?: string
@@ -237,6 +247,55 @@ export async function getDiffStat(directory: string): Promise<GitDiffStat> {
 		deletions: 0,
 		files,
 	}
+}
+
+/**
+ * Returns full before/after content for local working-tree changes.
+ * Used only when OpenCode cannot provide session-scoped diffs.
+ */
+export async function getWorkingTreeDiff(directory: string): Promise<GitWorkingTreeDiff[]> {
+	const git = getGit(directory)
+	const status = await git.status()
+	const changedFiles = [...new Set(status.files.map((file) => file.path))]
+	if (changedFiles.length === 0) return []
+
+	const numstat = new Map<string, { additions: number; deletions: number }>()
+	try {
+		const output = await git.raw(["diff", "--numstat", "HEAD", "--", ...changedFiles])
+		for (const line of output.split(/\r?\n/)) {
+			const [added, deleted, ...pathParts] = line.split("\t")
+			const file = pathParts.join("\t")
+			if (!file) continue
+			numstat.set(file, {
+				additions: added === "-" ? 0 : Number(added),
+				deletions: deleted === "-" ? 0 : Number(deleted),
+			})
+		}
+	} catch {
+		// Repositories without HEAD are handled from file contents below.
+	}
+
+	return await Promise.all(
+		changedFiles.map(async (file): Promise<GitWorkingTreeDiff> => {
+			const isAdded = status.not_added.includes(file) || status.created.includes(file)
+			const isDeleted = status.deleted.includes(file)
+			const [before, after] = await Promise.all([
+				isAdded ? Promise.resolve("") : git.show([`HEAD:${file}`]).catch(() => ""),
+				isDeleted
+					? Promise.resolve("")
+					: readFile(path.join(directory, file), "utf8").catch(() => ""),
+			])
+			const counts = numstat.get(file)
+			return {
+				file,
+				before,
+				after,
+				additions: counts?.additions ?? (isAdded ? after.split(/\r?\n/).length : 0),
+				deletions: counts?.deletions ?? (isDeleted ? before.split(/\r?\n/).length : 0),
+				status: isAdded ? "added" : isDeleted ? "deleted" : "modified",
+			}
+		}),
+	)
 }
 
 /**

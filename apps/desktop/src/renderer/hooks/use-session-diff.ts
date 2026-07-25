@@ -8,6 +8,7 @@ import {
 	setSessionDiffAtom,
 } from "../atoms/ui"
 import type { FileDiff } from "../lib/types"
+import { fetchWorkingTreeDiff } from "../services/backend"
 import { getProjectClient } from "../services/connection-manager"
 import { getSessionDiff } from "../services/opencode"
 
@@ -35,7 +36,8 @@ export function useSessionDiff(sessionId: string, directory: string) {
 			const client = getProjectClient(directory)
 			if (!client) return
 			const result = await getSessionDiff(client, sessionId)
-			setDiffs({ sessionId, diffs: result })
+			const diffs = result.length > 0 ? result : await fetchWorkingTreeDiff(directory)
+			setDiffs({ sessionId, diffs })
 		} catch {
 			// Silently fail, diffs will update via SSE
 		} finally {

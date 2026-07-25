@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, systemPreferences } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell, systemPreferences } from "electron"
 import {
 	acceptRun,
 	archiveRun,
@@ -25,6 +25,7 @@ import {
 	getGitRoot,
 	getRemoteUrl,
 	getStatus,
+	getWorkingTreeDiff,
 	listBranches,
 	push,
 	stashAndCheckout,
@@ -49,6 +50,13 @@ import {
 import { getOpenInTargets, openInTarget, setPreferredTarget } from "./open-in-targets"
 import { ensureServer, getServerUrl, restartServer, stopServer } from "./opencode-manager"
 import { getOpaqueWindows, getSettings, onSettingsChanged, updateSettings } from "./settings-store"
+import {
+	completeSealosLogin,
+	deployToSealos,
+	runSealosPreflight,
+	startSealosLogin,
+	verifySealosRuntime,
+} from "./sealos-service"
 import {
 	checkForUpdates,
 	downloadUpdate,
@@ -251,6 +259,14 @@ export function registerIpcHandlers(): void {
 	)
 
 	ipcMain.handle(
+		"git:working-tree-diff",
+		withLogging(
+			"git:working-tree-diff",
+			async (_, directory: string) => await getWorkingTreeDiff(directory),
+		),
+	)
+
+	ipcMain.handle(
 		"git:commit-all",
 		withLogging(
 			"git:commit-all",
@@ -322,6 +338,49 @@ export function registerIpcHandlers(): void {
 	// --- Fetch proxy (bypasses Chromium connection limits) ---
 
 	ipcMain.handle("fetch:request", withLogging("fetch:request", handleFetchProxy))
+
+	// --- Sealos deployment ---
+
+	ipcMain.handle(
+		"sealos:preflight",
+		withLogging("sealos:preflight", async (_, directory: string) => {
+			if (!directory?.trim()) throw new Error("A project directory is required")
+			return await runSealosPreflight(directory)
+		}),
+	)
+
+	ipcMain.handle(
+		"sealos:deploy",
+		withLogging("sealos:deploy", async (_, directory: string) => {
+			if (!directory?.trim()) throw new Error("A project directory is required")
+			return await deployToSealos(directory)
+		}),
+	)
+
+	ipcMain.handle(
+		"sealos:login-start",
+		withLogging("sealos:login-start", async (_, region: string) => {
+			const login = await startSealosLogin(region)
+			await shell.openExternal(login.verificationUrl)
+			return login
+		}),
+	)
+
+	ipcMain.handle(
+		"sealos:login-complete",
+		withLogging(
+			"sealos:login-complete",
+			async (_, sessionId: string) => await completeSealosLogin(sessionId),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:verify-runtime",
+		withLogging(
+			"sealos:verify-runtime",
+			async (_, url: string) => await verifySealosRuntime(url),
+		),
+	)
 
 	// --- CLI install ---
 

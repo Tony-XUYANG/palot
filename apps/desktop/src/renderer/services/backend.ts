@@ -21,6 +21,7 @@ import type {
 	GitPushResult,
 	GitStashResult,
 	GitStatusInfo,
+	GitWorkingTreeDiff,
 	ModelState,
 	OpenInTargetsResult,
 	UpdateAutomationInput,
@@ -257,6 +258,16 @@ export async function fetchDiffStat(directory: string): Promise<GitDiffStat> {
 		return window.palot.git.diffStat(directory)
 	}
 	throw new Error("Git operations are only available in Electron mode")
+}
+
+/**
+ * Fetches local working-tree file contents for Review Panel fallback.
+ */
+export async function fetchWorkingTreeDiff(directory: string): Promise<GitWorkingTreeDiff[]> {
+	if (isElectron) {
+		return window.palot.git.workingTreeDiff(directory)
+	}
+	return []
 }
 
 /**

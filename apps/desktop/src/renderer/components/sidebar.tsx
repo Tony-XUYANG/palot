@@ -28,6 +28,7 @@ import {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	CircleDotIcon,
+	CloudUploadIcon,
 	CommandIcon,
 	GitForkIcon,
 	Loader2Icon,
@@ -380,6 +381,14 @@ export function AppSidebarContent({
 				)}
 			</SidebarContent>
 			<SidebarFooter className="space-y-0 p-2">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton tooltip="Deploy to Sealos" onClick={() => navigate({ to: "/deploy" })} className="text-muted-foreground">
+							<CloudUploadIcon className="size-4" />
+							<span>Deploy</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 				<ServerIndicator />
 				<SidebarMenu>
 					<SidebarMenuItem>

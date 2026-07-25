@@ -75,6 +75,15 @@ export interface GitDiffStat {
 	files: { path: string; insertions: number; deletions: number }[]
 }
 
+export interface GitWorkingTreeDiff {
+	file: string
+	before: string
+	after: string
+	additions: number
+	deletions: number
+	status: "added" | "deleted" | "modified"
+}
+
 export interface GitCommitResult {
 	success: boolean
 	commitHash?: string
@@ -305,6 +314,50 @@ export interface AppInfo {
 	isDev: boolean
 }
 
+export interface SealosPreflightCheck {
+	id: "project" | "git" | "docker" | "sealos" | "auth" | "container"
+	label: string
+	status: "ready" | "missing" | "warning"
+	detail: string
+}
+
+export interface SealosPreflightResult {
+	projectName: string
+	framework: string | null
+	port: number | null
+	checks: SealosPreflightCheck[]
+	ready: boolean
+}
+
+export interface SealosDeployResult {
+	success: boolean
+	status: number
+	region: string
+	response: unknown
+	appUrl: string | null
+	logPath: string
+}
+
+export interface SealosLoginStartResult {
+	sessionId: string
+	userCode: string
+	verificationUrl: string
+	expiresAt: number
+}
+
+export interface SealosLoginResult {
+	authenticated: boolean
+	region: string
+	workspace: string | null
+}
+
+export interface SealosRuntimeResult {
+	ok: boolean
+	status: number | null
+	url: string
+	detail: string
+}
+
 export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque"
 
 // ============================================================
@@ -465,6 +518,7 @@ export interface PalotAPI {
 		stashPop: (directory: string) => Promise<GitStashResult>
 		getRoot: (directory: string) => Promise<string | null>
 		diffStat: (directory: string) => Promise<GitDiffStat>
+		workingTreeDiff: (directory: string) => Promise<GitWorkingTreeDiff[]>
 		commitAll: (directory: string, message: string) => Promise<GitCommitResult>
 		push: (directory: string, remote?: string) => Promise<GitPushResult>
 		createBranch: (directory: string, branchName: string) => Promise<GitCheckoutResult>
@@ -507,6 +561,14 @@ export interface PalotAPI {
 
 	// Directory picker
 	pickDirectory: () => Promise<string | null>
+
+	sealos: {
+		preflight: (directory: string) => Promise<SealosPreflightResult>
+		deploy: (directory: string) => Promise<SealosDeployResult>
+		startLogin: (region: string) => Promise<SealosLoginStartResult>
+		completeLogin: (sessionId: string) => Promise<SealosLoginResult>
+		verifyRuntime: (url: string) => Promise<SealosRuntimeResult>
+	}
 
 	// Fetch proxy (bypasses Chromium connection limits)
 	fetch: (req: {

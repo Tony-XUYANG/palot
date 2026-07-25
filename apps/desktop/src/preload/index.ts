@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld("palot", {
 		stashPop: (directory: string) => ipcRenderer.invoke("git:stash-pop", directory),
 		getRoot: (directory: string) => ipcRenderer.invoke("git:root", directory),
 		diffStat: (directory: string) => ipcRenderer.invoke("git:diff-stat", directory),
+		workingTreeDiff: (directory: string) =>
+			ipcRenderer.invoke("git:working-tree-diff", directory),
 		commitAll: (directory: string, message: string) =>
 			ipcRenderer.invoke("git:commit-all", directory, message),
 		push: (directory: string, remote?: string) => ipcRenderer.invoke("git:push", directory, remote),
@@ -181,6 +183,14 @@ contextBridge.exposeInMainWorld("palot", {
 
 	/** Opens a native folder picker dialog. Returns the selected path, or null if cancelled. */
 	pickDirectory: () => ipcRenderer.invoke("dialog:open-directory"),
+
+	sealos: {
+		preflight: (directory: string) => ipcRenderer.invoke("sealos:preflight", directory),
+		deploy: (directory: string) => ipcRenderer.invoke("sealos:deploy", directory),
+		startLogin: (region: string) => ipcRenderer.invoke("sealos:login-start", region),
+		completeLogin: (sessionId: string) => ipcRenderer.invoke("sealos:login-complete", sessionId),
+		verifyRuntime: (url: string) => ipcRenderer.invoke("sealos:verify-runtime", url),
+	},
 
 	// --- Fetch proxy (bypasses Chromium connection limits) ---
 
