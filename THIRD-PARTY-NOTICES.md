@@ -3,7 +3,7 @@
 This file lists the third-party libraries used by Palot and their respective licenses.
 Palot itself is licensed under the [MIT License](LICENSE).
 
-Last updated: 2025-02-12
+Last updated: 2026-07-25
 
 ---
 
@@ -37,6 +37,19 @@ licensed under the MIT License.
 
 Palot is not a fork of OpenCode. It spawns and manages the OpenCode server process and
 communicates with it over SSE/HTTP.
+
+The Windows x64 installer includes the OpenCode 1.18.5 executable under the MIT License.
+Its exact source is available at https://github.com/anomalyco/opencode/tree/v1.18.5 and
+its license text is installed under `runtime/licenses/opencode-MIT.txt`.
+
+### Git for Windows / MinGit
+
+The Windows x64 installer includes the complete MinGit 2.55.0.3 distribution from
+https://github.com/git-for-windows/git/releases/tag/v2.55.0.windows.3. Git is licensed
+under GNU GPL version 2; MinGit also contains components under their respective bundled
+licenses. The archive's `LICENSE.txt` and license directories are redistributed unchanged.
+The corresponding source offer and exact version links are installed under
+`runtime/licenses/THIRD-PARTY-SOURCE-OFFER.txt`.
 
 ---
 

@@ -5,6 +5,7 @@ node_modules/
 dist/
 .next/
 out/
+.cache/
 
 # Turborepo
 .turbo/
@@ -14,6 +15,7 @@ src-tauri/target/
 
 # Electron Builder
 release/
+apps/desktop/resources/runtime/win32-x64/
 
 # Environment
 .env

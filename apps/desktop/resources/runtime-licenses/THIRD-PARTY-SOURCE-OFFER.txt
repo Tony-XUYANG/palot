@@ -1,0 +1,25 @@
+PALOT THIRD-PARTY CORRESPONDING SOURCE OFFER
+
+This Palot distribution includes MinGit 2.55.0.3 (64-bit), produced by the
+Git for Windows project and distributed under GNU GPL version 2 and the
+licenses of its bundled components.
+
+The exact upstream source corresponding to this binary is available at:
+https://github.com/git-for-windows/git/tree/v2.55.0.windows.3
+
+Upstream release and binary archive:
+https://github.com/git-for-windows/git/releases/tag/v2.55.0.windows.3
+MinGit-2.55.0.3-64-bit.zip
+
+For at least three years after the last distribution of this Palot version,
+the Palot distributor will provide the complete corresponding source on a
+durable physical medium for no more than the reasonable cost of physically
+performing source distribution. Send the request through the support contact
+or purchase channel from which this Palot copy was obtained and identify
+"MinGit 2.55.0.3 corresponding source".
+
+The MinGit archive's LICENSE.txt and component license directories are
+included unchanged under runtime/mingit in the installed application.
+
+OpenCode 1.18.5 source is available under the MIT License at:
+https://github.com/anomalyco/opencode/tree/v1.18.5

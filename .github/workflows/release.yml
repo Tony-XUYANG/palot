@@ -162,7 +162,7 @@ jobs:
           - name: windows-x64
             os: windows-latest
             platform: win
-            eb-flags: "--win"
+            eb-flags: "--win --x64"
             artifact-name: release-windows
     runs-on: ${{ matrix.os }}
 
@@ -198,6 +198,30 @@ jobs:
         with:
           name: build-output
           path: apps/desktop/out
+
+      - name: Read Windows runtime cache key
+        if: matrix.platform == 'win'
+        id: windows-runtime
+        shell: pwsh
+        run: |
+          $manifest = Get-Content apps/desktop/runtime-manifest.json -Raw | ConvertFrom-Json
+          $key = "opencode-$($manifest.runtimes.opencode.version)-mingit-$($manifest.runtimes.mingit.version)"
+          "key=$key" >> $env:GITHUB_OUTPUT
+
+      - name: Cache Windows runtimes
+        if: matrix.platform == 'win'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/palot-windows-runtime
+          key: windows-runtime-${{ steps.windows-runtime.outputs.key }}-${{ hashFiles('apps/desktop/runtime-manifest.json') }}
+
+      - name: Prepare Windows runtimes
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: ../../scripts/prepare-windows-runtime.ps1
+        working-directory: apps/desktop
+        env:
+          PALOT_RUNTIME_CACHE_DIR: ${{ runner.temp }}\palot-windows-runtime
 
       - name: Package Electron app
         run: bun run electron-builder ${{ matrix.eb-flags }} --config electron-builder.yml --publish never

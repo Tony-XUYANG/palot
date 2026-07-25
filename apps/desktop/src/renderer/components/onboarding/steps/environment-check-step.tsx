@@ -111,8 +111,11 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 
 			updateCheck("locate", {
 				status: "success",
-				label: `OpenCode ${result.version} found`,
-				detail: result.path ?? undefined,
+				label:
+					result.source === "bundled"
+						? `OpenCode ${result.version} included`
+						: `OpenCode ${result.version} found`,
+				detail: result.source === "bundled" ? "Included with Palot" : (result.path ?? undefined),
 			})
 
 			// Step 2: Version compatibility
@@ -294,7 +297,8 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 
 	const needsInstall = openCodeResult && !openCodeResult.installed
 	const needsUpdate = openCodeResult?.compatibility === "too-old"
-	const showInstallUI = needsInstall || needsUpdate
+	const needsRepair = openCodeResult?.repairRequired === true
+	const showInstallUI = (needsInstall || needsUpdate) && !needsRepair
 	const showRemoteOption = showInstallUI && !installing
 	const manualUrlValid = manualUrl.trim().length > 0
 
@@ -328,6 +332,22 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 						</div>
 					))}
 				</div>
+
+				{needsRepair ? (
+					<div
+						data-slot="onboarding-card"
+						className="space-y-2 rounded-lg border border-red-500/40 bg-red-500/5 p-4"
+					>
+						<div className="flex items-center gap-2 text-sm font-medium text-red-500">
+							<CircleAlertIcon aria-hidden="true" className="size-4" />
+							Palot installation needs repair
+						</div>
+						<p className="text-xs text-muted-foreground">
+							The included OpenCode runtime is missing. Reinstall Palot, then run this check
+							again.
+						</p>
+					</div>
+				) : null}
 
 				{/* Install UI */}
 				{showInstallUI && !installing && (

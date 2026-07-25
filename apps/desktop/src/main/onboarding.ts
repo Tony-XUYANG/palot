@@ -12,7 +12,7 @@ import { type ChildProcess, spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
-import { BrowserWindow } from "electron"
+import { app, BrowserWindow } from "electron"
 import type { OpenCodeCheckResult } from "./compatibility"
 import { checkOpenCode } from "./compatibility"
 import { createLogger } from "./logger"
@@ -127,6 +127,12 @@ let installProcess: ChildProcess | null = null
 export async function installOpenCode(): Promise<{ success: boolean; error?: string }> {
 	if (installProcess) {
 		return { success: false, error: "Installation already in progress" }
+	}
+	if (app.isPackaged && process.platform === "win32") {
+		return {
+			success: false,
+			error: "OpenCode is included with Palot. Reinstall Palot to repair a missing runtime.",
+		}
 	}
 
 	return new Promise((resolve) => {

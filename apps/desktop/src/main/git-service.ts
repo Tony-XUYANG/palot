@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { app } from "electron"
 import type { BranchSummary, StatusResult } from "simple-git"
 import simpleGit from "simple-git"
+import { resolveGitRuntime } from "./runtime-resolver"
 
 /**
  * Git service for the Electron main process.
@@ -12,7 +14,18 @@ import simpleGit from "simple-git"
  */
 
 function getGit(directory: string) {
-	return simpleGit({ baseDir: directory, trimmed: true })
+	const runtime = resolveGitRuntime({
+		isPackaged: app.isPackaged,
+		resourcesPath: process.resourcesPath,
+	})
+	if (!runtime) {
+		throw new Error(
+			app.isPackaged && process.platform === "win32" && process.arch === "x64"
+				? "The included Git runtime is missing. Reinstall Palot to repair the installation."
+				: "Git was not found. Install Git or configure PALOT_TEST_GIT_PATH for development.",
+		)
+	}
+	return simpleGit({ baseDir: directory, binary: runtime.path, trimmed: true })
 }
 
 // ============================================================

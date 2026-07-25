@@ -7,10 +7,10 @@
  */
 
 import { execFile } from "node:child_process"
-import { homedir } from "node:os"
-import path from "node:path"
+import { app } from "electron"
 import { coerce, satisfies, valid } from "semver"
 import { createLogger } from "./logger"
+import { resolveOpenCodeRuntime, type RuntimeSource } from "./runtime-resolver"
 
 const log = createLogger("compatibility")
 
@@ -20,9 +20,9 @@ const log = createLogger("compatibility")
 
 export const OPENCODE_COMPAT = {
 	/** Supported range -- versions that should work. Below this: hard block. */
-	supported: ">=1.2.0",
+	supported: ">=1.2.0 <2.0.0",
 	/** Tested range -- versions actively tested against. Subset of supported. */
-	tested: "~1.2.0",
+	tested: "~1.18.0",
 	/** Known-broken versions. These are hard-blocked with a specific message. */
 	blocked: [] as string[],
 }
@@ -35,6 +35,8 @@ export interface OpenCodeCheckResult {
 	installed: boolean
 	version: string | null
 	path: string | null
+	source: "bundled" | "user" | "path" | null
+	repairRequired: boolean
 	compatible: boolean
 	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown"
 	message: string | null
@@ -44,21 +46,10 @@ export interface OpenCodeCheckResult {
 // Binary detection
 // ============================================================
 
-/** Build the augmented PATH that includes ~/.opencode/bin. */
-function getAugmentedPath(): string {
-	const opencodeBinDir = path.join(homedir(), ".opencode", "bin")
-	const sep = process.platform === "win32" ? ";" : ":"
-	return `${opencodeBinDir}${sep}${process.env.PATH ?? ""}`
-}
-
 /** Run a command and return stdout, or null on failure. */
-function execAsync(
-	cmd: string,
-	args: string[],
-	env: Record<string, string | undefined>,
-): Promise<string | null> {
+function execAsync(cmd: string, args: string[]): Promise<string | null> {
 	return new Promise((resolve) => {
-		execFile(cmd, args, { env, timeout: 5000 }, (err, stdout) => {
+		execFile(cmd, args, { env: process.env, timeout: 5000 }, (err, stdout) => {
 			if (err) {
 				resolve(null)
 				return
@@ -68,33 +59,30 @@ function execAsync(
 	})
 }
 
-/** Try to find the opencode binary and get its version. */
-async function detectOpenCode(): Promise<{ version: string | null; path: string | null }> {
-	const augmentedPath = getAugmentedPath()
-	const env = { ...process.env, PATH: augmentedPath }
+function toCheckSource(source: RuntimeSource): "bundled" | "user" | "path" {
+	return source === "bundled" || source === "path" ? source : "user"
+}
 
-	// Try `opencode --version` (the correct flag)
-	const versionOutput = await execAsync("opencode", ["--version"], env)
+/** Try to find the opencode binary and get its version. */
+async function detectOpenCode(): Promise<{
+	version: string | null
+	path: string | null
+	source: "bundled" | "user" | "path" | null
+}> {
+	const runtime = resolveOpenCodeRuntime({
+		isPackaged: app.isPackaged,
+		resourcesPath: process.resourcesPath,
+	})
+	if (!runtime) return { version: null, path: null, source: null }
+
+	const versionOutput = await execAsync(runtime.path, ["--version"])
 	if (versionOutput) {
-		// Parse version from output -- could be "v0.2.14", "opencode v0.2.14", or "local"
 		const match = versionOutput.match(/v?(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)/)
 		const version = match ? match[1] : versionOutput.trim()
-
-		// Try to find the path with `which` or `where`
-		const whichCmd = process.platform === "win32" ? "where" : "which"
-		const binaryPath = await execAsync(whichCmd, ["opencode"], env)
-
-		return { version, path: binaryPath }
+		return { version, path: runtime.path, source: toCheckSource(runtime.source) }
 	}
 
-	// Fallback: check if the binary exists at all (might not support --version)
-	const whichCmd = process.platform === "win32" ? "where" : "which"
-	const binaryPath = await execAsync(whichCmd, ["opencode"], env)
-	if (binaryPath) {
-		return { version: "unknown", path: binaryPath }
-	}
-
-	return { version: null, path: null }
+	return { version: null, path: runtime.path, source: toCheckSource(runtime.source) }
 }
 
 // ============================================================
@@ -108,17 +96,23 @@ async function detectOpenCode(): Promise<{ version: string | null; path: string 
 export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 	log.info("Checking OpenCode installation...")
 
-	const { version, path: binaryPath } = await detectOpenCode()
+	const { version, path: binaryPath, source } = await detectOpenCode()
 
 	if (!version) {
 		log.warn("OpenCode CLI not found")
+		const repairRequired = app.isPackaged && process.platform === "win32" && process.arch === "x64"
 		return {
 			installed: false,
 			version: null,
-			path: null,
+			path: binaryPath,
+			source,
+			repairRequired,
 			compatible: false,
 			compatibility: "unknown",
-			message: "OpenCode CLI not found. Install it from https://opencode.ai",
+			message:
+				repairRequired
+					? "The included OpenCode runtime is missing or cannot run. Reinstall Palot to repair the installation."
+					: "OpenCode CLI not found. Install it from https://opencode.ai",
 		}
 	}
 
@@ -134,6 +128,8 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			installed: true,
 			version,
 			path: binaryPath,
+			source,
+			repairRequired: false,
 			compatible: true,
 			compatibility: "ok",
 			message: null,
@@ -147,6 +143,8 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 				installed: true,
 				version,
 				path: binaryPath,
+				source,
+				repairRequired: false,
 				compatible: false,
 				compatibility: "blocked",
 				message: `OpenCode ${version} has known issues with this version of Palot. Please update.`,
@@ -160,6 +158,8 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			installed: true,
 			version,
 			path: binaryPath,
+			source,
+			repairRequired: false,
 			compatible: false,
 			compatibility: "too-old",
 			message: `OpenCode ${version} is too old. Palot requires ${OPENCODE_COMPAT.supported}.`,
@@ -172,6 +172,8 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			installed: true,
 			version,
 			path: binaryPath,
+			source,
+			repairRequired: false,
 			compatible: true,
 			compatibility: "too-new",
 			message: `OpenCode ${version} is newer than tested. Palot is tested with ${OPENCODE_COMPAT.tested}. Some features may not work as expected.`,
@@ -183,6 +185,8 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 		installed: true,
 		version,
 		path: binaryPath,
+		source,
+		repairRequired: false,
 		compatible: true,
 		compatibility: "ok",
 		message: null,

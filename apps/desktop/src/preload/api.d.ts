@@ -240,6 +240,8 @@ export interface OpenCodeCheckResult {
 	installed: boolean
 	version: string | null
 	path: string | null
+	source: "bundled" | "user" | "path" | null
+	repairRequired: boolean
 	compatible: boolean
 	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown"
 	message: string | null

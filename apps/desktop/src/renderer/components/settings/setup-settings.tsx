@@ -71,7 +71,12 @@ function OpenCodeStatusSection() {
 
 	return (
 		<SettingsSection title="OpenCode CLI">
-			<SettingsRow label="Version" description={result?.path ?? "Checking..."}>
+			<SettingsRow
+				label="Version"
+				description={
+					result?.source === "bundled" ? "Included with Palot" : (result?.path ?? "Checking...")
+				}
+			>
 				<div className="flex items-center gap-2">
 					{checking ? (
 						<Spinner className="size-3.5" />
