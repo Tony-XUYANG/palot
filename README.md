@@ -6,10 +6,10 @@
 
 ### A desktop GUI for [OpenCode](https://opencode.ai)
 
-[![CI](https://github.com/ItsWendell/palot/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsWendell/palot/actions/workflows/ci.yml)
-[![Release](https://github.com/ItsWendell/palot/actions/workflows/release.yml/badge.svg)](https://github.com/ItsWendell/palot/actions/workflows/release.yml)
-[![GitHub release](https://img.shields.io/github/v/release/ItsWendell/palot?include_prereleases&label=version)](https://github.com/ItsWendell/palot/releases)
-[![GitHub Downloads](https://img.shields.io/github/downloads/ItsWendell/palot/total?label=downloads)](https://github.com/ItsWendell/palot/releases)
+[![CI](https://github.com/Tony-XUYANG/palot/actions/workflows/ci.yml/badge.svg)](https://github.com/Tony-XUYANG/palot/actions/workflows/ci.yml)
+[![Release](https://github.com/Tony-XUYANG/palot/actions/workflows/release.yml/badge.svg)](https://github.com/Tony-XUYANG/palot/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/Tony-XUYANG/palot?include_prereleases&label=version)](https://github.com/Tony-XUYANG/palot/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Tony-XUYANG/palot/total?label=downloads)](https://github.com/Tony-XUYANG/palot/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > **Alpha Software** -- Palot is under active development. Expect breaking changes, missing features, and rough edges. Feedback and contributions are welcome!
@@ -94,6 +94,12 @@ Palot spawns and manages the OpenCode server automatically, streams responses in
 
 ### Desktop & OS Integration
 
+- **Windows-ready installer** -- The Windows x64 installer includes pinned OpenCode and MinGit runtimes, so users do not need to install CLI tools or configure PATH.
+
+- **Chinese model providers** -- Connect BYOK providers supported by OpenCode, including DeepSeek and other OpenAI-compatible Chinese model services.
+
+- **Sealos deployment** -- Check deployment readiness, sign in with the Sealos device flow, prepare projects with the Agent, deploy templates, inspect logs, and verify public URLs.
+
 - **Liquid Glass (macOS 26+)** -- Native `NSGlassEffectView` window chrome on macOS Tahoe, with vibrancy fallback for older versions and an opaque mode for other platforms.
 
 - **System accent color** -- The UI adapts to the OS accent color on macOS and Windows.
@@ -119,10 +125,10 @@ Palot spawns and manages the OpenCode server automatically, streams responses in
 | Platform | Architectures | Formats |
 |----------|---------------|---------|
 | macOS | Apple Silicon, Intel | DMG, ZIP |
-| Windows | x64, ARM64 | NSIS installer |
+| Windows | x64 | NSIS installer with OpenCode and MinGit |
 | Linux | x64 | AppImage, DEB, RPM |
 
-Download the latest release from the [Releases page](https://github.com/ItsWendell/palot/releases).
+Download the latest release from the [Releases page](https://github.com/Tony-XUYANG/palot/releases).
 
 ### macOS: unsigned app warning
 
@@ -144,11 +150,11 @@ This is expected behavior for unsigned apps and does not indicate malware.
 
 ### From a release (recommended)
 
-1. Download and install from the [Releases page](https://github.com/ItsWendell/palot/releases)
-2. Make sure [OpenCode CLI](https://opencode.ai) is installed (`~/.opencode/bin/opencode`)
-3. Palot will automatically manage the OpenCode server
+1. Download and install from the [Releases page](https://github.com/Tony-XUYANG/palot/releases)
+2. Choose a model provider in Settings and add your API key
+3. Open a project; Palot automatically starts the included OpenCode runtime on Windows
 
-> OpenCode needs at least one AI provider configured (Anthropic, OpenAI, Google, etc.). Run `opencode` in a terminal once to complete initial setup.
+> The Windows x64 installer includes OpenCode and MinGit. Model access remains BYOK, so at least one provider API key is required unless a free OpenCode model is selected.
 
 ### Coming from Claude Code or Cursor?
 
@@ -163,7 +169,7 @@ Palot is a GUI layer on top of OpenCode, so core configuration like model provid
 **Prerequisites:** [Bun](https://bun.sh) 1.3.8+ and [OpenCode CLI](https://opencode.ai)
 
 ```bash
-git clone https://github.com/ItsWendell/palot.git
+git clone https://github.com/Tony-XUYANG/palot.git
 cd palot
 bun install
 

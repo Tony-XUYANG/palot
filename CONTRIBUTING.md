@@ -99,7 +99,7 @@ This is used to generate changelogs and version bumps automatically.
 
 ## Reporting Bugs
 
-Open an issue on [GitHub](https://github.com/ItsWendell/palot/issues) with:
+Open an issue on [GitHub](https://github.com/Tony-XUYANG/palot/issues) with:
 
 - Steps to reproduce
 - Expected behavior

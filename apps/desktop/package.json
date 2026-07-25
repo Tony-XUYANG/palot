@@ -4,10 +4,10 @@
 	"description": "AI-powered coding assistant desktop app",
 	"author": "Palot",
 	"license": "MIT",
-	"homepage": "https://github.com/ItsWendell/palot",
+	"homepage": "https://github.com/Tony-XUYANG/palot",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/ItsWendell/palot.git",
+		"url": "https://github.com/Tony-XUYANG/palot.git",
 		"directory": "apps/desktop"
 	},
 	"private": true,

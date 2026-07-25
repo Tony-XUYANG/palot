@@ -92,4 +92,6 @@ nsis:
 
 publish:
   provider: github
+  owner: Tony-XUYANG
+  repo: palot
   releaseType: draft

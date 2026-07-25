@@ -1,6 +1,6 @@
 {
 	"$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
-	"changelog": ["@changesets/changelog-github", { "repo": "ItsWendell/palot" }],
+	"changelog": ["@changesets/changelog-github", { "repo": "Tony-XUYANG/palot" }],
 	"commit": false,
 	"fixed": [],
 	"linked": [["@palot/desktop", "@palot/ui", "@palot/server", "@palot/configconv", "configconv"]],

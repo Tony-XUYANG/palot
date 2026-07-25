@@ -95,7 +95,7 @@ function setState(next: Partial<UpdateState>): void {
 // GitHub release URL
 // ============================================================
 
-const GITHUB_REPO_URL = "https://github.com/ItsWendell/palot"
+const GITHUB_REPO_URL = "https://github.com/Tony-XUYANG/palot"
 
 /** Build the GitHub release URL for a specific version tag. */
 function getReleaseUrl(version?: string): string {
@@ -134,12 +134,6 @@ export async function initAutoUpdater(): Promise<void> {
 
 	// Install on quit by default (only effective when canAutoInstall is true)
 	autoUpdater.autoInstallOnAppQuit = canAutoInstall
-
-	// Skip code-signature verification on macOS. The CI builds are currently
-	// unsigned (CSC_IDENTITY_AUTO_DISCOVERY=false) so the Squirrel/ShipIt
-	// updater rejects the downloaded .app. Remove this once Apple Developer
-	// code signing is configured in the release workflow.
-	autoUpdater.forceDevUpdateConfig = true
 
 	// ── Events ──────────────────────────────────────────────────
 
