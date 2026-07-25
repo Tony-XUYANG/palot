@@ -53,13 +53,13 @@ try {
 	Copy-Item -LiteralPath $ManifestPath -Destination (Join-Path $staging "runtime-manifest.json")
 
 	if (Test-Path -LiteralPath $Destination) {
-		Move-Item -LiteralPath $Destination -Destination $backup
+		[IO.Directory]::Move($Destination, $backup)
 	}
 	try {
-		Move-Item -LiteralPath $staging -Destination $Destination
+		[IO.Directory]::Move($staging, $Destination)
 	} catch {
 		if (Test-Path -LiteralPath $backup) {
-			Move-Item -LiteralPath $backup -Destination $Destination
+			[IO.Directory]::Move($backup, $Destination)
 		}
 		throw
 	}
