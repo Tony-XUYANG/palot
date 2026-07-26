@@ -327,6 +327,8 @@ export interface SealosPreflightResult {
 	projectName: string
 	framework: string | null
 	port: number | null
+	region: string | null
+	workspace: string | null
 	checks: SealosPreflightCheck[]
 	ready: boolean
 }
@@ -337,7 +339,82 @@ export interface SealosDeployResult {
 	region: string
 	response: unknown
 	appUrl: string | null
+	instanceName: string | null
 	logPath: string
+}
+
+export interface SealosWorkspace {
+	uid: string
+	id: string
+	teamName: string
+	current: boolean
+}
+
+export interface SealosTemplateInput {
+	name: string
+	description: string
+	required: boolean
+	defaultValue: string | null
+	sensitive: boolean
+}
+
+export interface SealosDeploymentState {
+	version: "1.0"
+	last_deploy: {
+		app_name: string
+		namespace: string
+		region: string
+		image: string
+		repo_name: string
+		url: string | null
+		deployed_at: string
+		last_updated_at: string
+	}
+	history: {
+		at: string
+		action: "deploy" | "set-image"
+		status: "success" | "failed"
+		method: "template-api" | "kubectl-set-image"
+		image: string
+		previous_image?: string
+		note?: string
+	}[]
+}
+
+export interface SealosUpdateResult {
+	success: boolean
+	appName: string
+	image: string
+	previousImage: string
+	url: string | null
+}
+
+export interface GitHubBuildStatus {
+	cliAvailable: boolean
+	authenticated: boolean
+	login: string | null
+	repository: string | null
+	branch: string | null
+	clean: boolean
+	dockerfile: boolean
+	workflow: boolean
+	ready: boolean
+	detail: string
+}
+
+export interface GitHubBuildProgress {
+	stage: "repository" | "dispatch" | "queued" | "building" | "publishing" | "complete"
+	status: "active" | "complete"
+	detail: string
+	runUrl?: string
+}
+
+export interface GitHubBuildResult {
+	repository: string
+	branch: string
+	commit: string
+	image: string
+	runUrl: string
 }
 
 export interface SealosLoginStartResult {
@@ -358,6 +435,21 @@ export interface SealosRuntimeResult {
 	status: number | null
 	url: string
 	detail: string
+	checks: {
+		id:
+			| "deployment"
+			| "endpoints"
+			| "ingress"
+			| "launchpad"
+			| "root"
+			| "health"
+			| "missing-path"
+			| "failure-text"
+			| "logs"
+			| "stability"
+		ok: boolean
+		detail: string
+	}[]
 }
 
 export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque"
@@ -566,10 +658,28 @@ export interface PalotAPI {
 
 	sealos: {
 		preflight: (directory: string) => Promise<SealosPreflightResult>
-		deploy: (directory: string) => Promise<SealosDeployResult>
+		deploy: (directory: string, args?: Record<string, string>) => Promise<SealosDeployResult>
 		startLogin: (region: string) => Promise<SealosLoginStartResult>
 		completeLogin: (sessionId: string) => Promise<SealosLoginResult>
-		verifyRuntime: (url: string) => Promise<SealosRuntimeResult>
+		listWorkspaces: () => Promise<SealosWorkspace[]>
+		switchWorkspace: (workspaceId: string) => Promise<SealosWorkspace>
+		readTemplateInputs: (directory: string) => Promise<SealosTemplateInput[]>
+		getDeploymentState: (directory: string) => Promise<SealosDeploymentState | null>
+		updateDeployment: (directory: string) => Promise<SealosUpdateResult>
+		getGitHubStatus: (directory: string) => Promise<GitHubBuildStatus>
+		startGitHubLogin: () => Promise<{
+			sessionId: string
+			userCode: string | null
+			verificationUrl: string
+		}>
+		completeGitHubLogin: (sessionId: string) => Promise<{ login: string }>
+		prepareGitHubBuild: (directory: string) => Promise<{ path: string; changed: boolean }>
+		publishGitHubSource: (
+			directory: string,
+		) => Promise<{ repository: string; branch: string; commit: string }>
+		runGitHubBuild: (directory: string) => Promise<GitHubBuildResult>
+		onGitHubBuildProgress: (callback: (progress: GitHubBuildProgress) => void) => () => void
+		verifyRuntime: (directory: string, url: string) => Promise<SealosRuntimeResult>
 	}
 
 	// Fetch proxy (bypasses Chromium connection limits)

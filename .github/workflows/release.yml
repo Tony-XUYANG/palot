@@ -196,7 +196,7 @@ jobs:
         shell: pwsh
         run: |
           $manifest = Get-Content apps/desktop/runtime-manifest.json -Raw | ConvertFrom-Json
-          $key = "opencode-$($manifest.runtimes.opencode.version)-mingit-$($manifest.runtimes.mingit.version)"
+          $key = "opencode-$($manifest.runtimes.opencode.version)-mingit-$($manifest.runtimes.mingit.version)-github-$($manifest.runtimes.github.version)-kubectl-$($manifest.runtimes.kubectl.version)"
           "key=$key" >> $env:GITHUB_OUTPUT
 
       - name: Cache Windows runtimes

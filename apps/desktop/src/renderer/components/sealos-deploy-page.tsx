@@ -1,25 +1,39 @@
+/**
+ * Guided source-to-Sealos deployment workflow.
+ */
+
 import { Alert, AlertDescription, AlertTitle } from "@palot/ui/components/alert"
 import { Badge } from "@palot/ui/components/badge"
 import { Button } from "@palot/ui/components/button"
 import { Input } from "@palot/ui/components/input"
 import { useNavigate } from "@tanstack/react-router"
+import { useAtomValue } from "jotai"
 import {
 	CheckCircle2Icon,
 	CloudUploadIcon,
 	ExternalLinkIcon,
+	GithubIcon,
 	Loader2Icon,
 	LogInIcon,
 	RefreshCwIcon,
+	RocketIcon,
 	SparklesIcon,
 	TriangleAlertIcon,
 	XCircleIcon,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type {
+	GitHubBuildProgress,
+	GitHubBuildResult,
+	GitHubBuildStatus,
+	SealosDeploymentState,
 	SealosDeployResult,
 	SealosPreflightResult,
 	SealosRuntimeResult,
+	SealosTemplateInput,
+	SealosWorkspace,
 } from "../../preload/api"
+import { isMockModeAtom } from "../atoms/mock-mode"
 import { setDraftAtom } from "../atoms/preferences"
 import { appStore } from "../atoms/store"
 import { useProjectList } from "../hooks/use-agents"
@@ -35,24 +49,39 @@ const SEALOS_REGIONS = [
 const PREPARE_DEPLOYMENT_PROMPT = `Prepare this web project for deployment to Sealos Cloud.
 
 1. Analyze the real build, start command, listening host, port, environment variables, migrations, storage, and external services.
-2. If needed, create a production multi-stage Dockerfile and a workspace-aware .dockerignore. Use a non-root runtime where compatible, bind to 0.0.0.0, and use pinned versions.
-3. Build the linux/amd64 image and validate that the container starts and its HTTP endpoint responds. Fix failures instead of stopping after the first build.
+2. Add or run the project's automated checks. Fix failures before preparing deployment.
+3. Create a production multi-stage Dockerfile and workspace-aware .dockerignore. Use a non-root runtime, bind to 0.0.0.0, expose the detected port, use pinned base versions, and add a /health endpoint.
 4. Generate .sealos/template/index.yaml using the current Sealos Template CR format. Include Deployment, Service, root Ingress, and App resources with consistent app labels and names. Use IfNotPresent, limits cpu=200m and memory=256Mi, requests cpu=20m and memory=25Mi, revisionHistoryLimit 1, and automountServiceAccountToken false unless the app requires Kubernetes API access.
 5. Do not use floating image tags, emptyDir, raw database Deployments, or expose secrets in generated files. Use KubeBlocks resources for databases.
-6. Validate the generated template and summarize required user inputs. Do not deploy yet; stop when the project is ready for review.`
+6. Validate the generated files and summarize required user inputs. Do not deploy or require local Docker; Palot will build the image with GitHub Actions after review.`
+
+function statusIcon(status: "ready" | "missing" | "warning") {
+	return status === "ready"
+		? CheckCircle2Icon
+		: status === "warning"
+			? TriangleAlertIcon
+			: XCircleIcon
+}
 
 export function SealosDeployPage() {
 	const navigate = useNavigate()
+	const isMockMode = useAtomValue(isMockModeAtom)
 	const projects = useProjectList()
 	const [directory, setDirectory] = useState("")
-	const [region, setRegion] = useState(SEALOS_REGIONS[0].value)
+	const [region, setRegion] = useState("https://hzh.sealos.run")
 	const [result, setResult] = useState<SealosPreflightResult | null>(null)
+	const [github, setGitHub] = useState<GitHubBuildStatus | null>(null)
+	const [build, setBuild] = useState<GitHubBuildResult | null>(null)
+	const [buildProgress, setBuildProgress] = useState<GitHubBuildProgress[]>([])
+	const [workspaces, setWorkspaces] = useState<SealosWorkspace[]>([])
+	const [templateInputs, setTemplateInputs] = useState<SealosTemplateInput[]>([])
+	const [inputValues, setInputValues] = useState<Record<string, string>>({})
 	const [deployment, setDeployment] = useState<SealosDeployResult | null>(null)
+	const [deploymentState, setDeploymentState] = useState<SealosDeploymentState | null>(null)
+	const [updated, setUpdated] = useState(false)
 	const [runtime, setRuntime] = useState<SealosRuntimeResult | null>(null)
 	const [checking, setChecking] = useState(false)
-	const [deploying, setDeploying] = useState(false)
-	const [signingIn, setSigningIn] = useState(false)
-	const [verifying, setVerifying] = useState(false)
+	const [action, setAction] = useState<string | null>(null)
 	const [loginCode, setLoginCode] = useState<string | null>(null)
 	const [error, setError] = useState<string | null>(null)
 
@@ -60,21 +89,122 @@ export function SealosDeployPage() {
 		if (!directory && projects[0]?.directory) setDirectory(projects[0].directory)
 	}, [directory, projects])
 
+	useEffect(() => {
+		if (!window.palot?.sealos) return
+		return window.palot.sealos.onGitHubBuildProgress((progress) => {
+			setBuildProgress((current) => {
+				const next = current.filter((item) => item.stage !== progress.stage)
+				return [...next, progress]
+			})
+		})
+	}, [])
+
 	const selectedProject = useMemo(
 		() => projects.find((project) => project.directory === directory),
 		[projects, directory],
 	)
 	const missingIds = useMemo(
-		() => new Set(result?.checks.filter((check) => check.status === "missing").map((check) => check.id)),
+		() =>
+			new Set(
+				result?.checks.filter((check) => check.status === "missing").map((check) => check.id),
+			),
 		[result],
 	)
+	const activeWorkspace = useMemo(
+		() => workspaces.find((workspace) => workspace.current) ?? workspaces[0] ?? null,
+		[workspaces],
+	)
+	const requiredInputsReady = templateInputs.every(
+		(input) => !input.required || Boolean(inputValues[input.name]?.trim() || input.defaultValue),
+	)
+	const publicUrl = deployment?.appUrl ?? deploymentState?.last_deploy.url ?? null
 
-	const runChecks = async () => {
-		if (!directory || !("palot" in window)) return
+	const refresh = async () => {
+		if (!directory) return
 		setChecking(true)
 		setError(null)
 		try {
-			setResult(await window.palot.sealos.preflight(directory))
+			if (isMockMode) {
+				setResult({
+					projectName: "palot-demo",
+					framework: "Node.js",
+					port: 3000,
+					region: "https://hzh.sealos.run",
+					workspace: "ns-demo",
+					ready: true,
+					checks: [
+						{
+							id: "project",
+							label: "Web project",
+							status: "ready",
+							detail: "Node.js project detected",
+						},
+						{ id: "git", label: "Git", status: "ready", detail: "Included with Palot" },
+						{
+							id: "docker",
+							label: "Docker",
+							status: "warning",
+							detail: "Not required for remote builds",
+						},
+						{
+							id: "sealos",
+							label: "Sealos CLI",
+							status: "ready",
+							detail: "Deployment is built in",
+						},
+						{ id: "auth", label: "Sealos account", status: "ready", detail: "Signed in" },
+						{
+							id: "container",
+							label: "Sealos template",
+							status: "ready",
+							detail: "Ready for validation",
+						},
+					],
+				})
+				setGitHub({
+					cliAvailable: true,
+					authenticated: true,
+					login: "demo-user",
+					repository: "demo-user/palot-demo",
+					branch: "main",
+					clean: true,
+					dockerfile: true,
+					workflow: true,
+					ready: true,
+					detail: "Ready for a Docker-free GitHub Actions build",
+				})
+				setWorkspaces([{ uid: "demo", id: "ns-demo", teamName: "private team", current: true }])
+				setTemplateInputs([])
+				return
+			}
+			if (!window.palot?.sealos) return
+			const [nextResult, nextGitHub, nextDeploymentState] = await Promise.all([
+				window.palot.sealos.preflight(directory),
+				window.palot.sealos.getGitHubStatus(directory),
+				window.palot.sealos.getDeploymentState(directory),
+			])
+			setResult(nextResult)
+			setGitHub(nextGitHub)
+			setDeploymentState(nextDeploymentState)
+			if (nextResult.region) setRegion(nextResult.region)
+			const [nextWorkspaces, nextInputs] = await Promise.all([
+				nextResult.checks.some((check) => check.id === "auth" && check.status === "ready")
+					? window.palot.sealos.listWorkspaces()
+					: Promise.resolve([]),
+				nextResult.checks.some((check) => check.id === "container" && check.status === "ready")
+					? window.palot.sealos.readTemplateInputs(directory)
+					: Promise.resolve([]),
+			])
+			setWorkspaces(nextWorkspaces)
+			setTemplateInputs(nextInputs)
+			setInputValues((current) => {
+				const next = { ...current }
+				for (const input of nextInputs) {
+					if (!(input.name in next) && input.defaultValue !== null)
+						next[input.name] = input.defaultValue
+				}
+				return next
+			})
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Deployment checks failed")
 		} finally {
@@ -82,75 +212,144 @@ export function SealosDeployPage() {
 		}
 	}
 
-	const signIn = async () => {
-		if (!("palot" in window)) return
-		setSigningIn(true)
+	const runAction = async (name: string, callback: () => Promise<void>) => {
+		setAction(name)
 		setError(null)
 		try {
+			await callback()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : `${name} failed`)
+		} finally {
+			setAction(null)
+		}
+	}
+
+	const signInToSealos = () =>
+		runAction("sealos-login", async () => {
 			const login = await window.palot.sealos.startLogin(region)
 			setLoginCode(login.userCode)
 			await window.palot.sealos.completeLogin(login.sessionId)
 			setLoginCode(null)
-			if (directory) setResult(await window.palot.sealos.preflight(directory))
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Sealos sign-in failed")
-		} finally {
-			setSigningIn(false)
-		}
-	}
+			await refresh()
+		})
+
+	const signInToGitHub = () =>
+		runAction("github-login", async () => {
+			const login = await window.palot.sealos.startGitHubLogin()
+			setLoginCode(login.userCode)
+			await window.palot.sealos.completeGitHubLogin(login.sessionId)
+			setLoginCode(null)
+			await refresh()
+		})
 
 	const prepareWithAgent = () => {
 		if (!selectedProject) return
 		appStore.set(setDraftAtom, { key: NEW_CHAT_DRAFT_KEY, text: PREPARE_DEPLOYMENT_PROMPT })
-		navigate({
-			to: "/project/$projectSlug",
-			params: { projectSlug: selectedProject.slug },
+		navigate({ to: "/project/$projectSlug", params: { projectSlug: selectedProject.slug } })
+	}
+
+	const prepareRemoteBuild = () =>
+		runAction("prepare", async () => {
+			await window.palot.sealos.prepareGitHubBuild(directory)
+			await refresh()
 		})
-	}
 
-	const deploy = async () => {
-		if (!directory || !result?.ready || !("palot" in window)) return
-		setDeploying(true)
-		setError(null)
-		try {
-			setDeployment(await window.palot.sealos.deploy(directory))
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Deployment failed")
-		} finally {
-			setDeploying(false)
-		}
-	}
+	const publishSource = () =>
+		runAction("publish", async () => {
+			await window.palot.sealos.publishGitHubSource(directory)
+			await refresh()
+		})
 
-	const verifyRuntime = async () => {
-		if (!deployment?.appUrl || !("palot" in window)) return
-		setVerifying(true)
-		setError(null)
-		try {
-			setRuntime(await window.palot.sealos.verifyRuntime(deployment.appUrl))
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Runtime verification failed")
-		} finally {
-			setVerifying(false)
-		}
-	}
+	const buildRemotely = () =>
+		runAction("build", async () => {
+			setBuildProgress([])
+			if (isMockMode) {
+				setBuildProgress([
+					{ stage: "repository", status: "complete", detail: "demo-user/palot-demo" },
+					{ stage: "dispatch", status: "complete", detail: "Build requested" },
+					{ stage: "complete", status: "complete", detail: "Immutable GHCR image published" },
+				])
+				setBuild({
+					repository: "demo-user/palot-demo",
+					branch: "main",
+					commit: "0123456789abcdef0123456789abcdef01234567",
+					image: `ghcr.io/demo-user/palot-demo@sha256:${"a".repeat(64)}`,
+					runUrl: "https://github.com/demo-user/palot-demo/actions",
+				})
+				return
+			}
+			setBuild(await window.palot.sealos.runGitHubBuild(directory))
+			await refresh()
+		})
+
+	const switchWorkspace = (workspaceId: string) =>
+		runAction("workspace", async () => {
+			await window.palot.sealos.switchWorkspace(workspaceId)
+			await refresh()
+		})
+
+	const deploy = () =>
+		runAction("deploy", async () => {
+			if (isMockMode) {
+				setDeployment({
+					success: true,
+					status: 201,
+					region: "https://hzh.sealos.run",
+					response: {},
+					appUrl: "https://palot-demo.hzh.sealos.run",
+					instanceName: "palot-demo-ab12cd34",
+					logPath: "~/.sealos/logs/deploy-demo.log",
+				})
+				return
+			}
+			if (deploymentState) {
+				await window.palot.sealos.updateDeployment(directory)
+				setUpdated(true)
+				await refresh()
+			} else {
+				setDeployment(await window.palot.sealos.deploy(directory, inputValues))
+				await refresh()
+			}
+		})
+
+	const verifyRuntime = () =>
+		runAction("verify", async () => {
+			if (!publicUrl) throw new Error("The deployment did not return a public URL")
+			if (isMockMode) {
+				setRuntime({
+					ok: true,
+					status: 200,
+					url: publicUrl,
+					detail: "Public runtime checks passed",
+					checks: [
+						{ id: "root", ok: true, detail: "Root returned HTTP 200" },
+						{ id: "health", ok: true, detail: "/health returned HTTP 200" },
+						{ id: "missing-path", ok: true, detail: "Random missing path returned HTTP 404" },
+						{ id: "failure-text", ok: true, detail: "No browser failure text found" },
+					],
+				})
+				return
+			}
+			setRuntime(await window.palot.sealos.verifyRuntime(directory, publicUrl))
+		})
 
 	return (
 		<div className="h-full overflow-y-auto bg-background">
-			<div className="mx-auto w-full max-w-4xl px-6 py-8">
-				<header className="flex items-start justify-between gap-4 border-b pb-6">
+			<div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+				<header className="flex flex-col items-start gap-4 border-b pb-6 sm:flex-row sm:justify-between">
 					<div>
 						<div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-							<CloudUploadIcon className="size-4" />
+							<CloudUploadIcon className="size-4" aria-hidden="true" />
 							Sealos Cloud
 						</div>
 						<h1 className="text-2xl font-semibold">Deploy a web project</h1>
 						<p className="mt-2 text-sm text-muted-foreground">
-							Prepare, validate, and publish the selected project.
+							Build remotely, review the configuration, and publish to a selected workspace.
 						</p>
 					</div>
 					{result ? (
-						<Badge variant={result.ready ? "default" : "secondary"}>
-							{result.ready ? "Ready" : "Action required"}
+						<Badge variant={result.ready && build ? "default" : "secondary"}>
+							{deployment ? "Deployed" : build ? "Ready" : "Setup"}
 						</Badge>
 					) : null}
 				</header>
@@ -159,7 +358,7 @@ export function SealosDeployPage() {
 					<label htmlFor="deploy-project" className="text-sm font-medium">
 						Project
 					</label>
-					<div className="mt-2 flex gap-2">
+					<div className="mt-2 flex flex-col gap-2 sm:flex-row">
 						{projects.length > 0 ? (
 							<select
 								id="deploy-project"
@@ -167,8 +366,10 @@ export function SealosDeployPage() {
 								onChange={(event) => {
 									setDirectory(event.target.value)
 									setResult(null)
+									setBuild(null)
 									setDeployment(null)
-									setRuntime(null)
+									setDeploymentState(null)
+									setUpdated(false)
 								}}
 								className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							>
@@ -186,8 +387,16 @@ export function SealosDeployPage() {
 								placeholder="C:\\projects\\my-app"
 							/>
 						)}
-						<Button onClick={runChecks} disabled={!directory || checking}>
-							{checking ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
+						<Button
+							className="w-full sm:w-auto"
+							onClick={refresh}
+							disabled={!directory || checking}
+						>
+							{checking ? (
+								<Loader2Icon className="animate-spin" aria-hidden="true" />
+							) : (
+								<RefreshCwIcon aria-hidden="true" />
+							)}
 							{checking ? "Checking" : "Check readiness"}
 						</Button>
 					</div>
@@ -198,65 +407,151 @@ export function SealosDeployPage() {
 
 				{error ? (
 					<Alert variant="destructive">
-						<XCircleIcon />
-						<AlertTitle>Deployment blocked</AlertTitle>
+						<XCircleIcon aria-hidden="true" />
+						<AlertTitle>Action blocked</AlertTitle>
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				) : null}
-
 				{loginCode ? (
 					<Alert>
-						<LogInIcon />
-						<AlertTitle>Authorize Sealos in your browser</AlertTitle>
+						<LogInIcon aria-hidden="true" />
+						<AlertTitle>Authorize in your browser</AlertTitle>
 						<AlertDescription>Confirmation code: {loginCode}</AlertDescription>
 					</Alert>
 				) : null}
 
 				{result ? (
-					<section className="border-t py-6">
-						<div className="mb-4">
-							<h2 className="text-base font-semibold">Deployment readiness</h2>
+					<>
+						<section className="border-t py-6">
+							<h2 className="text-base font-semibold">1. Project readiness</h2>
 							<p className="mt-1 text-sm text-muted-foreground">
 								{result.framework ?? "Unknown framework"}
 								{result.port ? ` - port ${result.port}` : ""}
 							</p>
-						</div>
-						<div className="divide-y rounded-md border">
-							{result.checks.map((check) => {
-								const Icon =
-									check.status === "ready"
-										? CheckCircle2Icon
-										: check.status === "warning"
-											? TriangleAlertIcon
-											: XCircleIcon
-								return (
-									<div key={check.id} className="flex items-center gap-3 px-4 py-3">
-										<Icon
-											className={
-												check.status === "ready"
-													? "size-4 text-green-600"
-													: check.status === "warning"
-														? "size-4 text-amber-500"
-														: "size-4 text-destructive"
-											}
-										/>
-										<div className="min-w-0 flex-1">
-											<p className="text-sm font-medium">{check.label}</p>
-											<p className="text-xs text-muted-foreground">{check.detail}</p>
+							<div className="mt-4 divide-y rounded-md border">
+								{result.checks.map((check) => {
+									const Icon = statusIcon(check.status)
+									return (
+										<div key={check.id} className="flex items-center gap-3 px-4 py-3">
+											<Icon
+												className={
+													check.status === "ready"
+														? "size-4 text-green-600"
+														: check.status === "warning"
+															? "size-4 text-amber-500"
+															: "size-4 text-destructive"
+												}
+												aria-hidden="true"
+											/>
+											<div className="min-w-0 flex-1">
+												<p className="text-sm font-medium">{check.label}</p>
+												<p className="text-xs text-muted-foreground">{check.detail}</p>
+											</div>
 										</div>
-									</div>
-								)
-							})}
-						</div>
+									)
+								})}
+							</div>
+							{missingIds.has("container") && selectedProject ? (
+								<div className="mt-4 flex flex-col sm:flex-row sm:justify-end">
+									<Button className="w-full sm:w-auto" variant="outline" onClick={prepareWithAgent}>
+										<SparklesIcon aria-hidden="true" />
+										Prepare with Agent
+									</Button>
+								</div>
+							) : null}
+						</section>
 
-						<div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+						<section className="border-t py-6">
+							<h2 className="text-base font-semibold">2. Remote image build</h2>
+							<p className="mt-1 text-sm text-muted-foreground">
+								GitHub Actions builds linux/amd64 without local Docker.
+							</p>
+							{github ? (
+								<div className="mt-4 flex items-start gap-3 border-l-2 pl-4">
+									<GithubIcon className="mt-0.5 size-4" aria-hidden="true" />
+									<div>
+										<p className="text-sm font-medium">
+											{github.repository ?? github.login ?? "GitHub"}
+										</p>
+										<p className="text-xs text-muted-foreground">{github.detail}</p>
+									</div>
+								</div>
+							) : null}
+							{buildProgress.length > 0 ? (
+								<div className="mt-4 space-y-2">
+									{buildProgress.map((progress) => (
+										<div key={progress.stage} className="flex items-center gap-2 text-sm">
+											{progress.status === "complete" ? (
+												<CheckCircle2Icon className="size-4 text-green-600" aria-hidden="true" />
+											) : (
+												<Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
+											)}
+											<span>{progress.detail}</span>
+										</div>
+									))}
+								</div>
+							) : null}
+							{build ? (
+								<Alert className="mt-4">
+									<CheckCircle2Icon className="text-green-600" aria-hidden="true" />
+									<AlertTitle>Immutable image ready</AlertTitle>
+									<AlertDescription className="break-all">{build.image}</AlertDescription>
+								</Alert>
+							) : null}
+							<div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+								{github && !github.authenticated ? (
+									<Button
+										className="w-full sm:w-auto"
+										variant="outline"
+										onClick={signInToGitHub}
+										disabled={Boolean(action)}
+									>
+										<LogInIcon aria-hidden="true" />
+										{action === "github-login" ? "Waiting for authorization" : "Sign in to GitHub"}
+									</Button>
+								) : null}
+								{github?.dockerfile && !github.workflow ? (
+									<Button
+										className="w-full sm:w-auto"
+										variant="outline"
+										onClick={prepareRemoteBuild}
+										disabled={Boolean(action)}
+									>
+										<GithubIcon aria-hidden="true" />
+										Prepare remote build
+									</Button>
+								) : null}
+								{github?.workflow && !github.clean ? (
+									<Button
+										className="w-full sm:w-auto"
+										variant="outline"
+										onClick={publishSource}
+										disabled={Boolean(action)}
+									>
+										<CloudUploadIcon aria-hidden="true" />
+										Commit and push project
+									</Button>
+								) : null}
+								<Button
+									className="w-full sm:w-auto"
+									onClick={buildRemotely}
+									disabled={!github?.ready || Boolean(action) || Boolean(build)}
+								>
+									<RocketIcon aria-hidden="true" />
+									{action === "build" ? "Building remotely" : "Build on GitHub"}
+								</Button>
+							</div>
+						</section>
+
+						<section className="border-t py-6">
+							<h2 className="text-base font-semibold">3. Sealos workspace and configuration</h2>
 							{missingIds.has("auth") ? (
-								<>
+								<div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
 									<select
 										aria-label="Sealos region"
 										value={region}
 										onChange={(event) => setRegion(event.target.value)}
-										className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+										className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
 									>
 										{SEALOS_REGIONS.map((item) => (
 											<option key={item.value} value={item.value}>
@@ -264,58 +559,162 @@ export function SealosDeployPage() {
 											</option>
 										))}
 									</select>
-									<Button variant="outline" onClick={signIn} disabled={signingIn}>
-										{signingIn ? <Loader2Icon className="animate-spin" /> : <LogInIcon />}
-										{signingIn ? "Waiting for authorization" : "Sign in to Sealos"}
+									<Button
+										className="w-full sm:w-auto"
+										variant="outline"
+										onClick={signInToSealos}
+										disabled={Boolean(action)}
+									>
+										<LogInIcon aria-hidden="true" />
+										{action === "sealos-login" ? "Waiting for authorization" : "Sign in to Sealos"}
 									</Button>
-								</>
+								</div>
+							) : (
+								<div className="mt-4 grid gap-4 sm:grid-cols-2">
+									<div>
+										<label htmlFor="sealos-region" className="text-sm font-medium">
+											Region
+										</label>
+										<Input
+											id="sealos-region"
+											value={result.region ?? region}
+											disabled
+											className="mt-2"
+										/>
+									</div>
+									<div>
+										<label htmlFor="sealos-workspace" className="text-sm font-medium">
+											Workspace
+										</label>
+										<select
+											id="sealos-workspace"
+											value={activeWorkspace?.id ?? ""}
+											onChange={(event) => switchWorkspace(event.target.value)}
+											disabled={action === "workspace"}
+											className="mt-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+										>
+											{workspaces.map((workspace) => (
+												<option key={workspace.uid} value={workspace.id}>
+													{workspace.id} - {workspace.teamName}
+												</option>
+											))}
+										</select>
+									</div>
+								</div>
+							)}
+							{templateInputs.length > 0 ? (
+								<div className="mt-5 grid gap-4 sm:grid-cols-2">
+									{templateInputs.map((input) => (
+										<div key={input.name}>
+											<label htmlFor={`sealos-input-${input.name}`} className="text-sm font-medium">
+												{input.name}
+												{input.required ? " *" : ""}
+											</label>
+											<Input
+												id={`sealos-input-${input.name}`}
+												type={input.sensitive ? "password" : "text"}
+												value={inputValues[input.name] ?? ""}
+												onChange={(event) =>
+													setInputValues((current) => ({
+														...current,
+														[input.name]: event.target.value,
+													}))
+												}
+												placeholder={input.defaultValue ?? input.description}
+												className="mt-2"
+											/>
+											<p className="mt-1 text-xs text-muted-foreground">{input.description}</p>
+										</div>
+									))}
+								</div>
 							) : null}
-							{missingIds.has("container") && selectedProject ? (
-								<Button variant="outline" onClick={prepareWithAgent}>
-									<SparklesIcon />
-									Prepare with Agent
-								</Button>
-							) : null}
-							<Button disabled={!result.ready || deploying || Boolean(deployment)} onClick={deploy}>
-								{deploying ? <Loader2Icon className="animate-spin" /> : <CloudUploadIcon />}
-								{deploying ? "Deploying" : deployment ? "Deployed" : "Deploy to Sealos"}
-							</Button>
-						</div>
-					</section>
-				) : null}
+						</section>
 
-				{deployment ? (
-					<section className="border-t py-6">
-						<Alert className="border-green-600/30">
-							<CheckCircle2Icon className="text-green-600" />
-							<AlertTitle>Deployment submitted</AlertTitle>
-							<AlertDescription>
-								Template accepted in {deployment.region}. Log: {deployment.logPath}
-							</AlertDescription>
-						</Alert>
-						<div className="mt-4 flex justify-end gap-2">
-							{deployment.appUrl ? (
-								<>
-									<Button variant="outline" onClick={verifyRuntime} disabled={verifying}>
-										{verifying ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
-										Verify runtime
+						<section className="border-t py-6">
+							<h2 className="text-base font-semibold">4. Deploy and verify</h2>
+							<p className="mt-1 text-sm text-muted-foreground">
+								The template is validated before creation. Runtime checks cover Kubernetes
+								readiness, public networking, HTTP health, logs, and 60-second stability.
+							</p>
+							<div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+								<Button
+									className="w-full sm:w-auto"
+									disabled={
+										!result.ready ||
+										!build ||
+										!requiredInputsReady ||
+										Boolean(action) ||
+										Boolean(deployment)
+									}
+									onClick={deploy}
+								>
+									<CloudUploadIcon aria-hidden="true" />
+									{action === "deploy"
+										? deploymentState
+											? "Updating"
+											: "Deploying"
+										: deployment
+											? "Deployed"
+											: deploymentState
+												? "Update deployment"
+												: "Deploy to Sealos"}
+								</Button>
+							</div>
+							{deployment ? (
+								<Alert className="mt-4 border-green-600/30">
+									<CheckCircle2Icon className="text-green-600" aria-hidden="true" />
+									<AlertTitle>Deployment submitted</AlertTitle>
+									<AlertDescription>
+										Instance {deployment.instanceName ?? "created"} in {deployment.region}. Log:{" "}
+										{deployment.logPath}
+									</AlertDescription>
+								</Alert>
+							) : null}
+							{updated && deploymentState ? (
+								<Alert className="mt-4 border-green-600/30">
+									<CheckCircle2Icon className="text-green-600" aria-hidden="true" />
+									<AlertTitle>Deployment updated</AlertTitle>
+									<AlertDescription className="break-all">
+										{deploymentState.last_deploy.image}
+									</AlertDescription>
+								</Alert>
+							) : null}
+							{publicUrl ? (
+								<div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+									<Button
+										className="w-full sm:w-auto"
+										variant="outline"
+										onClick={verifyRuntime}
+										disabled={Boolean(action)}
+									>
+										<RefreshCwIcon aria-hidden="true" />
+										{action === "verify" ? "Verifying" : "Verify runtime"}
 									</Button>
 									<Button
-										render={<a href={deployment.appUrl} target="_blank" rel="noreferrer" />}
+										className="w-full sm:w-auto"
+										onClick={() => window.open(publicUrl, "_blank", "noopener,noreferrer")}
 									>
-										<ExternalLinkIcon />
+										<ExternalLinkIcon aria-hidden="true" />
 										Open app
 									</Button>
-								</>
+								</div>
 							) : null}
-						</div>
-						{runtime ? (
-							<p className={`mt-3 text-sm ${runtime.ok ? "text-green-600" : "text-destructive"}`}>
-								{runtime.detail}
-								{runtime.status ? ` (HTTP ${runtime.status})` : ""}
-							</p>
-						) : null}
-					</section>
+							{runtime ? (
+								<div className="mt-4 divide-y rounded-md border">
+									{runtime.checks.map((check) => (
+										<div key={check.id} className="flex items-center gap-3 px-4 py-3">
+											{check.ok ? (
+												<CheckCircle2Icon className="size-4 text-green-600" aria-hidden="true" />
+											) : (
+												<XCircleIcon className="size-4 text-destructive" aria-hidden="true" />
+											)}
+											<span className="text-sm">{check.detail}</span>
+										</div>
+									))}
+								</div>
+							) : null}
+						</section>
+					</>
 				) : null}
 			</div>
 		</div>

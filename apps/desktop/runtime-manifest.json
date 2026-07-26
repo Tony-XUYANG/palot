@@ -21,6 +21,27 @@
 			"executable": "mingit/cmd/git.exe",
 			"source": "https://github.com/git-for-windows/git/tree/v2.55.0.windows.3",
 			"license": "GPL-2.0-only and bundled component licenses"
+		},
+		"github": {
+			"version": "2.96.0",
+			"url": "https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_windows_amd64.zip",
+			"archive": "gh_2.96.0_windows_amd64.zip",
+			"sha256": "c2d6acc935cd2f00e2144d7e036d5cd82e6b6bd5594e8c75aa75ef2a4ed6aac3",
+			"extractDirectory": "github",
+			"executable": "github/bin/gh.exe",
+			"source": "https://github.com/cli/cli/tree/v2.96.0",
+			"license": "MIT"
+		},
+		"kubectl": {
+			"version": "1.36.1",
+			"url": "https://dl.k8s.io/release/v1.36.1/bin/windows/amd64/kubectl.exe",
+			"archive": "kubectl.exe",
+			"sha256": "538f4229eee91a17b34724da7daade7687393d6988e33b723c6c306572c13900",
+			"format": "file",
+			"extractDirectory": "kubectl",
+			"executable": "kubectl/kubectl.exe",
+			"source": "https://github.com/kubernetes/kubernetes/tree/v1.36.1",
+			"license": "Apache-2.0"
 		}
 	}
 }

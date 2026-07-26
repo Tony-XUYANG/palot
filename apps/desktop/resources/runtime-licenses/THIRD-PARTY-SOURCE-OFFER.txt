@@ -23,3 +23,9 @@ included unchanged under runtime/mingit in the installed application.
 
 OpenCode 1.18.5 source is available under the MIT License at:
 https://github.com/anomalyco/opencode/tree/v1.18.5
+
+GitHub CLI 2.96.0 source is available under the MIT License at:
+https://github.com/cli/cli/tree/v2.96.0
+
+Kubernetes kubectl 1.36.1 source is available under the Apache License 2.0 at:
+https://github.com/kubernetes/kubernetes/tree/v1.36.1

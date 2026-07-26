@@ -116,8 +116,7 @@ contextBridge.exposeInMainWorld("palot", {
 		stashPop: (directory: string) => ipcRenderer.invoke("git:stash-pop", directory),
 		getRoot: (directory: string) => ipcRenderer.invoke("git:root", directory),
 		diffStat: (directory: string) => ipcRenderer.invoke("git:diff-stat", directory),
-		workingTreeDiff: (directory: string) =>
-			ipcRenderer.invoke("git:working-tree-diff", directory),
+		workingTreeDiff: (directory: string) => ipcRenderer.invoke("git:working-tree-diff", directory),
 		commitAll: (directory: string, message: string) =>
 			ipcRenderer.invoke("git:commit-all", directory, message),
 		push: (directory: string, remote?: string) => ipcRenderer.invoke("git:push", directory, remote),
@@ -186,10 +185,34 @@ contextBridge.exposeInMainWorld("palot", {
 
 	sealos: {
 		preflight: (directory: string) => ipcRenderer.invoke("sealos:preflight", directory),
-		deploy: (directory: string) => ipcRenderer.invoke("sealos:deploy", directory),
+		deploy: (directory: string, args?: Record<string, string>) =>
+			ipcRenderer.invoke("sealos:deploy", directory, args),
 		startLogin: (region: string) => ipcRenderer.invoke("sealos:login-start", region),
 		completeLogin: (sessionId: string) => ipcRenderer.invoke("sealos:login-complete", sessionId),
-		verifyRuntime: (url: string) => ipcRenderer.invoke("sealos:verify-runtime", url),
+		listWorkspaces: () => ipcRenderer.invoke("sealos:workspaces"),
+		switchWorkspace: (workspaceId: string) =>
+			ipcRenderer.invoke("sealos:switch-workspace", workspaceId),
+		readTemplateInputs: (directory: string) =>
+			ipcRenderer.invoke("sealos:template-inputs", directory),
+		getDeploymentState: (directory: string) =>
+			ipcRenderer.invoke("sealos:deployment-state", directory),
+		updateDeployment: (directory: string) => ipcRenderer.invoke("sealos:update", directory),
+		getGitHubStatus: (directory: string) => ipcRenderer.invoke("sealos:github-status", directory),
+		startGitHubLogin: () => ipcRenderer.invoke("sealos:github-login-start"),
+		completeGitHubLogin: (sessionId: string) =>
+			ipcRenderer.invoke("sealos:github-login-complete", sessionId),
+		prepareGitHubBuild: (directory: string) =>
+			ipcRenderer.invoke("sealos:github-prepare", directory),
+		publishGitHubSource: (directory: string) =>
+			ipcRenderer.invoke("sealos:github-publish", directory),
+		runGitHubBuild: (directory: string) => ipcRenderer.invoke("sealos:github-build", directory),
+		onGitHubBuildProgress: (callback: (progress: unknown) => void) => {
+			const listener = (_event: unknown, progress: unknown) => callback(progress)
+			ipcRenderer.on("sealos:github-build-progress", listener)
+			return () => ipcRenderer.removeListener("sealos:github-build-progress", listener)
+		},
+		verifyRuntime: (directory: string, url: string) =>
+			ipcRenderer.invoke("sealos:verify-runtime", directory, url),
 	},
 
 	// --- Fetch proxy (bypasses Chromium connection limits) ---

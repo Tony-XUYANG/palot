@@ -27,18 +27,43 @@ $manifest = Read-RuntimeManifest -Path $ManifestPath
 $staging = "$Destination.staging-$([Guid]::NewGuid().ToString('N'))"
 $backup = "$Destination.backup-$([Guid]::NewGuid().ToString('N'))"
 
+function Move-DirectoryWithRetry {
+	param(
+		[Parameter(Mandatory = $true)][string]$Source,
+		[Parameter(Mandatory = $true)][string]$Target
+	)
+
+	for ($attempt = 1; $attempt -le 5; $attempt++) {
+		try {
+			[IO.Directory]::Move($Source, $Target)
+			return
+		} catch {
+			if ($attempt -eq 5) { throw }
+			Start-Sleep -Milliseconds (500 * $attempt)
+		}
+	}
+}
+
 try {
 	[IO.Directory]::CreateDirectory($staging) | Out-Null
-	foreach ($runtimeName in @("opencode", "mingit")) {
+	$runtimeNames = @($manifest.runtimes.PSObject.Properties.Name)
+	foreach ($runtimeName in $runtimeNames) {
 		$runtime = $manifest.runtimes.$runtimeName
 		$cachePath = Join-Path $CacheDirectory "$($runtime.version)-$($runtime.archive)"
 		$archivePath = Get-RuntimeArchive -Uri $runtime.url -CachePath $cachePath -Sha256 $runtime.sha256
 		$extractPath = Join-Path $staging $runtime.extractDirectory
-		Write-Host "Extracting $runtimeName $($runtime.version)..."
-		Expand-SecureZip -ArchivePath $archivePath -Destination $extractPath
+		$format = if ($runtime.PSObject.Properties.Name -contains "format") { $runtime.format } else { "zip" }
+		if ($format -eq "file") {
+			Write-Host "Installing $runtimeName $($runtime.version)..."
+			[IO.Directory]::CreateDirectory($extractPath) | Out-Null
+			Copy-Item -LiteralPath $archivePath -Destination (Join-Path $staging $runtime.executable)
+		} else {
+			Write-Host "Extracting $runtimeName $($runtime.version)..."
+			Expand-SecureZip -ArchivePath $archivePath -Destination $extractPath
+		}
 	}
 
-	foreach ($runtimeName in @("opencode", "mingit")) {
+	foreach ($runtimeName in $runtimeNames) {
 		$executable = Join-Path $staging $manifest.runtimes.$runtimeName.executable
 		if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
 			throw "Runtime '$runtimeName' is missing its executable: '$executable'."
@@ -53,13 +78,13 @@ try {
 	Copy-Item -LiteralPath $ManifestPath -Destination (Join-Path $staging "runtime-manifest.json")
 
 	if (Test-Path -LiteralPath $Destination) {
-		[IO.Directory]::Move($Destination, $backup)
+		Move-DirectoryWithRetry -Source $Destination -Target $backup
 	}
 	try {
-		[IO.Directory]::Move($staging, $Destination)
+		Move-DirectoryWithRetry -Source $staging -Target $Destination
 	} catch {
 		if (Test-Path -LiteralPath $backup) {
-			[IO.Directory]::Move($backup, $Destination)
+			Move-DirectoryWithRetry -Source $backup -Target $Destination
 		}
 		throw
 	}

@@ -41,12 +41,18 @@ module.exports = async function verifyWindowsRuntime(context) {
 	const manifest = readJson(manifestPath)
 	const openCodePath = path.join(runtimeRoot, manifest.runtimes.opencode.executable)
 	const gitPath = path.join(runtimeRoot, manifest.runtimes.mingit.executable)
+	const githubPath = path.join(runtimeRoot, manifest.runtimes.github.executable)
+	const kubectlPath = path.join(runtimeRoot, manifest.runtimes.kubectl.executable)
 	const requiredFiles = [
 		openCodePath,
 		gitPath,
+		githubPath,
+		kubectlPath,
+		path.join(runtimeRoot, "github", "LICENSE"),
 		path.join(runtimeRoot, "mingit", "LICENSE.txt"),
 		path.join(runtimeRoot, "licenses", "palot-MIT.txt"),
 		path.join(runtimeRoot, "licenses", "opencode-MIT.txt"),
+		path.join(runtimeRoot, "licenses", "github-cli-MIT.txt"),
 		path.join(runtimeRoot, "licenses", "THIRD-PARTY-NOTICES.md"),
 		path.join(runtimeRoot, "licenses", "THIRD-PARTY-SOURCE-OFFER.txt"),
 	]
@@ -57,4 +63,6 @@ module.exports = async function verifyWindowsRuntime(context) {
 	verifyVersion(openCodePath, manifest.runtimes.opencode.version)
 	const gitVersion = manifest.runtimes.mingit.version.replace(/^(\d+\.\d+\.\d+)\.(\d+)$/, "$1.windows.$2")
 	verifyVersion(gitPath, gitVersion)
+	verifyVersion(githubPath, manifest.runtimes.github.version)
+	verifyVersion(kubectlPath, manifest.runtimes.kubectl.version, ["version", "--client=true"])
 }

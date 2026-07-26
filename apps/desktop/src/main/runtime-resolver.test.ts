@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
-import { describe, it } from "node:test"
 import path from "node:path"
-import { resolveGitRuntime, resolveOpenCodeRuntime } from "./runtime-resolver.ts"
+import { describe, it } from "node:test"
+import {
+	resolveGitHubRuntime,
+	resolveGitRuntime,
+	resolveKubectlRuntime,
+	resolveOpenCodeRuntime,
+} from "./runtime-resolver.ts"
 
 const resourcesPath = "C:\\Program Files\\Palot\\resources"
 const homeDirectory = "C:\\Users\\tester"
@@ -15,7 +20,8 @@ function createOptions(files: string[], overrides: Record<string, string> = {}) 
 		arch: "x64",
 		homeDirectory,
 		environment: { PATH: "C:\\tools", ...overrides },
-		fileExists: (candidate: string) => normalized.has(path.win32.normalize(candidate).toLowerCase()),
+		fileExists: (candidate: string) =>
+			normalized.has(path.win32.normalize(candidate).toLowerCase()),
 	}
 }
 
@@ -69,6 +75,24 @@ describe("runtime resolver", () => {
 		const result = resolveGitRuntime(createOptions([onPath]))
 		assert.equal(result?.path, onPath)
 		assert.equal(result?.source, "path")
+	})
+
+	it("uses the bundled GitHub CLI in a packaged Windows x64 app", () => {
+		const bundled = path.win32.join(resourcesPath, "runtime", "github", "bin", "gh.exe")
+		const result = resolveGitHubRuntime({
+			...createOptions([bundled]),
+			isPackaged: true,
+		})
+		assert.deepEqual(result, { kind: "github", path: bundled, source: "bundled" })
+	})
+
+	it("uses bundled kubectl without relying on PATH", () => {
+		const bundled = path.win32.join(resourcesPath, "runtime", "kubectl", "kubectl.exe")
+		const result = resolveKubectlRuntime({
+			...createOptions([bundled]),
+			isPackaged: true,
+		})
+		assert.deepEqual(result, { kind: "kubectl", path: bundled, source: "bundled" })
 	})
 
 	it("does not consider Windows bundled content on another platform", () => {

@@ -51,6 +51,22 @@ licenses. The archive's `LICENSE.txt` and license directories are redistributed 
 The corresponding source offer and exact version links are installed under
 `runtime/licenses/THIRD-PARTY-SOURCE-OFFER.txt`.
 
+### GitHub CLI
+
+The Windows x64 installer includes GitHub CLI 2.96.0 under the MIT License. Palot uses
+the CLI for browser authentication and GitHub Actions based container builds, so users
+do not need to install Docker locally. Its exact source is available at
+https://github.com/cli/cli/tree/v2.96.0 and its license text is installed under
+`runtime/licenses/github-cli-MIT.txt`.
+
+### Kubernetes kubectl
+
+The Windows x64 installer includes kubectl 1.36.1 under the Apache License 2.0.
+Palot uses it with the user's Sealos kubeconfig for deployment updates and runtime
+readiness checks. Its exact source is available at
+https://github.com/kubernetes/kubernetes/tree/v1.36.1. The full Apache-2.0 text is
+included later in this notice.
+
 ---
 
 ## Direct Dependencies by License

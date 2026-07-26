@@ -1,4 +1,13 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, shell, systemPreferences } from "electron"
+import {
+	app,
+	BrowserWindow,
+	dialog,
+	ipcMain,
+	nativeTheme,
+	net,
+	shell,
+	systemPreferences,
+} from "electron"
 import {
 	acceptRun,
 	archiveRun,
@@ -31,6 +40,14 @@ import {
 	stashAndCheckout,
 	stashPop,
 } from "./git-service"
+import {
+	completeGitHubLogin,
+	getGitHubBuildStatus,
+	prepareGitHubBuild,
+	publishGitHubSource,
+	runGitHubBuild,
+	startGitHubLogin,
+} from "./github-build-service"
 import { getResolvedChromeTier } from "./liquid-glass"
 import { createLogger } from "./logger"
 import { getDiscoveredServers } from "./mdns-scanner"
@@ -49,14 +66,20 @@ import {
 } from "./onboarding"
 import { getOpenInTargets, openInTarget, setPreferredTarget } from "./open-in-targets"
 import { ensureServer, getServerUrl, restartServer, stopServer } from "./opencode-manager"
-import { getOpaqueWindows, getSettings, onSettingsChanged, updateSettings } from "./settings-store"
 import {
 	completeSealosLogin,
 	deployToSealos,
+	listSealosWorkspaces,
+	readSealosDeploymentState,
+	readSealosTemplateInputs,
 	runSealosPreflight,
 	startSealosLogin,
+	switchSealosWorkspace,
+	updateSealosDeployment,
+	updateSealosTemplateImage,
 	verifySealosRuntime,
 } from "./sealos-service"
+import { getOpaqueWindows, getSettings, onSettingsChanged, updateSettings } from "./settings-store"
 import {
 	checkForUpdates,
 	downloadUpdate,
@@ -351,9 +374,95 @@ export function registerIpcHandlers(): void {
 
 	ipcMain.handle(
 		"sealos:deploy",
-		withLogging("sealos:deploy", async (_, directory: string) => {
+		withLogging("sealos:deploy", async (_, directory: string, args?: Record<string, string>) => {
 			if (!directory?.trim()) throw new Error("A project directory is required")
-			return await deployToSealos(directory)
+			return await deployToSealos(directory, args)
+		}),
+	)
+
+	ipcMain.handle("sealos:workspaces", withLogging("sealos:workspaces", listSealosWorkspaces))
+
+	ipcMain.handle(
+		"sealos:switch-workspace",
+		withLogging(
+			"sealos:switch-workspace",
+			async (_, workspaceId: string) => await switchSealosWorkspace(workspaceId),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:template-inputs",
+		withLogging(
+			"sealos:template-inputs",
+			async (_, directory: string) => await readSealosTemplateInputs(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:deployment-state",
+		withLogging(
+			"sealos:deployment-state",
+			async (_, directory: string) => await readSealosDeploymentState(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:update",
+		withLogging(
+			"sealos:update",
+			async (_, directory: string) => await updateSealosDeployment(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-status",
+		withLogging(
+			"sealos:github-status",
+			async (_, directory: string) => await getGitHubBuildStatus(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-login-start",
+		withLogging("sealos:github-login-start", async () => {
+			const login = await startGitHubLogin()
+			await shell.openExternal(login.verificationUrl)
+			return login
+		}),
+	)
+
+	ipcMain.handle(
+		"sealos:github-login-complete",
+		withLogging(
+			"sealos:github-login-complete",
+			async (_, sessionId: string) => await completeGitHubLogin(sessionId),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-prepare",
+		withLogging(
+			"sealos:github-prepare",
+			async (_, directory: string) => await prepareGitHubBuild(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-publish",
+		withLogging(
+			"sealos:github-publish",
+			async (_, directory: string) => await publishGitHubSource(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-build",
+		withLogging("sealos:github-build", async (event, directory: string) => {
+			const result = await runGitHubBuild(directory, (progress) => {
+				event.sender.send("sealos:github-build-progress", progress)
+			})
+			await updateSealosTemplateImage(directory, result.image)
+			return result
 		}),
 	)
 
@@ -378,7 +487,7 @@ export function registerIpcHandlers(): void {
 		"sealos:verify-runtime",
 		withLogging(
 			"sealos:verify-runtime",
-			async (_, url: string) => await verifySealosRuntime(url),
+			async (_, directory: string, url: string) => await verifySealosRuntime(directory, url),
 		),
 	)
 

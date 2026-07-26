@@ -27,7 +27,11 @@ function Read-RuntimeManifest {
 		throw "Unsupported runtime manifest schema or platform: '$Path'."
 	}
 
-	foreach ($name in @("opencode", "mingit")) {
+	$runtimeNames = @($manifest.runtimes.PSObject.Properties.Name)
+	if ($runtimeNames.Count -eq 0) {
+		throw "Runtime manifest has no runtimes: '$Path'."
+	}
+	foreach ($name in $runtimeNames) {
 		$runtime = $manifest.runtimes.$name
 		if (-not $runtime.version -or -not $runtime.url -or -not $runtime.archive -or
 			-not $runtime.sha256 -or -not $runtime.extractDirectory -or -not $runtime.executable) {
@@ -38,6 +42,10 @@ function Read-RuntimeManifest {
 		}
 		if ($runtime.sha256 -notmatch "^[0-9a-fA-F]{64}$") {
 			throw "Runtime '$name' has an invalid SHA-256 value."
+		}
+		if ($runtime.PSObject.Properties.Name -contains "format" -and
+			$runtime.format -notin @("zip", "file")) {
+			throw "Runtime '$name' has an unsupported format '$($runtime.format)'."
 		}
 	}
 
@@ -71,7 +79,21 @@ function Get-RuntimeArchive {
 		if ($parsedUri.IsFile) {
 			Copy-Item -LiteralPath $parsedUri.LocalPath -Destination $tempPath
 		} else {
-			Invoke-WebRequest -UseBasicParsing -Uri $parsedUri -OutFile $tempPath
+			$downloaded = $false
+			for ($attempt = 1; $attempt -le 3; $attempt++) {
+				try {
+					Invoke-WebRequest -UseBasicParsing -TimeoutSec 180 -Uri $parsedUri -OutFile $tempPath
+					$downloaded = $true
+					break
+				} catch {
+					if (Test-Path -LiteralPath $tempPath) {
+						Remove-Item -LiteralPath $tempPath -Force
+					}
+					if ($attempt -eq 3) { throw }
+					Start-Sleep -Seconds (2 * $attempt)
+				}
+			}
+			if (-not $downloaded) { throw "Runtime download failed: '$Uri'." }
 		}
 		Assert-FileSha256 -Path $tempPath -Expected $Sha256
 		Move-Item -LiteralPath $tempPath -Destination $CachePath

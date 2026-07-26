@@ -11,8 +11,10 @@ import path from "node:path"
 
 export const OPENCODE_RUNTIME_VERSION = "1.18.5"
 export const MINGIT_RUNTIME_VERSION = "2.55.0.3"
+export const GITHUB_CLI_RUNTIME_VERSION = "2.96.0"
+export const KUBECTL_RUNTIME_VERSION = "1.36.1"
 
-export type RuntimeKind = "opencode" | "git"
+export type RuntimeKind = "opencode" | "git" | "github" | "kubectl"
 export type RuntimeSource = "override" | "bundled" | "user" | "path"
 
 export interface ResolvedRuntime {
@@ -43,10 +45,7 @@ function getPlatformPath(platform: NodeJS.Platform): typeof path.win32 {
 	return platform === "win32" ? path.win32 : path.posix
 }
 
-function getBundledCandidate(
-	kind: RuntimeKind,
-	options: RuntimeResolverOptions,
-): string | null {
+function getBundledCandidate(kind: RuntimeKind, options: RuntimeResolverOptions): string | null {
 	const platform = options.platform ?? process.platform
 	const arch = options.arch ?? process.arch
 	if (!options.isPackaged || platform !== "win32" || arch !== "x64" || !options.resourcesPath) {
@@ -54,15 +53,19 @@ function getBundledCandidate(
 	}
 
 	const pathApi = getPlatformPath(platform)
-	return kind === "opencode"
-		? pathApi.join(options.resourcesPath, "runtime", "opencode", "opencode.exe")
-		: pathApi.join(options.resourcesPath, "runtime", "mingit", "cmd", "git.exe")
+	if (kind === "opencode") {
+		return pathApi.join(options.resourcesPath, "runtime", "opencode", "opencode.exe")
+	}
+	if (kind === "github") {
+		return pathApi.join(options.resourcesPath, "runtime", "github", "bin", "gh.exe")
+	}
+	if (kind === "kubectl") {
+		return pathApi.join(options.resourcesPath, "runtime", "kubectl", "kubectl.exe")
+	}
+	return pathApi.join(options.resourcesPath, "runtime", "mingit", "cmd", "git.exe")
 }
 
-function getUserCandidates(
-	kind: RuntimeKind,
-	options: RuntimeResolverOptions,
-): string[] {
+function getUserCandidates(kind: RuntimeKind, options: RuntimeResolverOptions): string[] {
 	const platform = options.platform ?? process.platform
 	const pathApi = getPlatformPath(platform)
 	const home = options.homeDirectory ?? homedir()
@@ -72,6 +75,30 @@ function getUserCandidates(
 		return [
 			pathApi.join(home, ".opencode", "bin", platform === "win32" ? "opencode.exe" : "opencode"),
 		]
+	}
+	if (kind === "github") {
+		const candidates: string[] = []
+		if (platform === "win32" && environment.ProgramFiles) {
+			candidates.push(pathApi.join(environment.ProgramFiles, "GitHub CLI", "gh.exe"))
+		}
+		return candidates
+	}
+	if (kind === "kubectl") {
+		const candidates: string[] = []
+		if (platform === "win32" && environment.LOCALAPPDATA) {
+			candidates.push(
+				pathApi.join(
+					environment.LOCALAPPDATA,
+					"Programs",
+					"Docker",
+					"Docker",
+					"resources",
+					"bin",
+					"kubectl.exe",
+				),
+			)
+		}
+		return candidates
 	}
 
 	const candidates = [
@@ -92,10 +119,7 @@ function getUserCandidates(
 	return candidates
 }
 
-function getPathCandidates(
-	kind: RuntimeKind,
-	options: RuntimeResolverOptions,
-): string[] {
+function getPathCandidates(kind: RuntimeKind, options: RuntimeResolverOptions): string[] {
 	const platform = options.platform ?? process.platform
 	const pathApi = getPlatformPath(platform)
 	const environment = options.environment ?? process.env
@@ -104,8 +128,20 @@ function getPathCandidates(
 		platform === "win32"
 			? kind === "opencode"
 				? ["opencode.exe", "opencode.cmd", "opencode"]
-				: ["git.exe", "git.cmd", "git"]
-			: [kind === "opencode" ? "opencode" : "git"]
+				: kind === "github"
+					? ["gh.exe", "gh.cmd", "gh"]
+					: kind === "kubectl"
+						? ["kubectl.exe", "kubectl.cmd", "kubectl"]
+						: ["git.exe", "git.cmd", "git"]
+			: [
+					kind === "opencode"
+						? "opencode"
+						: kind === "github"
+							? "gh"
+							: kind === "kubectl"
+								? "kubectl"
+								: "git",
+				]
 
 	const candidates: string[] = []
 	for (const directory of pathValue.split(platform === "win32" ? ";" : ":")) {
@@ -120,7 +156,11 @@ function getPathCandidates(
 
 function resolveRuntime(
 	kind: RuntimeKind,
-	overrideName: "PALOT_TEST_OPENCODE_PATH" | "PALOT_TEST_GIT_PATH",
+	overrideName:
+		| "PALOT_TEST_OPENCODE_PATH"
+		| "PALOT_TEST_GIT_PATH"
+		| "PALOT_TEST_GH_PATH"
+		| "PALOT_TEST_KUBECTL_PATH",
 	options: RuntimeResolverOptions,
 ): ResolvedRuntime | null {
 	const platform = options.platform ?? process.platform
@@ -162,4 +202,12 @@ export function resolveOpenCodeRuntime(options: RuntimeResolverOptions): Resolve
 
 export function resolveGitRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {
 	return resolveRuntime("git", "PALOT_TEST_GIT_PATH", options)
+}
+
+export function resolveGitHubRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {
+	return resolveRuntime("github", "PALOT_TEST_GH_PATH", options)
+}
+
+export function resolveKubectlRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {
+	return resolveRuntime("kubectl", "PALOT_TEST_KUBECTL_PATH", options)
 }
