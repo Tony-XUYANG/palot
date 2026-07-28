@@ -33,6 +33,7 @@ describe("GitHub Actions remote build helpers", () => {
 		assert.match(workflow, /platforms: linux\/amd64/)
 		assert.match(workflow, /\$\{GITHUB_SHA\}/)
 		assert.match(workflow, /steps\.build\.outputs\.digest/)
+		assert.match(workflow, /include-hidden-files: true/)
 		assert.doesNotMatch(workflow, /uses: [^\n]+@v\d/)
 		assert.doesNotMatch(workflow, /:latest/)
 	})

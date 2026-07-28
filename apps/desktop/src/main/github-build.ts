@@ -130,10 +130,10 @@ jobs:
           repository="\${GITHUB_REPOSITORY,,}"
           image_tag="ghcr.io/\${repository}:\${GITHUB_SHA}"
           digest="\${{ steps.build.outputs.digest }}"
-          jq -n \
-            --arg image "ghcr.io/\${repository}@\${digest}" \
-            --arg tag "\${image_tag}" \
-            --arg commit "\${GITHUB_SHA}" \
+          jq -n \\
+            --arg image "ghcr.io/\${repository}@\${digest}" \\
+            --arg tag "\${image_tag}" \\
+            --arg commit "\${GITHUB_SHA}" \\
             '{image: $image, tag: $tag, commit: $commit}' > .palot-build-result.json
 
       - name: Upload immutable build result
@@ -141,6 +141,7 @@ jobs:
         with:
           name: palot-sealos-build-\${{ inputs.request_id }}
           path: .palot-build-result.json
+          include-hidden-files: true
           retention-days: 1
           if-no-files-found: error
 `
