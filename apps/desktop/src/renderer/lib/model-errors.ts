@@ -13,6 +13,10 @@ const BALANCE_PATTERN =
 const RATE_LIMIT_PATTERN = /rate[ _-]?limit|too many requests|requests per minute|tokens per minute/i
 const UNAVAILABLE_PATTERN =
 	/(service|provider|model).{0,24}(unavailable|overloaded)|temporarily unavailable|gateway timeout|bad gateway/i
+const NETWORK_PATTERN =
+	/(network|fetch failed|connection (?:refused|reset|timed out)|connect timeout|socket hang up|econnrefused|econnreset|enotfound|etimedout|dns)/i
+const MODEL_NOT_FOUND_PATTERN =
+	/(model).{0,32}(not found|does not exist|is not available|unsupported|unknown)|unknown model/i
 
 function providerPhrase(providerName?: string): string {
 	return providerName ? providerName : "the selected provider"
@@ -40,6 +44,12 @@ export function formatModelError(error: ModelError, providerName?: string): stri
 			if (status === 429 || RATE_LIMIT_PATTERN.test(details)) {
 				return `Rate limit reached for ${provider}. Wait a moment or choose another model.`
 			}
+			if (status === 404 || MODEL_NOT_FOUND_PATTERN.test(details)) {
+				return `The selected model is not available from ${provider}. Refresh the model list or choose another model.`
+			}
+			if (NETWORK_PATTERN.test(details)) {
+				return `Palot could not reach ${provider}. Check the network connection and provider endpoint, then try again.`
+			}
 			if (
 				error.data.isRetryable ||
 				(status !== undefined && status >= 500) ||
@@ -62,7 +72,7 @@ export function formatModelError(error: ModelError, providerName?: string): stri
 	}
 }
 
-export function formatRequestError(error: unknown): string {
+export function formatRequestError(error: unknown, providerName?: string): string {
 	const message = error instanceof Error ? error.message : String(error || "")
 	const apiError: ModelError = {
 		name: "APIError",
@@ -71,5 +81,5 @@ export function formatRequestError(error: unknown): string {
 			isRetryable: false,
 		},
 	}
-	return formatModelError(apiError)
+	return formatModelError(apiError, providerName)
 }

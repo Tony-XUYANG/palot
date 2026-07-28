@@ -26,6 +26,8 @@ Palot is an open-source Electron app that gives [OpenCode](https://opencode.ai) 
 
 Palot spawns and manages the OpenCode server automatically, streams responses in real time, and renders tool calls with syntax-highlighted diffs, file previews, and terminal output.
 
+The Windows experience is China-first: Kimi, GLM, and DeepSeek are the initial acceptance targets, while OpenAI Codex and other global providers remain available as optional compatibility paths. Palot does not bundle a third-party model relay; provider access is BYOK and subject to each provider's account, billing, region, and network requirements.
+
 <br>
 
 ## Features
@@ -96,7 +98,9 @@ Palot spawns and manages the OpenCode server automatically, streams responses in
 
 - **Windows-ready installer** -- The Windows x64 installer includes pinned OpenCode and MinGit runtimes, so users do not need to install CLI tools or configure PATH.
 
-- **Chinese model providers** -- Connect BYOK providers supported by OpenCode, including DeepSeek and other OpenAI-compatible Chinese model services.
+- **China-first model providers** -- Kimi, GLM, and DeepSeek are prioritized for acceptance, with Qwen, MiniMax, SiliconFlow, ModelScope, and other OpenCode providers available from the full catalog.
+
+- **Optional global compatibility** -- OpenAI Codex, Anthropic, Google, GitHub Copilot, OpenRouter, xAI, and other global providers remain available without becoming a Windows China release requirement.
 
 - **Sealos deployment** -- Check deployment readiness, sign in with the Sealos device flow, prepare projects with the Agent, deploy templates, inspect logs, and verify public URLs.
 
@@ -154,7 +158,7 @@ This is expected behavior for unsigned apps and does not indicate malware.
 2. Choose a model provider in Settings and add your API key
 3. Open a project; Palot automatically starts the included OpenCode runtime on Windows
 
-> The Windows x64 installer includes OpenCode and MinGit. Model access remains BYOK, so at least one provider API key is required unless a free OpenCode model is selected.
+> The Windows x64 installer includes OpenCode, MinGit, GitHub CLI, and kubectl. Model access remains BYOK, so at least one provider API key is required unless a free OpenCode model is selected. Palot does not copy credentials from CC Switch or bundle a third-party relay.
 
 ### Coming from Claude Code or Cursor?
 

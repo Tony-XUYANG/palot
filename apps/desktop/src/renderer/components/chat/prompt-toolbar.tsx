@@ -42,7 +42,10 @@ import type {
 	VcsData,
 } from "../../hooks/use-opencode-data"
 import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
-import { CHINA_RECOMMENDED_MODELS, CODEX_RECOMMENDED_MODELS } from "../../lib/providers"
+import {
+	CODEX_RECOMMENDED_MODELS,
+	resolveAvailableChinaModelCandidates,
+} from "../../lib/providers"
 import {
 	computeContextUsage,
 	formatPercentage,
@@ -207,9 +210,11 @@ export function ModelSelector({
 				.filter((model): model is ModelOption => model !== undefined)
 		return {
 			codex: resolveModels(CODEX_RECOMMENDED_MODELS),
-			china: resolveModels(CHINA_RECOMMENDED_MODELS),
+			china: resolveModels(
+				providers ? resolveAvailableChinaModelCandidates(providers.providers) : [],
+			),
 		}
-	}, [models])
+	}, [models, providers])
 
 	// Build "Last used" group from recentModels (up to 3, only models that exist in providers)
 	const lastUsedModels = useMemo(() => {
@@ -354,13 +359,13 @@ function ModelSelectorList({
 					{!search ? (
 						<>
 							<RecommendedModelGroup
-								label="OpenAI Codex"
+								label="OpenAI Codex (Optional)"
 								models={codexRecommendedModels}
 								activeValue={activeValue}
 								onSelect={onSelect}
 							/>
 							<RecommendedModelGroup
-								label="Recommended in China"
+								label="China models"
 								models={chinaRecommendedModels}
 								activeValue={activeValue}
 								onSelect={onSelect}

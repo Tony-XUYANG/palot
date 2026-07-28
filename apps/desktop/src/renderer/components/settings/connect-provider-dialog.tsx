@@ -36,6 +36,7 @@ import type {
 	SdkProviderAuthMethod as ProviderAuthMethod,
 } from "../../hooks/use-opencode-data"
 import { createLogger } from "../../lib/logger"
+import { formatRequestError } from "../../lib/model-errors"
 import { PROVIDER_KEY_URLS, ZEN_PROVIDER_ID, ZEN_SIGNUP_URL } from "../../lib/providers"
 import { getBaseClient } from "../../services/connection-manager"
 import { ProviderIcon } from "./provider-icon"
@@ -63,7 +64,7 @@ type DialogStep =
 type DialogState =
 	| { status: "idle" }
 	| { status: "loading" }
-	| { status: "success" }
+	| { status: "success"; modelCount?: number }
 	| { status: "error"; message: string }
 
 // ============================================================
@@ -320,7 +321,7 @@ export function ConnectProviderDialog({
 				</DialogHeader>
 
 				{state.status === "success" ? (
-					<SuccessView provider={provider} onDone={onConnected} />
+					<SuccessView provider={provider} modelCount={state.modelCount} onDone={onConnected} />
 				) : step.type === "zen-setup" ? (
 					<ZenSetupView
 						provider={provider}
@@ -334,10 +335,10 @@ export function ConnectProviderDialog({
 									providerID: provider.id,
 									auth: { type: "api", key: apiKey },
 								})
-								await client.global.dispose()
-								setState({ status: "success" })
+								const modelCount = await refreshProviderCatalog(client, provider.id)
+								setState({ status: "success", modelCount })
 							} catch (err) {
-								const message = err instanceof Error ? err.message : "Failed to connect"
+								const message = formatRequestError(err, provider.name)
 								log.error("Failed to set API key", {
 									provider: provider.id,
 									error: err,
@@ -375,10 +376,10 @@ export function ConnectProviderDialog({
 									providerID: provider.id,
 									auth: { type: "api", key: apiKey },
 								})
-								await client.global.dispose()
-								setState({ status: "success" })
+								const modelCount = await refreshProviderCatalog(client, provider.id)
+								setState({ status: "success", modelCount })
 							} catch (err) {
-								const message = err instanceof Error ? err.message : "Failed to connect"
+								const message = formatRequestError(err, provider.name)
 								log.error("Failed to set API key", {
 									provider: provider.id,
 									error: err,
@@ -591,10 +592,10 @@ function ConfigureProviderView({
 					})
 				}
 
-				await client.global.dispose()
-				setState({ status: "success" })
+				const modelCount = await refreshProviderCatalog(client, provider.id)
+				setState({ status: "success", modelCount })
 			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to connect"
+				const message = formatRequestError(err, provider.name)
 				log.error("Failed to configure provider", {
 					provider: provider.id,
 					error: err,
@@ -883,11 +884,19 @@ function OAuthView({
 
 				// For auto method, start polling
 				if (data.method === "auto") {
-					pollForCompletion(client, provider.id, methodIndex, setState, onSuccess, () => cancelled)
+					pollForCompletion(
+						client,
+						provider.id,
+						provider.name,
+						methodIndex,
+						setState,
+						onSuccess,
+						() => cancelled,
+					)
 				}
 			} catch (err) {
 				if (cancelled) return
-				const message = err instanceof Error ? err.message : "Failed to start OAuth"
+				const message = formatRequestError(err, provider.name)
 				log.error("Failed to start OAuth", { provider: provider.id, error: err })
 				setState({ status: "error", message })
 			}
@@ -915,7 +924,7 @@ function OAuthView({
 				await client.global.dispose()
 				onSuccess()
 			} catch (err) {
-				const message = err instanceof Error ? err.message : "Failed to complete OAuth"
+				const message = formatRequestError(err, provider.name)
 				log.error("Failed to complete OAuth callback", {
 					provider: provider.id,
 					error: err,
@@ -1166,14 +1175,24 @@ function ZenSetupView({
 	)
 }
 
-function SuccessView({ provider, onDone }: { provider: CatalogProvider; onDone: () => void }) {
+function SuccessView({
+	provider,
+	modelCount,
+	onDone,
+}: {
+	provider: CatalogProvider
+	modelCount?: number
+	onDone: () => void
+}) {
 	return (
 		<>
 			<div className="flex flex-col items-center gap-3 py-6">
 				<CheckCircle2Icon className="size-8 text-green-500" aria-hidden="true" />
 				<p className="text-sm font-medium">Credentials saved for {provider.name}</p>
 				<p className="text-xs text-muted-foreground">
-					Palot will verify them when you send your first request
+					{modelCount === undefined
+						? "Palot will verify them when you send your first request"
+						: `${modelCount} ${modelCount === 1 ? "model" : "models"} found in the current OpenCode catalog. Provider access is verified on the first request.`}
 				</p>
 			</div>
 			<DialogFooter>
@@ -1187,9 +1206,24 @@ function SuccessView({ provider, onDone }: { provider: CatalogProvider; onDone: 
 // Helpers
 // ============================================================
 
+async function refreshProviderCatalog(
+	client: NonNullable<ReturnType<typeof getBaseClient>>,
+	providerID: string,
+): Promise<number> {
+	await client.global.dispose()
+	const result = await client.provider.list()
+	const data = result.data as { all?: CatalogProvider[] }
+	const provider = data.all?.find((entry) => entry.id === providerID)
+	if (!provider) {
+		throw new Error("OpenCode did not return a model catalog for this provider")
+	}
+	return Object.keys(provider.models).length
+}
+
 async function pollForCompletion(
 	client: ReturnType<typeof getBaseClient>,
 	providerID: string,
+	providerName: string,
 	methodIndex: number,
 	setState: (state: DialogState) => void,
 	onSuccess: () => void,
@@ -1199,6 +1233,7 @@ async function pollForCompletion(
 
 	const maxAttempts = 60
 	const intervalMs = 2000
+	let lastError: unknown = null
 
 	for (let attempt = 0; attempt < maxAttempts; attempt++) {
 		if (isCancelled()) return
@@ -1216,13 +1251,27 @@ async function pollForCompletion(
 			await client.global.dispose()
 			onSuccess()
 			return
-		} catch {
-			// Expected to fail while user hasn't completed OAuth yet
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error || "")
+			if (!/authorization[_ ]pending|waiting for authorization/i.test(message)) {
+				lastError = error
+			}
+			if (/access[_ ]denied|expired[_ ]token|token exchange|\b403\b/i.test(message)) {
+				if (!isCancelled()) {
+					setState({ status: "error", message: formatRequestError(error, providerName) })
+				}
+				return
+			}
 		}
 	}
 
 	if (!isCancelled()) {
-		setState({ status: "error", message: "Authentication timed out. Please try again." })
+		setState({
+			status: "error",
+			message: lastError
+				? formatRequestError(lastError, providerName)
+				: "Authentication timed out. Check the browser authorization and try again.",
+		})
 	}
 }
 

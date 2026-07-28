@@ -24,6 +24,7 @@ import {
 	CHINA_PROVIDER_IDS,
 	CODEX_PROVIDER_IDS,
 	compareConnectedFirst,
+	FIRST_TIER_CHINA_PROVIDER_IDS,
 	GLOBAL_PROVIDER_IDS,
 	isZenFreeTier,
 	ZEN_PROVIDER_ID,
@@ -54,6 +55,14 @@ const PROVIDER_REGION_OPTIONS: Array<{ id: ProviderRegion; label: string }> = [
 	{ id: "codex", label: "Codex" },
 	{ id: "global", label: "Global" },
 ]
+
+const PROVIDER_REGION_DESCRIPTIONS: Record<ProviderRegion, string> = {
+	china: "Recommended for users in China. Kimi, GLM, and DeepSeek are the first providers in Palot's acceptance program.",
+	codex:
+		"Optional OpenAI access through ChatGPT OAuth or an official API key. Account, billing, and network requirements still apply.",
+	global:
+		"Advanced compatibility for global providers. Availability depends on each provider's supported regions, account, and network.",
+}
 
 export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps) {
 	const { connected: serverConnected } = useServerConnection()
@@ -125,7 +134,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 	}
 
 	return (
-		<div className="flex h-full flex-col items-center justify-center space-y-8 px-6 text-center">
+		<div className="flex h-full flex-col items-center justify-center space-y-7 px-6 text-center">
 			<div className="max-w-md space-y-2">
 				<motion.div
 					initial={{ scale: 0.9, opacity: 0 }}
@@ -133,36 +142,19 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 					transition={{ duration: 0.4, ease: "easeOut" }}
 					className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
 				>
-					<SparklesIcon className="size-6" />
+					<SparklesIcon className="size-6" aria-hidden="true" />
 				</motion.div>
-				<h2 className="text-2xl font-bold tracking-tight">AI Providers</h2>
+				<h2 className="text-2xl font-bold tracking-tight">Choose a model provider</h2>
 				<p className="text-muted-foreground">
-					Free models are included with OpenCode Zen. Connect additional providers for more model
-					choices.
+					Palot prioritizes providers that are practical to use in China while keeping Codex and
+					global providers available.
 				</p>
 			</div>
 
 			<div className="w-full max-w-lg space-y-4">
-				{/* Zen featured card */}
-				{loading ? (
-					<div className="flex items-center gap-4 rounded-xl border border-border bg-muted/20 p-4">
-						<div className="size-10 animate-pulse rounded-lg bg-muted" />
-						<div className="flex-1 space-y-2">
-							<div className="h-4 w-32 animate-pulse rounded bg-muted" />
-							<div className="h-3 w-48 animate-pulse rounded bg-muted" />
-						</div>
-					</div>
-				) : zenProvider ? (
-					<ZenFeaturedCard
-						provider={zenProvider}
-						hasApiKey={zenHasApiKey}
-						onConnect={() => setConnectDialogProvider(zenProvider)}
-					/>
-				) : null}
-
 				<div
 					role="tablist"
-					aria-label="Provider region"
+					aria-label="Provider category"
 					className="grid h-9 grid-cols-3 rounded-md border border-border bg-muted/30 p-0.5"
 				>
 					{PROVIDER_REGION_OPTIONS.map((option) => (
@@ -182,6 +174,9 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 						</button>
 					))}
 				</div>
+				<p className="min-h-10 text-left text-xs leading-5 text-muted-foreground">
+					{PROVIDER_REGION_DESCRIPTIONS[providerRegion]}
+				</p>
 
 				{/* Recommended providers grid */}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -197,6 +192,9 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 							))
 						: recommendedProviders.map((provider) => {
 								const isConnected = connectedIds.has(provider.id)
+								const isFirstTier = FIRST_TIER_CHINA_PROVIDER_IDS.some(
+									(providerId) => providerId === provider.id,
+								)
 								return (
 									<button
 										key={provider.id}
@@ -206,7 +204,14 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 									>
 										<ProviderIcon id={provider.id} name={provider.name} />
 										<div className="flex flex-1 flex-col">
-											<span className="text-sm font-medium">{provider.name}</span>
+											<span className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+												{provider.name}
+												{providerRegion === "china" && isFirstTier ? (
+													<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+														Priority
+													</span>
+												) : null}
+											</span>
 											{isConnected && (
 												<span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
 													Connected
@@ -214,14 +219,34 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 											)}
 										</div>
 										{isConnected ? (
-											<CheckIcon className="size-4 text-emerald-500" />
+											<CheckIcon className="size-4 text-emerald-500" aria-hidden="true" />
 										) : (
-											<LinkIcon className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+											<LinkIcon
+												className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+												aria-hidden="true"
+											/>
 										)}
 									</button>
 								)
 							})}
 				</div>
+
+				{/* Keyless fallback remains available without displacing domestic providers. */}
+				{loading ? (
+					<div className="flex items-center gap-4 rounded-lg border border-border bg-muted/20 p-4">
+						<div className="size-10 animate-pulse rounded-lg bg-muted" />
+						<div className="flex-1 space-y-2">
+							<div className="h-4 w-32 animate-pulse rounded bg-muted" />
+							<div className="h-3 w-48 animate-pulse rounded bg-muted" />
+						</div>
+					</div>
+				) : zenProvider ? (
+					<ZenFeaturedCard
+						provider={zenProvider}
+						hasApiKey={zenHasApiKey}
+						onConnect={() => setConnectDialogProvider(zenProvider)}
+					/>
+				) : null}
 
 				<div className="flex flex-col items-center gap-4 pt-4">
 					<Button size="lg" className="min-w-40" onClick={handleContinue} disabled={loading}>

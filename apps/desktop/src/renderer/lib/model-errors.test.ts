@@ -30,7 +30,24 @@ describe("model error formatting", () => {
 		)
 	})
 
+	it("classifies unavailable models and network failures", () => {
+		assert.match(
+			formatModelError(
+				{
+					name: "APIError",
+					data: { message: "Unknown model", statusCode: 404, isRetryable: false },
+				},
+				"Kimi",
+			),
+			/not available from Kimi/,
+		)
+		assert.match(formatRequestError(new Error("fetch failed"), "GLM"), /could not reach GLM/)
+	})
+
 	it("keeps unknown request errors useful", () => {
-		assert.equal(formatRequestError(new Error("Connection refused")), "Connection refused")
+		assert.equal(
+			formatRequestError(new Error("Unexpected provider response")),
+			"Unexpected provider response",
+		)
 	})
 })

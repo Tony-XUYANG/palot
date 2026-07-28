@@ -65,6 +65,7 @@ import {
 	CHINA_PROVIDER_IDS,
 	CODEX_PROVIDER_IDS,
 	compareByPopularity,
+	FIRST_TIER_CHINA_PROVIDER_IDS,
 	isChinaProvider,
 	isCodexProvider,
 	isSubscriptionConnected,
@@ -177,10 +178,22 @@ export function ProviderSettings() {
 				!connectedSet.has(p.id),
 		)
 		.sort(compareByPopularity)
-	const chinaUnconnected = allProviders.all
+	const firstTierChinaUnconnected = allProviders.all
+		.filter(
+			(p) =>
+				FIRST_TIER_CHINA_PROVIDER_IDS.includes(
+					p.id as (typeof FIRST_TIER_CHINA_PROVIDER_IDS)[number],
+				) &&
+				!connectedSet.has(p.id),
+		)
+		.sort(compareByPopularity)
+	const otherChinaUnconnected = allProviders.all
 		.filter(
 			(p) =>
 				CHINA_PROVIDER_IDS.includes(p.id as (typeof CHINA_PROVIDER_IDS)[number]) &&
+				!FIRST_TIER_CHINA_PROVIDER_IDS.includes(
+					p.id as (typeof FIRST_TIER_CHINA_PROVIDER_IDS)[number],
+				) &&
 				!connectedSet.has(p.id),
 		)
 		.sort(compareByPopularity)
@@ -203,6 +216,7 @@ export function ProviderSettings() {
 							key={provider.id}
 							provider={provider}
 							sourceInfo={connectedInfo?.get(provider.id) ?? null}
+							priority={FIRST_TIER_CHINA_PROVIDER_IDS.some((id) => id === provider.id)}
 							onConnect={() => setConnectDialogProvider(provider)}
 							onReload={reload}
 						/>
@@ -210,8 +224,42 @@ export function ProviderSettings() {
 				</SettingsSection>
 			)}
 
+			{firstTierChinaUnconnected.length > 0 && (
+				<SettingsSection
+					title="Recommended in China"
+					description="Kimi, GLM, and DeepSeek are Palot's first-round acceptance targets. Bring your own provider key."
+				>
+					{firstTierChinaUnconnected.map((provider) => (
+						<AvailableProviderRow
+							key={provider.id}
+							provider={provider}
+							priority
+							onConnect={() => setConnectDialogProvider(provider)}
+						/>
+					))}
+				</SettingsSection>
+			)}
+
+			{otherChinaUnconnected.length > 0 && (
+				<SettingsSection
+					title="More providers in China"
+					description="Additional providers remain available while the first-round acceptance set is validated."
+				>
+					{otherChinaUnconnected.map((provider) => (
+						<AvailableProviderRow
+							key={provider.id}
+							provider={provider}
+							onConnect={() => setConnectDialogProvider(provider)}
+						/>
+					))}
+				</SettingsSection>
+			)}
+
 			{codexUnconnected.length > 0 && (
-				<SettingsSection title="OpenAI Codex">
+				<SettingsSection
+					title="OpenAI Codex (Optional)"
+					description="Uses official ChatGPT OAuth or an OpenAI API key. Account, billing, region, and network requirements still apply."
+				>
 					{codexUnconnected.map((provider) => (
 						<AvailableProviderRow
 							key={provider.id}
@@ -222,20 +270,11 @@ export function ProviderSettings() {
 				</SettingsSection>
 			)}
 
-			{chinaUnconnected.length > 0 && (
-				<SettingsSection title="Recommended in China">
-					{chinaUnconnected.map((provider) => (
-						<AvailableProviderRow
-							key={provider.id}
-							provider={provider}
-							onConnect={() => setConnectDialogProvider(provider)}
-						/>
-					))}
-				</SettingsSection>
-			)}
-
 			{popularUnconnected.length > 0 && (
-				<SettingsSection title="Other popular providers">
+				<SettingsSection
+					title="Global providers (Advanced)"
+					description="Compatibility access for global providers. Availability depends on each provider's account and network requirements."
+				>
 					{popularUnconnected.map((provider) => (
 						<AvailableProviderRow
 							key={provider.id}
@@ -295,7 +334,8 @@ function ProviderSettingsHeader() {
 		<div>
 			<h2 className="text-xl font-semibold">Providers</h2>
 			<p className="text-sm text-muted-foreground mt-1">
-				Connect AI providers to use their models.{" "}
+				Use your own provider key. Palot stores credentials through OpenCode and never bundles a
+				third-party relay.{" "}
 				<a
 					href="https://opencode.ai/docs/providers/"
 					target="_blank"
@@ -312,11 +352,13 @@ function ProviderSettingsHeader() {
 function ConnectedProviderRow({
 	provider,
 	sourceInfo,
+	priority,
 	onConnect,
 	onReload,
 }: {
 	provider: CatalogProvider
 	sourceInfo: ConnectedProviderInfo | null
+	priority: boolean
 	onConnect: () => void
 	onReload: () => void
 }) {
@@ -371,6 +413,11 @@ function ConnectedProviderRow({
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
 					<span className="break-words text-sm font-medium">{provider.name}</span>
+					{priority ? (
+						<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+							Priority
+						</span>
+					) : null}
 					{zenFree && (
 						<span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
 							<ZapIcon className="size-2" aria-hidden="true" />
@@ -514,9 +561,11 @@ function SourceTooltip({
 
 function AvailableProviderRow({
 	provider,
+	priority = false,
 	onConnect,
 }: {
 	provider: CatalogProvider
+	priority?: boolean
 	onConnect: () => void
 }) {
 	const modelCount = Object.keys(provider.models).length
@@ -526,7 +575,14 @@ function AvailableProviderRow({
 		<div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
 			<ProviderIcon id={provider.id} name={provider.name} />
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<span className="break-words text-sm font-medium">{provider.name}</span>
+				<span className="flex flex-wrap items-center gap-1.5 break-words text-sm font-medium">
+					{provider.name}
+					{priority ? (
+						<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+							Priority
+						</span>
+					) : null}
+				</span>
 				<span className="text-xs text-muted-foreground">
 					{modelCount} {modelCount === 1 ? "model" : "models"}
 				</span>

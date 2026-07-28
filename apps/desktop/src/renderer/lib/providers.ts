@@ -8,15 +8,18 @@
 
 /** Chinese providers shown first for the Windows China-focused experience. */
 export const CHINA_PROVIDER_IDS = [
+	"kimi-for-coding",
+	"zhipuai",
 	"deepseek",
 	"alibaba-cn",
-	"kimi-for-coding",
 	"moonshotai-cn",
-	"zhipuai",
 	"siliconflow-cn",
 	"minimax-cn",
 	"modelscope",
 ] as const
+
+/** Providers targeted by the first round of real agent and deployment acceptance tests. */
+export const FIRST_TIER_CHINA_PROVIDER_IDS = ["kimi-for-coding", "zhipuai", "deepseek"] as const
 
 /** OpenAI is featured separately because it exposes Codex models and ChatGPT OAuth. */
 export const CODEX_PROVIDER_IDS = ["openai"] as const
@@ -31,29 +34,84 @@ export const GLOBAL_PROVIDER_IDS = [
 	"xai",
 ] as const
 
-/** Codex models verified against the OpenCode 1.18.5 provider catalog. */
+/** Codex model IDs known to the bundled OpenCode catalog. */
 export const CODEX_RECOMMENDED_MODELS = [
 	{ providerID: "openai", modelID: "gpt-5.3-codex" },
 	{ providerID: "openai", modelID: "gpt-5.3-codex-spark" },
 ] as const
 
-/** Low-cost or coding-focused models verified against the OpenCode 1.18.5 catalog. */
-export const CHINA_RECOMMENDED_MODELS = [
-	{ providerID: "deepseek", modelID: "deepseek-chat" },
-	{ providerID: "alibaba-cn", modelID: "qwen-flash" },
-	{ providerID: "kimi-for-coding", modelID: "kimi-for-coding" },
-	{ providerID: "moonshotai-cn", modelID: "kimi-k2.5" },
-	{ providerID: "zhipuai", modelID: "glm-4.7-flash" },
-	{ providerID: "siliconflow-cn", modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct" },
-	{ providerID: "minimax-cn", modelID: "MiniMax-M2.5" },
-	{ providerID: "modelscope", modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct" },
-] as const
+export interface ModelCandidateReference {
+	readonly providerID: string
+	readonly modelID: string
+}
+
+export interface ChinaModelCandidate extends ModelCandidateReference {
+	/** Candidate means the model still requires the documented real-world acceptance run. */
+	readonly tier: "candidate"
+	readonly firstTier: boolean
+}
+
+/**
+ * Coding-focused domestic model candidates. These are catalog candidates, not claims that
+ * end-to-end acceptance has completed. Availability is resolved against the live catalog.
+ */
+export const CHINA_MODEL_REGISTRY = [
+	{ providerID: "kimi-for-coding", modelID: "kimi-for-coding", tier: "candidate", firstTier: true },
+	{ providerID: "zhipuai", modelID: "glm-4.7-flash", tier: "candidate", firstTier: true },
+	{ providerID: "deepseek", modelID: "deepseek-chat", tier: "candidate", firstTier: true },
+	{ providerID: "alibaba-cn", modelID: "qwen-flash", tier: "candidate", firstTier: false },
+	{ providerID: "moonshotai-cn", modelID: "kimi-k2.5", tier: "candidate", firstTier: false },
+	{
+		providerID: "siliconflow-cn",
+		modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+		tier: "candidate",
+		firstTier: false,
+	},
+	{ providerID: "minimax-cn", modelID: "MiniMax-M2.5", tier: "candidate", firstTier: false },
+	{
+		providerID: "modelscope",
+		modelID: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+		tier: "candidate",
+		firstTier: false,
+	},
+] as const satisfies readonly ChinaModelCandidate[]
+
+/** Backwards-compatible name used by current model-selection surfaces. */
+export const CHINA_RECOMMENDED_MODELS = CHINA_MODEL_REGISTRY
+
+/** Minimal structural subset of CatalogProvider needed to resolve live model availability. */
+export interface ProviderModelCatalogEntry {
+	readonly id: string
+	readonly models: Record<string, unknown>
+}
+
+/**
+ * Keep only candidate IDs present in the live OpenCode provider catalog.
+ * Candidate order and metadata are preserved.
+ */
+export function resolveCatalogModelCandidates<T extends ModelCandidateReference>(
+	candidates: readonly T[],
+	providers: readonly ProviderModelCatalogEntry[],
+): T[] {
+	const modelsByProvider = new Map(providers.map((provider) => [provider.id, provider.models]))
+	return candidates.filter((candidate) => {
+		const models = modelsByProvider.get(candidate.providerID)
+		return models !== undefined && Object.hasOwn(models, candidate.modelID)
+	})
+}
+
+/** Resolve domestic candidates that still exist in the current OpenCode catalog. */
+export function resolveAvailableChinaModelCandidates(
+	providers: readonly ProviderModelCatalogEntry[],
+): ChinaModelCandidate[] {
+	return resolveCatalogModelCandidates(CHINA_MODEL_REGISTRY, providers)
+}
 
 /** Popular providers shown prominently in onboarding and settings, in display order */
 export const POPULAR_PROVIDER_IDS = [
 	"opencode",
-	...CODEX_PROVIDER_IDS,
 	...CHINA_PROVIDER_IDS,
+	...CODEX_PROVIDER_IDS,
 	...GLOBAL_PROVIDER_IDS,
 ] as const
 
