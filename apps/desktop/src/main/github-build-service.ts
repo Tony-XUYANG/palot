@@ -9,12 +9,18 @@ import path from "node:path"
 import { promisify } from "node:util"
 import { app } from "electron"
 import {
+	addPalotLocalPathsToGitignore,
 	createGitHubBuildWorkflow,
+	type GitHubBuildResult,
 	type GitHubRepositoryRef,
+	isGitHubBuildCurrent,
 	isSensitiveProjectPath,
+	PALOT_BUILD_RESULT,
 	PALOT_BUILD_WORKFLOW,
+	PALOT_TEMPLATE_PATH,
 	parseGitHubBuildArtifact,
 	parseGitHubRemote,
+	parseStoredGitHubBuild,
 } from "./github-build"
 import { resolveGitHubRuntime, resolveGitRuntime } from "./runtime-resolver"
 
@@ -69,14 +75,6 @@ export interface GitHubBuildProgress {
 	status: "active" | "complete"
 	detail: string
 	runUrl?: string
-}
-
-export interface GitHubBuildResult {
-	repository: string
-	branch: string
-	commit: string
-	image: string
-	runUrl: string
 }
 
 function runtimeOptions() {
@@ -141,6 +139,52 @@ async function getLogin(ghPath: string): Promise<string | null> {
 	} catch {
 		return null
 	}
+}
+
+async function getChangedPaths(directory: string): Promise<string[]> {
+	const git = getGitPath()
+	const outputs = await Promise.all([
+		command(git, ["diff", "--name-only", "-z"], directory),
+		command(git, ["diff", "--cached", "--name-only", "-z"], directory),
+		command(git, ["ls-files", "--others", "--exclude-standard", "-z"], directory),
+	])
+	const changedPaths = new Set<string>()
+	for (const output of outputs) {
+		for (const file of output.split("\0")) {
+			if (file) changedPaths.add(file)
+		}
+	}
+	return [...changedPaths]
+}
+
+export async function readGitHubBuildResult(directory: string): Promise<GitHubBuildResult | null> {
+	const resolved = path.resolve(directory)
+	try {
+		const repository = await getRepository(resolved)
+		if (!repository) return null
+		const [branch, headCommit, changedPaths, stored, template] = await Promise.all([
+			getBranch(resolved),
+			command(getGitPath(), ["rev-parse", "HEAD"], resolved),
+			getChangedPaths(resolved),
+			readFile(path.join(resolved, PALOT_BUILD_RESULT), "utf8"),
+			readFile(path.join(resolved, PALOT_TEMPLATE_PATH), "utf8"),
+		])
+		if (!branch) return null
+		const build = parseStoredGitHubBuild(repository, JSON.parse(stored))
+		if (!template.includes(build.image)) return null
+		return isGitHubBuildCurrent(build, branch, headCommit, changedPaths) ? build : null
+	} catch {
+		return null
+	}
+}
+
+async function writeGitHubBuildResult(
+	directory: string,
+	result: GitHubBuildResult,
+): Promise<void> {
+	const resultPath = path.join(path.resolve(directory), PALOT_BUILD_RESULT)
+	await mkdir(path.dirname(resultPath), { recursive: true })
+	await writeFile(resultPath, `${JSON.stringify({ version: "1.0", result }, null, 2)}\n`, "utf8")
 }
 
 export async function getGitHubBuildStatus(directory: string): Promise<GitHubBuildStatus> {
@@ -280,6 +324,7 @@ export async function prepareGitHubBuild(
 		throw new Error("Generate and review a production Dockerfile before preparing remote builds")
 	}
 	const workflowPath = path.join(resolved, PALOT_BUILD_WORKFLOW)
+	const gitignorePath = path.join(resolved, ".gitignore")
 	const content = createGitHubBuildWorkflow()
 	let previous = ""
 	try {
@@ -287,10 +332,24 @@ export async function prepareGitHubBuild(
 	} catch {
 		// The workflow will be created below.
 	}
-	if (previous === content) return { path: workflowPath, changed: false }
-	await mkdir(path.dirname(workflowPath), { recursive: true })
-	await writeFile(workflowPath, content, "utf8")
-	return { path: workflowPath, changed: true }
+	let gitignore = ""
+	try {
+		gitignore = await readFile(gitignorePath, "utf8")
+	} catch {
+		// The project may not have a .gitignore yet.
+	}
+	const nextGitignore = addPalotLocalPathsToGitignore(gitignore)
+	const workflowChanged = previous !== content
+	const gitignoreChanged = gitignore !== nextGitignore
+	await Promise.all([
+		workflowChanged
+			? mkdir(path.dirname(workflowPath), { recursive: true }).then(() =>
+					writeFile(workflowPath, content, "utf8"),
+				)
+			: Promise.resolve(),
+		gitignoreChanged ? writeFile(gitignorePath, nextGitignore, "utf8") : Promise.resolve(),
+	])
+	return { path: workflowPath, changed: workflowChanged || gitignoreChanged }
 }
 
 export async function publishGitHubSource(directory: string): Promise<GitHubSourceResult> {
@@ -302,18 +361,7 @@ export async function publishGitHubSource(directory: string): Promise<GitHubSour
 	const git = getGitPath()
 	const dirty = await command(git, ["status", "--porcelain"], resolved)
 	if (dirty) {
-		const changedPaths = new Set<string>()
-		const pathOutputs = await Promise.all([
-			command(git, ["diff", "--name-only", "-z"], resolved),
-			command(git, ["diff", "--cached", "--name-only", "-z"], resolved),
-			command(git, ["ls-files", "--others", "--exclude-standard", "-z"], resolved),
-		])
-		for (const output of pathOutputs) {
-			for (const file of output.split("\0")) {
-				if (file) changedPaths.add(file)
-			}
-		}
-		const blocked = [...changedPaths].filter(isSensitiveProjectPath)
+		const blocked = (await getChangedPaths(resolved)).filter(isSensitiveProjectPath)
 		if (blocked.length > 0) {
 			throw new Error(
 				`Remote build blocked because sensitive local files would be committed: ${blocked.join(", ")}`,
@@ -433,12 +481,14 @@ export async function runGitHubBuild(
 	}
 	await makeContainerPublic(gh, repository)
 	const image = artifact.image
-	onProgress({ stage: "complete", status: "complete", detail: image, runUrl: run.url })
-	return {
+	const result = {
 		repository: repository.nameWithOwner,
 		branch: status.branch,
 		commit: run.headSha,
 		image,
 		runUrl: run.url,
 	}
+	await writeGitHubBuildResult(directory, result)
+	onProgress({ stage: "complete", status: "complete", detail: image, runUrl: run.url })
+	return result
 }

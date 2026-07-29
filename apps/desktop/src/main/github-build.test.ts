@@ -1,11 +1,14 @@
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
+	addPalotLocalPathsToGitignore,
 	buildImageRef,
 	createGitHubBuildWorkflow,
+	isGitHubBuildCurrent,
 	isSensitiveProjectPath,
 	parseGitHubBuildArtifact,
 	parseGitHubRemote,
+	parseStoredGitHubBuild,
 } from "./github-build.ts"
 
 describe("GitHub Actions remote build helpers", () => {
@@ -54,6 +57,53 @@ describe("GitHub Actions remote build helpers", () => {
 				commit,
 			},
 		)
+	})
+
+	it("restores only immutable build results for the current repository", () => {
+		const repo = parseGitHubRemote("https://github.com/Tony-XUYANG/Demo.git")
+		assert.ok(repo)
+		const commit = "0123456789abcdef0123456789abcdef01234567"
+		const build = parseStoredGitHubBuild(repo, {
+			version: "1.0",
+			result: {
+				repository: "Tony-XUYANG/Demo",
+				branch: "main",
+				commit,
+				image: `ghcr.io/tony-xuyang/demo@sha256:${"a".repeat(64)}`,
+				runUrl: "https://github.com/Tony-XUYANG/Demo/actions/runs/123",
+			},
+		})
+		assert.equal(build.commit, commit)
+		assert.throws(() =>
+			parseStoredGitHubBuild(repo, {
+				version: "1.0",
+				result: { ...build, image: "ghcr.io/tony-xuyang/demo:latest" },
+			}),
+		)
+	})
+
+	it("invalidates resumed builds when source or HEAD changed", () => {
+		const build = {
+			repository: "owner/demo",
+			branch: "main",
+			commit: "0123456789abcdef0123456789abcdef01234567",
+			image: `ghcr.io/owner/demo@sha256:${"a".repeat(64)}`,
+			runUrl: "https://github.com/owner/demo/actions/runs/123",
+		}
+		assert.equal(
+			isGitHubBuildCurrent(build, "main", build.commit, [".sealos/template/index.yaml"]),
+			true,
+		)
+		assert.equal(isGitHubBuildCurrent(build, "feature", build.commit, []), false)
+		assert.equal(isGitHubBuildCurrent(build, "main", "f".repeat(40), []), false)
+		assert.equal(isGitHubBuildCurrent(build, "main", build.commit, ["src/index.ts"]), false)
+	})
+
+	it("keeps Palot deployment state out of remote commits", () => {
+		const next = addPalotLocalPathsToGitignore("node_modules/\n")
+		assert.match(next, /^\.sealos\/state\.json$/m)
+		assert.match(next, /^\.sealos\/build\/build-result\.json$/m)
+		assert.equal(addPalotLocalPathsToGitignore(next), next)
 	})
 
 	it("blocks common local credential and state files from remote commits", () => {

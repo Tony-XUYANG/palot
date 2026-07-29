@@ -667,6 +667,7 @@ export interface PalotAPI {
 		getDeploymentState: (directory: string) => Promise<SealosDeploymentState | null>
 		updateDeployment: (directory: string) => Promise<SealosUpdateResult>
 		getGitHubStatus: (directory: string) => Promise<GitHubBuildStatus>
+		getGitHubBuildResult: (directory: string) => Promise<GitHubBuildResult | null>
 		startGitHubLogin: () => Promise<{
 			sessionId: string
 			userCode: string | null

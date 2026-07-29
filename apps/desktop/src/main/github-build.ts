@@ -3,11 +3,27 @@
  */
 
 export const PALOT_BUILD_WORKFLOW = ".github/workflows/palot-sealos-build.yml"
+export const PALOT_BUILD_RESULT = ".sealos/build/build-result.json"
+export const PALOT_TEMPLATE_PATH = ".sealos/template/index.yaml"
+
+const PALOT_LOCAL_PATHS = [".sealos/state.json", PALOT_BUILD_RESULT]
 
 export interface GitHubRepositoryRef {
 	owner: string
 	name: string
 	nameWithOwner: string
+}
+
+export interface GitHubBuildResult {
+	repository: string
+	branch: string
+	commit: string
+	image: string
+	runUrl: string
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 export function parseGitHubRemote(remoteUrl: string): GitHubRepositoryRef | null {
@@ -48,12 +64,66 @@ export function parseGitHubBuildArtifact(
 	}
 	if (
 		!new RegExp(
-			`^ghcr\\.io/${repositoryPath.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}@sha256:[0-9a-f]{64}$`,
+			`^ghcr\\.io/${escapeRegExp(repositoryPath)}@sha256:[0-9a-f]{64}$`,
 		).test(image)
 	) {
 		throw new Error("GitHub build artifact did not contain an immutable image digest")
 	}
 	return { image, tag, commit }
+}
+
+export function parseStoredGitHubBuild(
+	repository: GitHubRepositoryRef,
+	value: unknown,
+): GitHubBuildResult {
+	if (!value || typeof value !== "object") throw new Error("Stored GitHub build is invalid")
+	const envelope = value as Record<string, unknown>
+	if (envelope.version !== "1.0" || !envelope.result || typeof envelope.result !== "object") {
+		throw new Error("Stored GitHub build version is unsupported")
+	}
+	const result = envelope.result as Record<string, unknown>
+	const build = {
+		repository: String(result.repository ?? ""),
+		branch: String(result.branch ?? ""),
+		commit: String(result.commit ?? "").toLowerCase(),
+		image: String(result.image ?? ""),
+		runUrl: String(result.runUrl ?? ""),
+	}
+	if (build.repository.toLowerCase() !== repository.nameWithOwner.toLowerCase()) {
+		throw new Error("Stored GitHub build belongs to another repository")
+	}
+	if (!build.branch || !/^[0-9a-f]{40}$/.test(build.commit)) {
+		throw new Error("Stored GitHub build source is invalid")
+	}
+	const repositoryPath = escapeRegExp(repository.nameWithOwner.toLowerCase())
+	if (!new RegExp(`^ghcr\\.io/${repositoryPath}@sha256:[0-9a-f]{64}$`).test(build.image)) {
+		throw new Error("Stored GitHub build image is not immutable")
+	}
+	const runUrl = new URL(build.runUrl)
+	if (runUrl.protocol !== "https:" || runUrl.hostname !== "github.com") {
+		throw new Error("Stored GitHub Actions URL is invalid")
+	}
+	return build
+}
+
+export function isGitHubBuildCurrent(
+	build: GitHubBuildResult,
+	branch: string,
+	headCommit: string,
+	changedPaths: string[],
+): boolean {
+	if (build.branch !== branch || build.commit !== headCommit.toLowerCase()) return false
+	return changedPaths.every(
+		(projectPath) => projectPath.replace(/\\/g, "/") === PALOT_TEMPLATE_PATH,
+	)
+}
+
+export function addPalotLocalPathsToGitignore(content: string): string {
+	const lines = content.split(/\r?\n/)
+	const missing = PALOT_LOCAL_PATHS.filter((entry) => !lines.includes(entry))
+	if (missing.length === 0) return content
+	const separator = content.length === 0 || content.endsWith("\n") ? "" : "\n"
+	return `${content}${separator}${content.length > 0 ? "\n" : ""}# Palot local deployment state\n${missing.join("\n")}\n`
 }
 
 export function isSensitiveProjectPath(projectPath: string): boolean {

@@ -198,6 +198,8 @@ contextBridge.exposeInMainWorld("palot", {
 			ipcRenderer.invoke("sealos:deployment-state", directory),
 		updateDeployment: (directory: string) => ipcRenderer.invoke("sealos:update", directory),
 		getGitHubStatus: (directory: string) => ipcRenderer.invoke("sealos:github-status", directory),
+		getGitHubBuildResult: (directory: string) =>
+			ipcRenderer.invoke("sealos:github-last-build", directory),
 		startGitHubLogin: () => ipcRenderer.invoke("sealos:github-login-start"),
 		completeGitHubLogin: (sessionId: string) =>
 			ipcRenderer.invoke("sealos:github-login-complete", sessionId),

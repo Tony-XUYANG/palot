@@ -42,6 +42,7 @@ import {
 } from "./git-service"
 import {
 	completeGitHubLogin,
+	readGitHubBuildResult,
 	getGitHubBuildStatus,
 	prepareGitHubBuild,
 	publishGitHubSource,
@@ -419,6 +420,14 @@ export function registerIpcHandlers(): void {
 		withLogging(
 			"sealos:github-status",
 			async (_, directory: string) => await getGitHubBuildStatus(directory),
+		),
+	)
+
+	ipcMain.handle(
+		"sealos:github-last-build",
+		withLogging(
+			"sealos:github-last-build",
+			async (_, directory: string) => await readGitHubBuildResult(directory),
 		),
 	)
 

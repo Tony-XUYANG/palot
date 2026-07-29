@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { useAtomValue } from "jotai"
 import {
 	CheckCircle2Icon,
+	CircleIcon,
 	CloudUploadIcon,
 	ExternalLinkIcon,
 	GithubIcon,
@@ -46,6 +47,43 @@ const SEALOS_REGIONS = [
 	{ value: "https://usw-1.sealos.io", label: "US West" },
 ]
 
+type DeploymentPipelineStage = "build" | "deploy" | "verify"
+type DeploymentPipelineStatus = "pending" | "active" | "complete" | "error"
+
+interface DeploymentPipelineStep {
+	id: DeploymentPipelineStage
+	label: string
+	status: DeploymentPipelineStatus
+	detail: string
+}
+
+function createDeploymentPipelineSteps(
+	build: GitHubBuildResult | null,
+	buildApplied: boolean,
+	isUpdate: boolean,
+): DeploymentPipelineStep[] {
+	return [
+		{
+			id: "build",
+			label: "Build immutable image",
+			status: build ? "complete" : "pending",
+			detail: build ? build.image : "Waiting for GitHub Actions",
+		},
+		{
+			id: "deploy",
+			label: isUpdate ? "Update Sealos deployment" : "Create Sealos deployment",
+			status: buildApplied ? "complete" : "pending",
+			detail: buildApplied ? "The current image is deployed" : "Waiting for an immutable image",
+		},
+		{
+			id: "verify",
+			label: "Verify public runtime",
+			status: "pending",
+			detail: "Checks readiness, networking, logs, HTTP, and 60-second stability",
+		},
+	]
+}
+
 const PREPARE_DEPLOYMENT_PROMPT = `Prepare this web project for deployment to Sealos Cloud.
 
 1. Analyze the real build, start command, listening host, port, environment variables, migrations, storage, and external services.
@@ -80,6 +118,7 @@ export function SealosDeployPage() {
 	const [deploymentState, setDeploymentState] = useState<SealosDeploymentState | null>(null)
 	const [updated, setUpdated] = useState(false)
 	const [runtime, setRuntime] = useState<SealosRuntimeResult | null>(null)
+	const [pipelineSteps, setPipelineSteps] = useState<DeploymentPipelineStep[]>([])
 	const [checking, setChecking] = useState(false)
 	const [action, setAction] = useState<string | null>(null)
 	const [loginCode, setLoginCode] = useState<string | null>(null)
@@ -96,6 +135,17 @@ export function SealosDeployPage() {
 				const next = current.filter((item) => item.stage !== progress.stage)
 				return [...next, progress]
 			})
+			setPipelineSteps((current) =>
+				current.map((step) =>
+					step.id === "build"
+						? {
+								...step,
+								status: progress.status === "complete" ? "complete" : "active",
+								detail: progress.detail,
+							}
+						: step,
+				),
+			)
 		})
 	}, [])
 
@@ -118,6 +168,8 @@ export function SealosDeployPage() {
 		(input) => !input.required || Boolean(inputValues[input.name]?.trim() || input.defaultValue),
 	)
 	const publicUrl = deployment?.appUrl ?? deploymentState?.last_deploy.url ?? null
+	const activePipelineStep = pipelineSteps.find((step) => step.status === "active") ?? null
+	const pipelineHasError = pipelineSteps.some((step) => step.status === "error")
 
 	const refresh = async () => {
 		if (!directory) return
@@ -178,14 +230,16 @@ export function SealosDeployPage() {
 				return
 			}
 			if (!window.palot?.sealos) return
-			const [nextResult, nextGitHub, nextDeploymentState] = await Promise.all([
+			const [nextResult, nextGitHub, nextDeploymentState, nextBuild] = await Promise.all([
 				window.palot.sealos.preflight(directory),
 				window.palot.sealos.getGitHubStatus(directory),
 				window.palot.sealos.getDeploymentState(directory),
+				window.palot.sealos.getGitHubBuildResult(directory),
 			])
 			setResult(nextResult)
 			setGitHub(nextGitHub)
 			setDeploymentState(nextDeploymentState)
+			setBuild(nextBuild)
 			if (nextResult.region) setRegion(nextResult.region)
 			const [nextWorkspaces, nextInputs] = await Promise.all([
 				nextResult.checks.some((check) => check.id === "auth" && check.status === "ready")
@@ -260,26 +314,36 @@ export function SealosDeployPage() {
 			await refresh()
 		})
 
+	const executeRemoteBuild = async (): Promise<GitHubBuildResult> => {
+		setBuildProgress([])
+		setDeployment(null)
+		setUpdated(false)
+		setRuntime(null)
+		if (isMockMode) {
+			const mockBuild = {
+				repository: "demo-user/palot-demo",
+				branch: "main",
+				commit: "0123456789abcdef0123456789abcdef01234567",
+				image: `ghcr.io/demo-user/palot-demo@sha256:${"a".repeat(64)}`,
+				runUrl: "https://github.com/demo-user/palot-demo/actions",
+			}
+			setBuildProgress([
+				{ stage: "repository", status: "complete", detail: "demo-user/palot-demo" },
+				{ stage: "dispatch", status: "complete", detail: "Build requested" },
+				{ stage: "complete", status: "complete", detail: mockBuild.image },
+			])
+			setBuild(mockBuild)
+			return mockBuild
+		}
+		const nextBuild = await window.palot.sealos.runGitHubBuild(directory)
+		setBuild(nextBuild)
+		return nextBuild
+	}
+
 	const buildRemotely = () =>
 		runAction("build", async () => {
-			setBuildProgress([])
-			if (isMockMode) {
-				setBuildProgress([
-					{ stage: "repository", status: "complete", detail: "demo-user/palot-demo" },
-					{ stage: "dispatch", status: "complete", detail: "Build requested" },
-					{ stage: "complete", status: "complete", detail: "Immutable GHCR image published" },
-				])
-				setBuild({
-					repository: "demo-user/palot-demo",
-					branch: "main",
-					commit: "0123456789abcdef0123456789abcdef01234567",
-					image: `ghcr.io/demo-user/palot-demo@sha256:${"a".repeat(64)}`,
-					runUrl: "https://github.com/demo-user/palot-demo/actions",
-				})
-				return
-			}
-			setBuild(await window.palot.sealos.runGitHubBuild(directory))
-			await refresh()
+			await executeRemoteBuild()
+			if (!isMockMode) await refresh()
 		})
 
 	const switchWorkspace = (workspaceId: string) =>
@@ -288,50 +352,123 @@ export function SealosDeployPage() {
 			await refresh()
 		})
 
-	const deploy = () =>
-		runAction("deploy", async () => {
-			if (isMockMode) {
-				setDeployment({
-					success: true,
-					status: 201,
-					region: "https://hzh.sealos.run",
-					response: {},
-					appUrl: "https://palot-demo.hzh.sealos.run",
-					instanceName: "palot-demo-ab12cd34",
-					logPath: "~/.sealos/logs/deploy-demo.log",
-				})
-				return
+	const executeDeployment = async (): Promise<string> => {
+		if (isMockMode) {
+			const nextDeployment = {
+				success: true,
+				status: 201,
+				region: "https://hzh.sealos.run",
+				response: {},
+				appUrl: "https://palot-demo.hzh.sealos.run",
+				instanceName: "palot-demo-ab12cd34",
+				logPath: "~/.sealos/logs/deploy-demo.log",
 			}
-			if (deploymentState) {
-				await window.palot.sealos.updateDeployment(directory)
-				setUpdated(true)
-				await refresh()
-			} else {
-				setDeployment(await window.palot.sealos.deploy(directory, inputValues))
-				await refresh()
-			}
-		})
+			setDeployment(nextDeployment)
+			return nextDeployment.appUrl
+		}
+		if (deploymentState) {
+			const update = await window.palot.sealos.updateDeployment(directory)
+			setUpdated(true)
+			const nextState = await window.palot.sealos.getDeploymentState(directory)
+			setDeploymentState(nextState)
+			const url = update.url ?? nextState?.last_deploy.url
+			if (!url) throw new Error("The updated deployment did not return a public URL")
+			return url
+		}
+		const nextDeployment = await window.palot.sealos.deploy(directory, inputValues)
+		setDeployment(nextDeployment)
+		const nextState = await window.palot.sealos.getDeploymentState(directory)
+		setDeploymentState(nextState)
+		const url = nextDeployment.appUrl ?? nextState?.last_deploy.url
+		if (!url) throw new Error("The deployment did not return a public URL")
+		return url
+	}
 
-	const verifyRuntime = () =>
-		runAction("verify", async () => {
-			if (!publicUrl) throw new Error("The deployment did not return a public URL")
-			if (isMockMode) {
-				setRuntime({
-					ok: true,
-					status: 200,
-					url: publicUrl,
-					detail: "Public runtime checks passed",
-					checks: [
-						{ id: "root", ok: true, detail: "Root returned HTTP 200" },
-						{ id: "health", ok: true, detail: "/health returned HTTP 200" },
-						{ id: "missing-path", ok: true, detail: "Random missing path returned HTTP 404" },
-						{ id: "failure-text", ok: true, detail: "No browser failure text found" },
-					],
-				})
-				return
+	const executeRuntimeVerification = async (url: string): Promise<SealosRuntimeResult> => {
+		if (isMockMode) {
+			const nextRuntime: SealosRuntimeResult = {
+				ok: true,
+				status: 200,
+				url,
+				detail: "Public runtime checks passed",
+				checks: [
+					{ id: "root", ok: true, detail: "Root returned HTTP 200" },
+					{ id: "health", ok: true, detail: "/health returned HTTP 200" },
+					{ id: "missing-path", ok: true, detail: "Random missing path returned HTTP 404" },
+					{ id: "failure-text", ok: true, detail: "No browser failure text found" },
+				],
 			}
-			setRuntime(await window.palot.sealos.verifyRuntime(directory, publicUrl))
-		})
+			setRuntime(nextRuntime)
+			return nextRuntime
+		}
+		const nextRuntime = await window.palot.sealos.verifyRuntime(directory, url)
+		setRuntime(nextRuntime)
+		return nextRuntime
+	}
+
+	const updatePipelineStep = (
+		id: DeploymentPipelineStage,
+		status: DeploymentPipelineStatus,
+		detail: string,
+	) => {
+		setPipelineSteps((current) =>
+			current.map((step) => (step.id === id ? { ...step, status, detail } : step)),
+		)
+	}
+
+	const runDeploymentPipeline = async () => {
+		const initiallyApplied = Boolean(
+			build &&
+				(deploymentState?.last_deploy.image === build.image || Boolean(deployment) || updated),
+		)
+		setPipelineSteps(
+			createDeploymentPipelineSteps(build, initiallyApplied, Boolean(deploymentState)),
+		)
+		setAction("pipeline")
+		setError(null)
+		setRuntime(null)
+		let activeStage: DeploymentPipelineStage = "build"
+		try {
+			let activeBuild = build
+			if (!activeBuild) {
+				updatePipelineStep("build", "active", "Starting GitHub Actions")
+				activeBuild = await executeRemoteBuild()
+				updatePipelineStep("build", "complete", activeBuild.image)
+			}
+
+			activeStage = "deploy"
+			let deploymentUrl = publicUrl
+			const buildApplied = Boolean(build && initiallyApplied)
+			if (!buildApplied) {
+				updatePipelineStep(
+					"deploy",
+					"active",
+					deploymentState ? "Updating the existing instance" : "Submitting the Sealos template",
+				)
+				deploymentUrl = await executeDeployment()
+				updatePipelineStep("deploy", "complete", deploymentUrl)
+			} else {
+				updatePipelineStep("deploy", "complete", deploymentUrl ?? "The current image is deployed")
+			}
+
+			activeStage = "verify"
+			if (!deploymentUrl) throw new Error("The deployment does not have a public URL")
+			updatePipelineStep(
+				"verify",
+				"active",
+				"Checking readiness, HTTP responses, logs, and 60-second stability",
+			)
+			const nextRuntime = await executeRuntimeVerification(deploymentUrl)
+			if (!nextRuntime.ok) throw new Error(nextRuntime.detail)
+			updatePipelineStep("verify", "complete", nextRuntime.detail)
+		} catch (err) {
+			const detail = err instanceof Error ? err.message : "Deployment workflow failed"
+			updatePipelineStep(activeStage, "error", detail)
+			setError(detail)
+		} finally {
+			setAction(null)
+		}
+	}
 
 	return (
 		<div className="h-full overflow-y-auto bg-background">
@@ -349,7 +486,7 @@ export function SealosDeployPage() {
 					</div>
 					{result ? (
 						<Badge variant={result.ready && build ? "default" : "secondary"}>
-							{deployment ? "Deployed" : build ? "Ready" : "Setup"}
+							{runtime?.ok ? "Verified" : deployment || updated ? "Deployed" : build ? "Ready" : "Setup"}
 						</Badge>
 					) : null}
 				</header>
@@ -370,6 +507,8 @@ export function SealosDeployPage() {
 									setDeployment(null)
 									setDeploymentState(null)
 									setUpdated(false)
+									setRuntime(null)
+									setPipelineSteps([])
 								}}
 								className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							>
@@ -486,7 +625,7 @@ export function SealosDeployPage() {
 											) : (
 												<Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
 											)}
-											<span>{progress.detail}</span>
+											<span className="min-w-0 flex-1 break-all">{progress.detail}</span>
 										</div>
 									))}
 								</div>
@@ -633,31 +772,64 @@ export function SealosDeployPage() {
 						<section className="border-t py-6">
 							<h2 className="text-base font-semibold">4. Deploy and verify</h2>
 							<p className="mt-1 text-sm text-muted-foreground">
-								The template is validated before creation. Runtime checks cover Kubernetes
-								readiness, public networking, HTTP health, logs, and 60-second stability.
+								Run the remaining stages as one recoverable workflow. Completed stages are reused
+								after a failure or app restart.
 							</p>
+							{pipelineSteps.length > 0 ? (
+								<div className="mt-4 divide-y rounded-md border">
+									{pipelineSteps.map((step) => (
+										<div key={step.id} className="flex items-start gap-3 px-4 py-3">
+											{step.status === "complete" ? (
+												<CheckCircle2Icon
+													className="mt-0.5 size-4 shrink-0 text-green-600"
+													aria-hidden="true"
+												/>
+											) : step.status === "active" ? (
+												<Loader2Icon
+													className="mt-0.5 size-4 shrink-0 animate-spin"
+													aria-hidden="true"
+												/>
+											) : step.status === "error" ? (
+												<XCircleIcon
+													className="mt-0.5 size-4 shrink-0 text-destructive"
+													aria-hidden="true"
+												/>
+											) : (
+												<CircleIcon
+													className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+													aria-hidden="true"
+												/>
+											)}
+											<div className="min-w-0 flex-1">
+												<p className="text-sm font-medium">{step.label}</p>
+												<p className="break-all text-xs text-muted-foreground">{step.detail}</p>
+											</div>
+										</div>
+									))}
+								</div>
+							) : null}
 							<div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
 								<Button
 									className="w-full sm:w-auto"
 									disabled={
 										!result.ready ||
-										!build ||
+										(!build && !github?.ready) ||
 										!requiredInputsReady ||
 										Boolean(action) ||
-										Boolean(deployment)
+										Boolean(runtime?.ok)
 									}
-									onClick={deploy}
+									onClick={runDeploymentPipeline}
 								>
-									<CloudUploadIcon aria-hidden="true" />
-									{action === "deploy"
-										? deploymentState
-											? "Updating"
-											: "Deploying"
-										: deployment
-											? "Deployed"
-											: deploymentState
-												? "Update deployment"
-												: "Deploy to Sealos"}
+									<RocketIcon aria-hidden="true" />
+									{action === "pipeline"
+										? (activePipelineStep?.label ?? "Starting deployment")
+										: runtime?.ok
+											? "Deployment verified"
+											: pipelineHasError
+												? "Retry failed stage"
+												: build
+													? "Deploy and verify"
+													: "Build, deploy and verify"}
 								</Button>
 							</div>
 							{deployment ? (
@@ -681,15 +853,6 @@ export function SealosDeployPage() {
 							) : null}
 							{publicUrl ? (
 								<div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-									<Button
-										className="w-full sm:w-auto"
-										variant="outline"
-										onClick={verifyRuntime}
-										disabled={Boolean(action)}
-									>
-										<RefreshCwIcon aria-hidden="true" />
-										{action === "verify" ? "Verifying" : "Verify runtime"}
-									</Button>
 									<Button
 										className="w-full sm:w-auto"
 										onClick={() => window.open(publicUrl, "_blank", "noopener,noreferrer")}
