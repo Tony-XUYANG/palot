@@ -69,6 +69,7 @@ import {
 	isChinaProvider,
 	isCodexProvider,
 	isSubscriptionConnected,
+	isVerifiedChinaProvider,
 	isZenFreeTier,
 	POPULAR_PROVIDER_IDS,
 	PROVIDER_KEY_URLS,
@@ -216,7 +217,7 @@ export function ProviderSettings() {
 							key={provider.id}
 							provider={provider}
 							sourceInfo={connectedInfo?.get(provider.id) ?? null}
-							priority={FIRST_TIER_CHINA_PROVIDER_IDS.some((id) => id === provider.id)}
+							verified={isVerifiedChinaProvider(provider.id)}
 							onConnect={() => setConnectDialogProvider(provider)}
 							onReload={reload}
 						/>
@@ -227,13 +228,13 @@ export function ProviderSettings() {
 			{firstTierChinaUnconnected.length > 0 && (
 				<SettingsSection
 					title="Recommended in China"
-					description="Kimi, GLM, and DeepSeek are Palot's first-round acceptance targets. Bring your own provider key."
+					description="DeepSeek and GLM passed Palot's real code-edit and automated-test acceptance. Bring your own provider key."
 				>
 					{firstTierChinaUnconnected.map((provider) => (
 						<AvailableProviderRow
 							key={provider.id}
 							provider={provider}
-							priority
+							verified
 							onConnect={() => setConnectDialogProvider(provider)}
 						/>
 					))}
@@ -243,7 +244,7 @@ export function ProviderSettings() {
 			{otherChinaUnconnected.length > 0 && (
 				<SettingsSection
 					title="More providers in China"
-					description="Additional providers remain available while the first-round acceptance set is validated."
+					description="Additional providers remain compatible but do not block the first Windows release."
 				>
 					{otherChinaUnconnected.map((provider) => (
 						<AvailableProviderRow
@@ -352,13 +353,13 @@ function ProviderSettingsHeader() {
 function ConnectedProviderRow({
 	provider,
 	sourceInfo,
-	priority,
+	verified,
 	onConnect,
 	onReload,
 }: {
 	provider: CatalogProvider
 	sourceInfo: ConnectedProviderInfo | null
-	priority: boolean
+	verified: boolean
 	onConnect: () => void
 	onReload: () => void
 }) {
@@ -413,9 +414,9 @@ function ConnectedProviderRow({
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 				<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
 					<span className="break-words text-sm font-medium">{provider.name}</span>
-					{priority ? (
-						<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-							Priority
+					{verified ? (
+						<span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+							Verified
 						</span>
 					) : null}
 					{zenFree && (
@@ -561,11 +562,11 @@ function SourceTooltip({
 
 function AvailableProviderRow({
 	provider,
-	priority = false,
+	verified = false,
 	onConnect,
 }: {
 	provider: CatalogProvider
-	priority?: boolean
+	verified?: boolean
 	onConnect: () => void
 }) {
 	const modelCount = Object.keys(provider.models).length
@@ -577,9 +578,9 @@ function AvailableProviderRow({
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 				<span className="flex flex-wrap items-center gap-1.5 break-words text-sm font-medium">
 					{provider.name}
-					{priority ? (
-						<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-							Priority
+					{verified ? (
+						<span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+							Verified
 						</span>
 					) : null}
 				</span>

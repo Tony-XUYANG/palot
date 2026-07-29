@@ -44,7 +44,7 @@ import type {
 import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
 import {
 	CODEX_RECOMMENDED_MODELS,
-	resolveAvailableChinaModelCandidates,
+	resolveVerifiedChinaModelCandidates,
 } from "../../lib/providers"
 import {
 	computeContextUsage,
@@ -211,7 +211,7 @@ export function ModelSelector({
 		return {
 			codex: resolveModels(CODEX_RECOMMENDED_MODELS),
 			china: resolveModels(
-				providers ? resolveAvailableChinaModelCandidates(providers.providers) : [],
+				providers ? resolveVerifiedChinaModelCandidates(providers.providers) : [],
 			),
 		}
 	}, [models, providers])
@@ -365,7 +365,7 @@ function ModelSelectorList({
 								onSelect={onSelect}
 							/>
 							<RecommendedModelGroup
-								label="China models"
+								label="Verified China models"
 								models={chinaRecommendedModels}
 								activeValue={activeValue}
 								onSelect={onSelect}

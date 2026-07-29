@@ -57,7 +57,7 @@ const PROVIDER_REGION_OPTIONS: Array<{ id: ProviderRegion; label: string }> = [
 ]
 
 const PROVIDER_REGION_DESCRIPTIONS: Record<ProviderRegion, string> = {
-	china: "Recommended for users in China. Kimi, GLM, and DeepSeek are the first providers in Palot's acceptance program.",
+	china: "Recommended for users in China. DeepSeek and GLM are verified for the first Windows release; other domestic providers remain compatible.",
 	codex:
 		"Optional OpenAI access through ChatGPT OAuth or an official API key. Account, billing, and network requirements still apply.",
 	global:

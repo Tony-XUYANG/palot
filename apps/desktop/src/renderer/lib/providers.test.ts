@@ -10,10 +10,13 @@ import {
 	GLOBAL_PROVIDER_IDS,
 	isChinaProvider,
 	isCodexProvider,
+	isVerifiedChinaProvider,
 	POPULAR_PROVIDER_IDS,
 	PROVIDER_KEY_URLS,
 	resolveAvailableChinaModelCandidates,
 	resolveCatalogModelCandidates,
+	resolveVerifiedChinaModelCandidates,
+	VERIFIED_CHINA_PROVIDER_IDS,
 } from "./providers.ts"
 
 describe("provider recommendations", () => {
@@ -35,12 +38,16 @@ describe("provider recommendations", () => {
 		}
 	})
 
-	it("prioritizes the three providers selected for first-round acceptance", () => {
-		assert.deepEqual(FIRST_TIER_CHINA_PROVIDER_IDS, ["kimi-for-coding", "zhipuai", "deepseek"])
+	it("prioritizes domestic providers that passed real-world acceptance", () => {
+		assert.deepEqual(VERIFIED_CHINA_PROVIDER_IDS, ["deepseek", "zhipuai"])
+		assert.equal(FIRST_TIER_CHINA_PROVIDER_IDS, VERIFIED_CHINA_PROVIDER_IDS)
 		assert.deepEqual(
 			CHINA_PROVIDER_IDS.slice(0, FIRST_TIER_CHINA_PROVIDER_IDS.length),
 			FIRST_TIER_CHINA_PROVIDER_IDS,
 		)
+		assert.equal(isVerifiedChinaProvider("deepseek"), true)
+		assert.equal(isVerifiedChinaProvider("zhipuai"), true)
+		assert.equal(isVerifiedChinaProvider("kimi-for-coding"), false)
 	})
 
 	it("does not classify global providers as China recommendations", () => {
@@ -61,7 +68,7 @@ describe("provider recommendations", () => {
 		}
 	})
 
-	it("keeps China model candidates unique, scoped, and pending real-world acceptance", () => {
+	it("keeps China model recommendations unique, scoped, and accurately tiered", () => {
 		const modelKeys = CHINA_RECOMMENDED_MODELS.map(
 			(model) => `${model.providerID}/${model.modelID}`,
 		)
@@ -69,11 +76,14 @@ describe("provider recommendations", () => {
 		for (const model of CHINA_RECOMMENDED_MODELS) {
 			assert.equal(isChinaProvider(model.providerID), true)
 			assert.ok(model.modelID.length > 0)
-			assert.equal(model.tier, "candidate")
+			assert.equal(
+				model.tier,
+				isVerifiedChinaProvider(model.providerID) ? "verified" : "candidate",
+			)
 			assert.equal(
 				model.firstTier,
-				FIRST_TIER_CHINA_PROVIDER_IDS.includes(
-					model.providerID as (typeof FIRST_TIER_CHINA_PROVIDER_IDS)[number],
+				VERIFIED_CHINA_PROVIDER_IDS.includes(
+					model.providerID as (typeof VERIFIED_CHINA_PROVIDER_IDS)[number],
 				),
 			)
 		}
@@ -111,6 +121,19 @@ describe("provider recommendations", () => {
 		assert.deepEqual(
 			available.map((candidate) => `${candidate.providerID}/${candidate.modelID}`),
 			["kimi-for-coding/kimi-for-coding", "moonshotai-cn/kimi-k2.5"],
+		)
+	})
+
+	it("recommends only accepted domestic models in the verified group", () => {
+		const verified = resolveVerifiedChinaModelCandidates([
+			{ id: "deepseek", models: { "deepseek-chat": {} } },
+			{ id: "zhipuai", models: { "glm-4.7-flash": {} } },
+			{ id: "kimi-for-coding", models: { "kimi-for-coding": {} } },
+		])
+
+		assert.deepEqual(
+			verified.map((candidate) => `${candidate.providerID}/${candidate.modelID}`),
+			["deepseek/deepseek-chat", "zhipuai/glm-4.7-flash"],
 		)
 	})
 })

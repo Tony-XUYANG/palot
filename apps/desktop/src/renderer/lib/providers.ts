@@ -8,9 +8,9 @@
 
 /** Chinese providers shown first for the Windows China-focused experience. */
 export const CHINA_PROVIDER_IDS = [
-	"kimi-for-coding",
-	"zhipuai",
 	"deepseek",
+	"zhipuai",
+	"kimi-for-coding",
 	"alibaba-cn",
 	"moonshotai-cn",
 	"siliconflow-cn",
@@ -18,8 +18,11 @@ export const CHINA_PROVIDER_IDS = [
 	"modelscope",
 ] as const
 
-/** Providers targeted by the first round of real agent and deployment acceptance tests. */
-export const FIRST_TIER_CHINA_PROVIDER_IDS = ["kimi-for-coding", "zhipuai", "deepseek"] as const
+/** Providers that passed Palot's real code-edit and automated-test acceptance run. */
+export const VERIFIED_CHINA_PROVIDER_IDS = ["deepseek", "zhipuai"] as const
+
+/** Backwards-compatible name for the domestic providers promoted in the first release. */
+export const FIRST_TIER_CHINA_PROVIDER_IDS = VERIFIED_CHINA_PROVIDER_IDS
 
 /** OpenAI is featured separately because it exposes Codex models and ChatGPT OAuth. */
 export const CODEX_PROVIDER_IDS = ["openai"] as const
@@ -46,19 +49,23 @@ export interface ModelCandidateReference {
 }
 
 export interface ChinaModelCandidate extends ModelCandidateReference {
-	/** Candidate means the model still requires the documented real-world acceptance run. */
-	readonly tier: "candidate"
+	readonly tier: "verified" | "candidate"
 	readonly firstTier: boolean
 }
 
 /**
- * Coding-focused domestic model candidates. These are catalog candidates, not claims that
- * end-to-end acceptance has completed. Availability is resolved against the live catalog.
+ * Coding-focused domestic models with explicit acceptance status. Availability is still
+ * resolved against the live OpenCode catalog so removed models are never recommended.
  */
 export const CHINA_MODEL_REGISTRY = [
-	{ providerID: "kimi-for-coding", modelID: "kimi-for-coding", tier: "candidate", firstTier: true },
-	{ providerID: "zhipuai", modelID: "glm-4.7-flash", tier: "candidate", firstTier: true },
-	{ providerID: "deepseek", modelID: "deepseek-chat", tier: "candidate", firstTier: true },
+	{ providerID: "deepseek", modelID: "deepseek-chat", tier: "verified", firstTier: true },
+	{ providerID: "zhipuai", modelID: "glm-4.7-flash", tier: "verified", firstTier: true },
+	{
+		providerID: "kimi-for-coding",
+		modelID: "kimi-for-coding",
+		tier: "candidate",
+		firstTier: false,
+	},
 	{ providerID: "alibaba-cn", modelID: "qwen-flash", tier: "candidate", firstTier: false },
 	{ providerID: "moonshotai-cn", modelID: "kimi-k2.5", tier: "candidate", firstTier: false },
 	{
@@ -107,6 +114,15 @@ export function resolveAvailableChinaModelCandidates(
 	return resolveCatalogModelCandidates(CHINA_MODEL_REGISTRY, providers)
 }
 
+/** Resolve only models promoted by a completed real-world acceptance run. */
+export function resolveVerifiedChinaModelCandidates(
+	providers: readonly ProviderModelCatalogEntry[],
+): ChinaModelCandidate[] {
+	return resolveAvailableChinaModelCandidates(providers).filter(
+		(candidate) => candidate.tier === "verified",
+	)
+}
+
 /** Popular providers shown prominently in onboarding and settings, in display order */
 export const POPULAR_PROVIDER_IDS = [
 	"opencode",
@@ -117,6 +133,7 @@ export const POPULAR_PROVIDER_IDS = [
 
 const CHINA_PROVIDER_ID_SET = new Set<string>(CHINA_PROVIDER_IDS)
 const CODEX_PROVIDER_ID_SET = new Set<string>(CODEX_PROVIDER_IDS)
+const VERIFIED_CHINA_PROVIDER_ID_SET = new Set<string>(VERIFIED_CHINA_PROVIDER_IDS)
 
 export function isChinaProvider(providerId: string): boolean {
 	return CHINA_PROVIDER_ID_SET.has(providerId)
@@ -124,6 +141,10 @@ export function isChinaProvider(providerId: string): boolean {
 
 export function isCodexProvider(providerId: string): boolean {
 	return CODEX_PROVIDER_ID_SET.has(providerId)
+}
+
+export function isVerifiedChinaProvider(providerId: string): boolean {
+	return VERIFIED_CHINA_PROVIDER_ID_SET.has(providerId)
 }
 
 // ============================================================
@@ -156,7 +177,7 @@ export const PROVIDER_KEY_URLS: Record<string, { label: string; url: string }> =
 	deepseek: { label: "Get API key", url: "https://platform.deepseek.com/api_keys" },
 	"alibaba-cn": { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
 	alibaba: { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
-	"kimi-for-coding": { label: "Get API key", url: "https://www.kimi.com/code" },
+	"kimi-for-coding": { label: "Get API key", url: "https://www.kimi.com/code/console" },
 	"moonshotai-cn": {
 		label: "Get API key",
 		url: "https://platform.moonshot.cn/console/api-keys",
