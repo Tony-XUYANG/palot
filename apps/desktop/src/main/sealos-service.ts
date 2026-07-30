@@ -10,6 +10,7 @@ import { resolveKubectlRuntime } from "./runtime-resolver"
 const execFileAsync = promisify(execFile)
 
 const SEALOS_CLIENT_ID = "af993c98-d19d-4bdc-b338-79b80dc4f8bf"
+const DIRECT_SEALOS_DOMAINS = ["sealos.run", "sealos.io", "sealoshzh.site"]
 export const SEALOS_REGIONS = [
 	"https://gzg.sealos.run",
 	"https://bja.sealos.run",
@@ -184,8 +185,35 @@ function normalizeRegion(region: string): string {
 	return normalized
 }
 
+export function isDirectSealosHost(hostname: string): boolean {
+	const normalized = hostname.toLowerCase().replace(/\.$/, "")
+	return DIRECT_SEALOS_DOMAINS.some(
+		(domain) => normalized === domain || normalized.endsWith(`.${domain}`),
+	)
+}
+
+export function createSealosLaunchpadUrl(region: string, appName: string): URL {
+	const regionUrl = new URL(normalizeRegion(region))
+	const endpoint = new URL(`https://applaunchpad.${regionUrl.host}/api/getAppByAppName`)
+	endpoint.searchParams.set("appName", appName)
+	return endpoint
+}
+
+async function palotFetch(input: string | URL, init?: RequestInit): Promise<Response> {
+	const url = new URL(input.toString())
+	if (isDirectSealosHost(url.hostname)) {
+		const { default: nodeFetch } = await import("node-fetch")
+		return nodeFetch(url, init as import("node-fetch").RequestInit) as unknown as Response
+	}
+	if (process.versions.electron) {
+		const { net } = await import("electron")
+		return net.fetch(url.toString(), init)
+	}
+	return globalThis.fetch(url, init)
+}
+
 async function fetchJson(url: string, init?: RequestInit): Promise<Record<string, unknown>> {
-	const response = await fetch(url, init)
+	const response = await palotFetch(url, init)
 	const text = await response.text()
 	if (!response.ok) throw new Error(`Sealos request failed (${response.status}): ${text}`)
 	return text ? (JSON.parse(text) as Record<string, unknown>) : {}
@@ -304,7 +332,7 @@ export async function completeSealosLogin(sessionId: string): Promise<SealosLogi
 	try {
 		while (Date.now() < login.expiresAt) {
 			await new Promise((resolve) => setTimeout(resolve, pollInterval))
-			const response = await fetch(`${login.region}/api/auth/oauth2/token`, {
+			const response = await palotFetch(`${login.region}/api/auth/oauth2/token`, {
 				method: "POST",
 				headers: { "Content-Type": "application/x-www-form-urlencoded" },
 				body: new URLSearchParams({
@@ -544,7 +572,10 @@ export async function updateSealosTemplateImage(directory: string, image: string
 	if (!updated) throw new Error("The Sealos template does not contain an application Deployment")
 	await writeFile(
 		templatePath,
-		documents.map((document) => document.toString()).join("---\n"),
+		documents
+			.filter((document) => document.toJS() !== null)
+			.map((document) => document.toString())
+			.join(""),
 		"utf8",
 	)
 }
@@ -602,12 +633,52 @@ function getKubectlPath(): string {
 
 async function kubectl(args: string[]): Promise<string> {
 	const kubeconfig = path.join(os.homedir(), ".sealos", "kubeconfig")
-	const { stdout } = await execFileAsync(
-		getKubectlPath(),
-		["--kubeconfig", kubeconfig, "--insecure-skip-tls-verify", ...args],
-		{ encoding: "utf8", maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+	let lastError: unknown
+	for (let attempt = 0; attempt < 3; attempt++) {
+		try {
+			const { stdout } = await execFileAsync(
+				getKubectlPath(),
+				["--kubeconfig", kubeconfig, "--insecure-skip-tls-verify", ...args],
+				{ encoding: "utf8", maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+			)
+			return stdout.trim()
+		} catch (error) {
+			lastError = error
+			if (!isTransientKubectlError(error) || attempt === 2) throw error
+			await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)))
+		}
+	}
+	throw lastError
+}
+
+export function isTransientKubectlError(error: unknown): boolean {
+	if (!error || typeof error !== "object") return false
+	const candidate = error as { message?: unknown; stderr?: unknown }
+	const detail = `${String(candidate.message ?? "")}\n${String(candidate.stderr ?? "")}`
+	return /TLS handshake timeout|i\/o timeout|connection reset by peer|unexpected EOF|temporarily unavailable|dial tcp.+timeout|net\/http: request canceled/i.test(
+		detail,
 	)
-	return stdout.trim()
+}
+
+export function isTransientFetchError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false
+	return /fetch failed|network|timeout|timed out|socket|ECONNRESET|ETIMEDOUT|ERR_(?:CONNECTION|NETWORK|TIMED_OUT|PROXY|INTERNET)/i.test(
+		`${error.name}: ${error.message}`,
+	)
+}
+
+async function fetchWithRetry(request: () => Promise<Response>): Promise<Response> {
+	let lastError: unknown
+	for (let attempt = 0; attempt < 3; attempt++) {
+		try {
+			return await request()
+		} catch (error) {
+			lastError = error
+			if (!isTransientFetchError(error) || attempt === 2) throw error
+			await new Promise((resolve) => setTimeout(resolve, 1_500 * (attempt + 1)))
+		}
+	}
+	throw lastError
 }
 
 interface KubernetesMetadata {
@@ -804,12 +875,15 @@ async function verifyLaunchpadNetwork(
 	expectedPort: number | null,
 ): Promise<{ ok: boolean; detail: string }> {
 	const kubeconfig = await readFile(path.join(os.homedir(), ".sealos", "kubeconfig"), "utf8")
-	const endpoint = new URL(`https://applaunchpad.${state.last_deploy.region}/api/getAppByAppName`)
-	endpoint.searchParams.set("appName", state.last_deploy.app_name)
-	const response = await fetch(endpoint, {
-		headers: { Authorization: encodeURIComponent(kubeconfig) },
-		signal: AbortSignal.timeout(15_000),
-	})
+	const auth = await readStoredAuth()
+	if (!auth.region) throw new Error("Sealos authentication is missing a region")
+	const endpoint = createSealosLaunchpadUrl(auth.region, state.last_deploy.app_name)
+	const response = await fetchWithRetry(() =>
+		palotFetch(endpoint, {
+			headers: { Authorization: encodeURIComponent(kubeconfig) },
+			signal: AbortSignal.timeout(15_000),
+		}),
+	)
 	const payload = (await response.json()) as {
 		code?: number
 		data?: {
@@ -942,7 +1016,7 @@ async function postTemplate(
 	args: Record<string, string>,
 	dryRun: boolean,
 ): Promise<{ status: number; payload: unknown }> {
-	const response = await fetch(deployUrl, {
+	const response = await palotFetch(deployUrl, {
 		method: "POST",
 		headers: {
 			Authorization: encodeURIComponent(kubeconfig),
@@ -1079,15 +1153,21 @@ export async function verifySealosRuntime(
 		const launchpad = await verifyLaunchpadNetwork(state, parsed, baseline.expectedPort)
 		const missingPath = `/__palot_missing_${Date.now()}`
 		const [root, health, missing] = await Promise.all([
-			fetch(parsed, { redirect: "follow", signal: AbortSignal.timeout(15_000) }),
-			fetch(new URL("/health", parsed), {
-				redirect: "follow",
-				signal: AbortSignal.timeout(15_000),
-			}),
-			fetch(new URL(missingPath, parsed), {
-				redirect: "manual",
-				signal: AbortSignal.timeout(15_000),
-			}),
+			fetchWithRetry(() =>
+				palotFetch(parsed, { redirect: "follow", signal: AbortSignal.timeout(15_000) }),
+			),
+			fetchWithRetry(() =>
+				palotFetch(new URL("/health", parsed), {
+					redirect: "follow",
+					signal: AbortSignal.timeout(15_000),
+				}),
+			),
+			fetchWithRetry(() =>
+				palotFetch(new URL(missingPath, parsed), {
+					redirect: "manual",
+					signal: AbortSignal.timeout(15_000),
+				}),
+			),
 		])
 		const body = (await root.text()).slice(0, 64_000)
 		const failureText =

@@ -6,6 +6,7 @@ import {
 	createGitHubBuildWorkflow,
 	isGitHubBuildCurrent,
 	isSensitiveProjectPath,
+	parseGitHubContainerVisibility,
 	parseGitHubBuildArtifact,
 	parseGitHubRemote,
 	parseStoredGitHubBuild,
@@ -56,6 +57,25 @@ describe("GitHub Actions remote build helpers", () => {
 				tag: `ghcr.io/tony-xuyang/demo:${commit}`,
 				commit,
 			},
+		)
+	})
+
+	it("recognizes an already-public GitHub container package", () => {
+		assert.equal(
+			parseGitHubContainerVisibility("Demo", {
+				name: "demo",
+				package_type: "container",
+				visibility: "public",
+			}),
+			"public",
+		)
+		assert.equal(
+			parseGitHubContainerVisibility("demo", {
+				name: "another-package",
+				package_type: "container",
+				visibility: "public",
+			}),
+			null,
 		)
 	})
 

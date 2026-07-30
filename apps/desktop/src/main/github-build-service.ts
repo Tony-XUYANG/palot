@@ -18,6 +18,7 @@ import {
 	PALOT_BUILD_RESULT,
 	PALOT_BUILD_WORKFLOW,
 	PALOT_TEMPLATE_PATH,
+	parseGitHubContainerVisibility,
 	parseGitHubBuildArtifact,
 	parseGitHubRemote,
 	parseStoredGitHubBuild,
@@ -379,11 +380,27 @@ async function makeContainerPublic(ghPath: string, repository: GitHubRepositoryR
 	const login = await getLogin(ghPath)
 	if (!login) throw new Error("GitHub authentication expired")
 	const packageName = encodeURIComponent(repository.name)
-	const endpoint =
+	const owner = encodeURIComponent(repository.owner)
+	const detailsEndpoint =
+		login.toLowerCase() === repository.owner.toLowerCase()
+			? `/users/${owner}/packages/container/${packageName}`
+			: `/orgs/${owner}/packages/container/${packageName}`
+	const details = JSON.parse(await command(ghPath, ["api", detailsEndpoint])) as unknown
+	const visibility = parseGitHubContainerVisibility(repository.name, details)
+	if (visibility === "public") return
+	if (!visibility) throw new Error("GitHub did not return the built container package")
+	const updateEndpoint =
 		login.toLowerCase() === repository.owner.toLowerCase()
 			? `/user/packages/container/${packageName}`
 			: `/orgs/${repository.owner}/packages/container/${packageName}`
-	await command(ghPath, ["api", "--method", "PATCH", endpoint, "-f", "visibility=public"])
+	await command(ghPath, [
+		"api",
+		"--method",
+		"PATCH",
+		updateEndpoint,
+		"-f",
+		"visibility=public",
+	])
 }
 
 export async function runGitHubBuild(

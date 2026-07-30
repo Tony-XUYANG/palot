@@ -48,6 +48,26 @@ export interface GitHubBuildArtifact {
 	commit: string
 }
 
+export type GitHubContainerVisibility = "public" | "private" | "internal"
+
+export function parseGitHubContainerVisibility(
+	expectedName: string,
+	value: unknown,
+): GitHubContainerVisibility | null {
+	if (!value || typeof value !== "object") return null
+	const container = value as Record<string, unknown>
+	if (
+		String(container.name ?? "").toLowerCase() !== expectedName.toLowerCase() ||
+		container.package_type !== "container"
+	) {
+		return null
+	}
+	const visibility = String(container.visibility ?? "")
+	return visibility === "public" || visibility === "private" || visibility === "internal"
+		? visibility
+		: null
+}
+
 export function parseGitHubBuildArtifact(
 	repository: GitHubRepositoryRef,
 	headSha: string,

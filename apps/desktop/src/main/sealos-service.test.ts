@@ -4,6 +4,10 @@ import os from "node:os"
 import path from "node:path"
 import { afterEach, describe, it } from "node:test"
 import {
+	createSealosLaunchpadUrl,
+	isDirectSealosHost,
+	isTransientFetchError,
+	isTransientKubectlError,
 	isSealosClusterStable,
 	readSealosTemplateInputs,
 	updateSealosTemplateImage,
@@ -55,6 +59,20 @@ spec:
 }
 
 describe("Sealos template helpers", () => {
+	it("builds the Launchpad API URL from the authenticated region", () => {
+		assert.equal(
+			createSealosLaunchpadUrl("https://hzh.sealos.run", "demo-app").href,
+			"https://applaunchpad.hzh.sealos.run/api/getAppByAppName?appName=demo-app",
+		)
+	})
+
+	it("bypasses system proxies only for official Sealos domains", () => {
+		assert.equal(isDirectSealosHost("hzh.sealos.run"), true)
+		assert.equal(isDirectSealosHost("palot-acceptance.sealoshzh.site"), true)
+		assert.equal(isDirectSealosHost("sealos.run.attacker.example"), false)
+		assert.equal(isDirectSealosHost("custom.example.com"), false)
+	})
+
 	it("extracts required, defaulted, and sensitive inputs", async () => {
 		const { root } = await createTemplate()
 		const inputs = await readSealosTemplateInputs(root)
@@ -79,8 +97,13 @@ describe("Sealos template helpers", () => {
 	it("writes an immutable GHCR image into the application deployment", async () => {
 		const { root, file } = await createTemplate()
 		const image = `ghcr.io/owner/demo@sha256:${"a".repeat(64)}`
+		const original = await readFile(file, "utf8")
+		await writeFile(file, original.replace("---\n", "---\n---\n"), "utf8")
 		await updateSealosTemplateImage(root, image)
-		assert.match(await readFile(file, "utf8"), new RegExp(image))
+		await updateSealosTemplateImage(root, image)
+		const template = await readFile(file, "utf8")
+		assert.match(template, new RegExp(image))
+		assert.equal(template.match(/^---$/gm)?.length, 1)
 	})
 
 	it("rejects mutable image references", async () => {
@@ -107,5 +130,21 @@ describe("Sealos template helpers", () => {
 			false,
 		)
 		assert.equal(isSealosClusterStable(baseline, { ...baseline, podUids: ["pod-b"] }), false)
+	})
+
+	it("retries only transient kubectl transport failures", () => {
+		assert.equal(
+			isTransientKubectlError({ stderr: "Unable to connect: net/http: TLS handshake timeout" }),
+			true,
+		)
+		assert.equal(isTransientKubectlError(new Error("connection reset by peer")), true)
+		assert.equal(isTransientKubectlError({ stderr: "Error from server (Forbidden)" }), false)
+	})
+
+	it("retries only transient HTTP transport failures", () => {
+		assert.equal(isTransientFetchError(new TypeError("fetch failed")), true)
+		assert.equal(isTransientFetchError(new Error("socket closed during TLS handshake")), true)
+		assert.equal(isTransientFetchError(new Error("net::ERR_CONNECTION_CLOSED")), true)
+		assert.equal(isTransientFetchError(new Error("Sealos returned HTTP 403")), false)
 	})
 })
