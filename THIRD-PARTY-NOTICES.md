@@ -92,6 +92,7 @@ The following direct dependencies are licensed under the MIT License:
 - **react-syntax-highlighter** -- Code syntax highlighting
 - **shiki** -- Syntax highlighter
 - **simple-git** -- Git integration
+- **node-fetch** -- Direct Node.js HTTP client
 - **recharts** -- Charting library
 - **tailwind-merge** -- Tailwind CSS class merging utility
 - **react-resizable-panels** -- Resizable panel layout
