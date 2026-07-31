@@ -90,6 +90,34 @@ All user-facing changes should include a changeset. Run `bun changeset` and foll
 prompts to select affected packages, bump type (patch/minor/major), and a short description.
 This is used to generate changelogs and version bumps automatically.
 
+## Windows Release Gate
+
+Prepare and package the Windows x64 installer from `apps/desktop`:
+
+```powershell
+bun run package:win
+```
+
+Run the installer, bundled-runtime, upgrade, launch, uninstall, and data-preservation
+smoke test from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-windows-installer.ps1 `
+  -InstallerPath .\apps\desktop\release\Palot-0.11.0-win-x64.exe `
+  -AllowUnsigned
+```
+
+`-AllowUnsigned` is only for explicit prerelease testing. Stable Windows releases must
+have a valid Authenticode signature. Configure these GitHub Actions secrets before a
+stable release:
+
+- `WINDOWS_CSC_LINK`: electron-builder-compatible PFX data or certificate URL
+- `WINDOWS_CSC_KEY_PASSWORD`: password for the signing certificate
+
+The Release workflow runs the installer smoke test on `windows-latest`. It rejects an
+unsigned stable version, while a version containing a prerelease suffix may explicitly
+run the unsigned gate.
+
 ## Pull Requests
 
 - Keep PRs focused on a single change

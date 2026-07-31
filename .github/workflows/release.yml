@@ -219,12 +219,29 @@ jobs:
         working-directory: apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WINDOWS_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WINDOWS_CSC_KEY_PASSWORD || '' }}
           # macOS notarization (uncomment when configured):
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           # CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+
+      - name: Test Windows installer
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem apps/desktop/release/Palot-*-win-x64.exe)
+          if ($installers.Count -ne 1) {
+            throw "Expected one Windows x64 installer, found $($installers.Count)"
+          }
+          $isPrerelease = "${{ contains(needs.changeset.outputs.version, '-') }}" -eq "true"
+          if ($isPrerelease) {
+            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName -AllowUnsigned
+          } else {
+            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName
+          }
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'linux'
@@ -256,7 +273,10 @@ jobs:
           name: ${{ matrix.artifact-name }}
           path: |
             apps/desktop/release/*.exe
+            apps/desktop/release/*.exe.blockmap
             apps/desktop/release/latest.yml
+            THIRD-PARTY-NOTICES.md
+            apps/desktop/resources/runtime-licenses/THIRD-PARTY-SOURCE-OFFER.txt
           retention-days: 30
 
   # ──────────────────────────────────────────────
@@ -321,8 +341,10 @@ jobs:
           find artifacts -type f \( \
             -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \
             -o -name "*.dmg" -o -name "*.zip" \
-            -o -name "*.exe" \
+            -o -name "*.exe" -o -name "*.exe.blockmap" \
             -o -name "latest*.yml" \
+            -o -name "THIRD-PARTY-NOTICES.md" \
+            -o -name "THIRD-PARTY-SOURCE-OFFER.txt" \
           \) -exec cp {} release-files/ \;
           echo "Release files:"
           ls -lh release-files/
