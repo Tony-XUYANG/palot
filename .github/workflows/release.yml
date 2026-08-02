@@ -232,13 +232,21 @@ jobs:
             Write-Host "Unsigned Windows installer allowed for this prerelease"
           }
 
-      - name: Package Electron app
+      - name: Package Windows app
+        if: matrix.platform == 'win'
         run: bun run electron-builder ${{ matrix.eb-flags }} --config electron-builder.yml --publish never
         working-directory: apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WINDOWS_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WINDOWS_CSC_KEY_PASSWORD || '' }}
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+
+      - name: Package unsigned macOS or Linux app
+        if: matrix.platform != 'win'
+        run: bun run electron-builder ${{ matrix.eb-flags }} --config electron-builder.yml --publish never
+        working-directory: apps/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           # macOS notarization (uncomment when configured):
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
