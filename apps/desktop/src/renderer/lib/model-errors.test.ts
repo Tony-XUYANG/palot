@@ -50,4 +50,39 @@ describe("model error formatting", () => {
 			"Unexpected provider response",
 		)
 	})
+
+	it("distinguishes Codex OAuth, region, and project access failures", () => {
+		assert.match(
+			formatRequestError(new Error("OAuth authorization expired"), "OpenAI Codex"),
+			/Retry sign-in or use an API key/,
+		)
+		assert.match(
+			formatModelError(
+				{
+					name: "APIError",
+					data: {
+						message: "Country not supported",
+						statusCode: 403,
+						isRetryable: false,
+					},
+				},
+				"OpenAI Codex",
+			),
+			/not available for the current account or region/,
+		)
+		assert.match(
+			formatModelError(
+				{
+					name: "APIError",
+					data: {
+						message: "Project does not have access to this model",
+						statusCode: 403,
+						isRetryable: false,
+					},
+				},
+				"OpenAI Codex",
+			),
+			/account or project does not have access/,
+		)
+	})
 })

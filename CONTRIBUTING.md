@@ -103,7 +103,8 @@ smoke test from the repository root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-windows-installer.ps1 `
-  -InstallerPath .\apps\desktop\release\Palot-0.11.0-win-x64.exe `
+  -InstallerPath .\apps\desktop\release\Palot-0.12.0-beta.0-win-x64.exe `
+  -PreviousInstallerPath .\apps\desktop\release\Palot-0.11.0-win-x64.exe `
   -AllowUnsigned
 ```
 
@@ -117,6 +118,9 @@ stable release:
 The Release workflow runs the installer smoke test on `windows-latest`. It rejects an
 unsigned stable version, while a version containing a prerelease suffix may explicitly
 run the unsigned gate.
+
+See `docs/windows-code-signing.md` before selecting a certificate product. The official Codex CLI
+remains behind the compatibility gate documented in `docs/codex-engine.md`.
 
 ## Pull Requests
 

@@ -14,7 +14,7 @@ export const MINGIT_RUNTIME_VERSION = "2.55.0.3"
 export const GITHUB_CLI_RUNTIME_VERSION = "2.96.0"
 export const KUBECTL_RUNTIME_VERSION = "1.36.1"
 
-export type RuntimeKind = "opencode" | "git" | "github" | "kubectl"
+export type RuntimeKind = "opencode" | "codex" | "git" | "github" | "kubectl"
 export type RuntimeSource = "override" | "bundled" | "user" | "path"
 
 export interface ResolvedRuntime {
@@ -56,6 +56,9 @@ function getBundledCandidate(kind: RuntimeKind, options: RuntimeResolverOptions)
 	if (kind === "opencode") {
 		return pathApi.join(options.resourcesPath, "runtime", "opencode", "opencode.exe")
 	}
+	if (kind === "codex") {
+		return pathApi.join(options.resourcesPath, "runtime", "codex", "codex.exe")
+	}
 	if (kind === "github") {
 		return pathApi.join(options.resourcesPath, "runtime", "github", "bin", "gh.exe")
 	}
@@ -76,6 +79,7 @@ function getUserCandidates(kind: RuntimeKind, options: RuntimeResolverOptions): 
 			pathApi.join(home, ".opencode", "bin", platform === "win32" ? "opencode.exe" : "opencode"),
 		]
 	}
+	if (kind === "codex") return []
 	if (kind === "github") {
 		const candidates: string[] = []
 		if (platform === "win32" && environment.ProgramFiles) {
@@ -128,6 +132,8 @@ function getPathCandidates(kind: RuntimeKind, options: RuntimeResolverOptions): 
 		platform === "win32"
 			? kind === "opencode"
 				? ["opencode.exe", "opencode.cmd", "opencode"]
+				: kind === "codex"
+					? ["codex.exe", "codex.cmd", "codex"]
 				: kind === "github"
 					? ["gh.exe", "gh.cmd", "gh"]
 					: kind === "kubectl"
@@ -136,6 +142,8 @@ function getPathCandidates(kind: RuntimeKind, options: RuntimeResolverOptions): 
 			: [
 					kind === "opencode"
 						? "opencode"
+						: kind === "codex"
+							? "codex"
 						: kind === "github"
 							? "gh"
 							: kind === "kubectl"
@@ -158,6 +166,7 @@ function resolveRuntime(
 	kind: RuntimeKind,
 	overrideName:
 		| "PALOT_TEST_OPENCODE_PATH"
+		| "PALOT_TEST_CODEX_PATH"
 		| "PALOT_TEST_GIT_PATH"
 		| "PALOT_TEST_GH_PATH"
 		| "PALOT_TEST_KUBECTL_PATH",
@@ -198,6 +207,10 @@ function resolveRuntime(
 
 export function resolveOpenCodeRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {
 	return resolveRuntime("opencode", "PALOT_TEST_OPENCODE_PATH", options)
+}
+
+export function resolveCodexRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {
+	return resolveRuntime("codex", "PALOT_TEST_CODEX_PATH", options)
 }
 
 export function resolveGitRuntime(options: RuntimeResolverOptions): ResolvedRuntime | null {

@@ -26,7 +26,7 @@ Palot is an open-source Electron app that gives [OpenCode](https://opencode.ai) 
 
 Palot spawns and manages the OpenCode server automatically, streams responses in real time, and renders tool calls with syntax-highlighted diffs, file previews, and terminal output.
 
-The Windows experience is China-first: Kimi, GLM, and DeepSeek are the initial acceptance targets, while OpenAI Codex and other global providers remain available as optional compatibility paths. Palot does not bundle a third-party model relay; provider access is BYOK and subject to each provider's account, billing, region, and network requirements.
+The Windows experience is China-first: DeepSeek and GLM are verified for the first release, while Kimi remains an optional candidate and OpenAI Codex remains an optional compatibility path. Palot does not bundle a third-party model relay; provider access is BYOK and subject to each provider's account, billing, region, and network requirements.
 
 <br>
 
@@ -98,11 +98,13 @@ The Windows experience is China-first: Kimi, GLM, and DeepSeek are the initial a
 
 - **Windows-ready installer** -- The Windows x64 installer includes pinned OpenCode and MinGit runtimes, so users do not need to install CLI tools or configure PATH.
 
-- **China-first model providers** -- Kimi, GLM, and DeepSeek are prioritized for acceptance, with Qwen, MiniMax, SiliconFlow, ModelScope, and other OpenCode providers available from the full catalog.
+- **China-first model providers** -- DeepSeek and GLM are verified for the first Windows release, with Kimi, Qwen, MiniMax, SiliconFlow, ModelScope, and other OpenCode providers available from the full catalog.
 
 - **Optional global compatibility** -- OpenAI Codex, Anthropic, Google, GitHub Copilot, OpenRouter, xAI, and other global providers remain available without becoming a Windows China release requirement.
 
 - **Sealos deployment** -- Check deployment readiness, sign in with the Sealos device flow, prepare projects with the Agent, deploy templates, inspect logs, and verify public URLs.
+
+See [Windows code signing](docs/windows-code-signing.md) and the [Codex engine boundary](docs/codex-engine.md) for release and compatibility details.
 
 - **Liquid Glass (macOS 26+)** -- Native `NSGlassEffectView` window chrome on macOS Tahoe, with vibrancy fallback for older versions and an opaque mode for other platforms.
 

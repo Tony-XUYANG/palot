@@ -11,6 +11,27 @@ export interface OpenCodeServerInfo {
 	managed: boolean
 }
 
+export type AgentEngineId = "opencode" | "codex"
+
+export interface AgentEngineDescriptor {
+	id: AgentEngineId
+	label: string
+	availability: "available" | "unavailable" | "incompatible"
+	enabled: boolean
+	capabilities: {
+		auth: boolean
+		sessions: boolean
+		prompts: boolean
+		events: boolean
+		cancel: boolean
+		diff: boolean
+	}
+	source?: "override" | "bundled" | "user" | "path"
+	version?: string
+	transport?: "http" | "app-server"
+	reason?: string
+}
+
 export interface ModelRef {
 	providerID: string
 	modelID: string
@@ -566,6 +587,9 @@ export interface PalotAPI {
 	getServerUrl: () => Promise<string | null>
 	stopOpenCode: () => Promise<boolean>
 	restartOpenCode: () => Promise<OpenCodeServerInfo>
+	agentEngines: {
+		list: () => Promise<AgentEngineDescriptor[]>
+	}
 	getModelState: () => Promise<ModelState>
 	updateModelRecent: (model: ModelRef) => Promise<ModelState>
 

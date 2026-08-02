@@ -70,7 +70,7 @@ describe("universalConvert", () => {
 		expect(result.rules.size).toBeGreaterThan(0)
 		const ruleEntries = [...result.rules.entries()]
 		const hasProjectRule = ruleEntries.some(([path]) =>
-			path.includes("/test/project/.cursor/rules/"),
+			path.replaceAll("\\", "/").includes("/test/project/.cursor/rules/"),
 		)
 		expect(hasProjectRule).toBe(true)
 	})
@@ -101,7 +101,7 @@ describe("universalConvert", () => {
 
 		expect(result.agents.size).toBe(1)
 		const agentEntries = [...result.agents.entries()]
-		expect(agentEntries[0][0]).toContain(".cursor/agents/review.md")
+		expect(agentEntries[0][0].replaceAll("\\", "/")).toContain(".cursor/agents/review.md")
 	})
 
 	test("Cursor -> OpenCode: converts MCP servers", () => {

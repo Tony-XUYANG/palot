@@ -43,7 +43,7 @@ import type {
 } from "../../hooks/use-opencode-data"
 import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
 import {
-	CODEX_RECOMMENDED_MODELS,
+	resolveAvailableCodexModelCandidates,
 	resolveVerifiedChinaModelCandidates,
 } from "../../lib/providers"
 import {
@@ -209,7 +209,9 @@ export function ModelSelector({
 				.map((model) => modelsByValue.get(`${model.providerID}/${model.modelID}`))
 				.filter((model): model is ModelOption => model !== undefined)
 		return {
-			codex: resolveModels(CODEX_RECOMMENDED_MODELS),
+			codex: resolveModels(
+				providers ? resolveAvailableCodexModelCandidates(providers.providers) : [],
+			),
 			china: resolveModels(
 				providers ? resolveVerifiedChinaModelCandidates(providers.providers) : [],
 			),

@@ -8,6 +8,7 @@ import {
 	shell,
 	systemPreferences,
 } from "electron"
+import { listAgentEngineDescriptors } from "./agent-engine-registry"
 import {
 	acceptRun,
 	archiveRun,
@@ -206,6 +207,11 @@ export function registerIpcHandlers(): void {
 	)
 
 	ipcMain.handle("opencode:url", () => getServerUrl())
+
+	ipcMain.handle(
+		"agent-engines:list",
+		withLogging("agent-engines:list", async () => await listAgentEngineDescriptors()),
+	)
 
 	ipcMain.handle(
 		"opencode:stop",

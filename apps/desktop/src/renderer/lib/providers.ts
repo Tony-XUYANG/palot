@@ -114,6 +114,13 @@ export function resolveAvailableChinaModelCandidates(
 	return resolveCatalogModelCandidates(CHINA_MODEL_REGISTRY, providers)
 }
 
+/** Resolve Codex recommendations that still exist in the current OpenCode catalog. */
+export function resolveAvailableCodexModelCandidates(
+	providers: readonly ProviderModelCatalogEntry[],
+): ModelCandidateReference[] {
+	return resolveCatalogModelCandidates(CODEX_RECOMMENDED_MODELS, providers)
+}
+
 /** Resolve only models promoted by a completed real-world acceptance run. */
 export function resolveVerifiedChinaModelCandidates(
 	providers: readonly ProviderModelCatalogEntry[],

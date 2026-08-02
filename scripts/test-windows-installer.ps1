@@ -1,6 +1,7 @@
 param(
 	[Parameter(Mandatory = $true)]
 	[string]$InstallerPath,
+	[string]$PreviousInstallerPath = "",
 	[string]$InstallDirectory = "",
 	[switch]$AllowUnsigned,
 	[switch]$SkipLaunch,
@@ -100,6 +101,10 @@ function Assert-SafeSmokeRoot {
 }
 
 $installer = (Get-Item -LiteralPath $InstallerPath).FullName
+$initialInstaller = $installer
+if (-not [string]::IsNullOrWhiteSpace($PreviousInstallerPath)) {
+	$initialInstaller = (Get-Item -LiteralPath $PreviousInstallerPath).FullName
+}
 $signature = Get-AuthenticodeSignature -FilePath $installer
 if ($signature.Status -eq [Management.Automation.SignatureStatus]::Valid) {
 	Write-Host "PASS: installer Authenticode signature is valid"
@@ -137,9 +142,28 @@ $originalEnvironment = @{
 try {
 	[IO.Directory]::CreateDirectory($smokeRoot) | Out-Null
 	$installArguments = @("/S", "/D=$InstallDirectory")
-	Invoke-HiddenProcess -FilePath $installer -ArgumentList $installArguments
+	Invoke-HiddenProcess -FilePath $initialInstaller -ArgumentList $installArguments
 
 	$appExecutable = Join-Path $InstallDirectory "Palot.exe"
+	[IO.Directory]::CreateDirectory((Split-Path -Parent $sentinel)) | Out-Null
+	[IO.Directory]::CreateDirectory($userData) | Out-Null
+	[IO.File]::WriteAllText($sentinel, "preserve", [Text.UTF8Encoding]::new($false))
+	[IO.File]::WriteAllText($userDataSentinel, "preserve", [Text.UTF8Encoding]::new($false))
+
+	# Upgrade from the requested baseline, or reinstall the same package when no baseline is supplied.
+	Invoke-HiddenProcess -FilePath $installer -ArgumentList $installArguments
+	if (-not (Test-Path -LiteralPath $appExecutable -PathType Leaf)) {
+		throw "Upgrade install removed the application executable"
+	}
+	if (
+		-not (Test-Path -LiteralPath $sentinel -PathType Leaf) -or
+		-not (Test-Path -LiteralPath $userDataSentinel -PathType Leaf)
+	) {
+		throw "Upgrade install removed isolated user data"
+	}
+	$upgradeLabel = if ($initialInstaller -eq $installer) { "same-version upgrade" } else { "version upgrade" }
+	Write-Host "PASS: silent $upgradeLabel preserved user data"
+
 	$runtimeRoot = Join-Path $InstallDirectory "resources/runtime"
 	$manifestPath = Join-Path $runtimeRoot "runtime-manifest.json"
 	foreach ($required in @(
@@ -149,7 +173,7 @@ try {
 		(Join-Path $runtimeRoot "licenses/THIRD-PARTY-SOURCE-OFFER.txt")
 	)) {
 		if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
-			throw "Installed file is missing: $required"
+			throw "Installed file is missing after upgrade: $required"
 		}
 	}
 
@@ -169,24 +193,6 @@ try {
 		-Expected $manifest.runtimes.github.version
 	Assert-CommandVersion -FilePath $kubectlPath -ArgumentList @("version", "--client=true") `
 		-Expected $manifest.runtimes.kubectl.version
-
-	[IO.Directory]::CreateDirectory((Split-Path -Parent $sentinel)) | Out-Null
-	[IO.Directory]::CreateDirectory($userData) | Out-Null
-	[IO.File]::WriteAllText($sentinel, "preserve", [Text.UTF8Encoding]::new($false))
-	[IO.File]::WriteAllText($userDataSentinel, "preserve", [Text.UTF8Encoding]::new($false))
-
-	# Installing the same package again exercises the NSIS upgrade path.
-	Invoke-HiddenProcess -FilePath $installer -ArgumentList $installArguments
-	if (-not (Test-Path -LiteralPath $appExecutable -PathType Leaf)) {
-		throw "Upgrade install removed the application executable"
-	}
-	if (
-		-not (Test-Path -LiteralPath $sentinel -PathType Leaf) -or
-		-not (Test-Path -LiteralPath $userDataSentinel -PathType Leaf)
-	) {
-		throw "Upgrade install removed isolated user data"
-	}
-	Write-Host "PASS: silent upgrade preserved user data"
 
 	if (-not $SkipLaunch) {
 		$env:APPDATA = $appData

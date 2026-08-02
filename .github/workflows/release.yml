@@ -11,6 +11,10 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  WINDOWS_UPGRADE_BASE_VERSION: "0.11.0"
+  WINDOWS_UPGRADE_BASE_SHA256: "d5e774539bca43b7365be75464842cab1cf7af4f16db59047ad22bbb72f33595"
+
 jobs:
   # ──────────────────────────────────────────────
   # Job 1: Changeset versioning
@@ -214,6 +218,20 @@ jobs:
         env:
           PALOT_RUNTIME_CACHE_DIR: ${{ runner.temp }}\palot-windows-runtime
 
+      - name: Validate Windows signing configuration
+        if: matrix.platform == 'win'
+        shell: pwsh
+        env:
+          WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+        run: |
+          $isPrerelease = "${{ contains(needs.changeset.outputs.version, '-') }}" -eq "true"
+          if (-not $isPrerelease -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            throw "Stable Windows releases require WINDOWS_CSC_LINK before packaging"
+          }
+          if ($isPrerelease -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            Write-Host "Unsigned Windows installer allowed for this prerelease"
+          }
+
       - name: Package Electron app
         run: bun run electron-builder ${{ matrix.eb-flags }} --config electron-builder.yml --publish never
         working-directory: apps/desktop
@@ -236,11 +254,21 @@ jobs:
           if ($installers.Count -ne 1) {
             throw "Expected one Windows x64 installer, found $($installers.Count)"
           }
+          $baseVersion = $env:WINDOWS_UPGRADE_BASE_VERSION
+          $previousInstaller = Join-Path $env:RUNNER_TEMP "Palot-$baseVersion-win-x64.exe"
+          $previousUrl = "https://github.com/Tony-XUYANG/palot/releases/download/v$baseVersion/Palot-$baseVersion-win-x64.exe"
+          Invoke-WebRequest -Uri $previousUrl -OutFile $previousInstaller
+          $actualHash = (Get-FileHash $previousInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:WINDOWS_UPGRADE_BASE_SHA256) {
+            throw "Upgrade baseline SHA-256 mismatch: $actualHash"
+          }
           $isPrerelease = "${{ contains(needs.changeset.outputs.version, '-') }}" -eq "true"
           if ($isPrerelease) {
-            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName -AllowUnsigned
+            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName `
+              -PreviousInstallerPath $previousInstaller -AllowUnsigned
           } else {
-            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName
+            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName `
+              -PreviousInstallerPath $previousInstaller
           }
 
       - name: Upload artifacts (Linux)

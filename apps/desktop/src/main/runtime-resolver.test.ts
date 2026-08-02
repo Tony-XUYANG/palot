@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import path from "node:path"
 import { describe, it } from "node:test"
 import {
+	resolveCodexRuntime,
 	resolveGitHubRuntime,
 	resolveGitRuntime,
 	resolveKubectlRuntime,
@@ -45,6 +46,31 @@ describe("runtime resolver", () => {
 		})
 		assert.equal(result?.path, bundled)
 		assert.equal(result?.source, "bundled")
+	})
+
+	it("keeps a future packaged Codex runtime isolated from PATH fallbacks", () => {
+		const bundled = path.win32.join(resourcesPath, "runtime", "codex", "codex.exe")
+		const onPath = "C:\\tools\\codex.exe"
+		const available = resolveCodexRuntime({
+			...createOptions([bundled, onPath]),
+			isPackaged: true,
+		})
+		const damaged = resolveCodexRuntime({
+			...createOptions([onPath]),
+			isPackaged: true,
+		})
+
+		assert.deepEqual(available, { kind: "codex", path: bundled, source: "bundled" })
+		assert.equal(damaged, null)
+	})
+
+	it("allows an explicit Codex probe override in development", () => {
+		const override = "C:\\audit\\codex.exe"
+		const result = resolveCodexRuntime(
+			createOptions([override], { PALOT_TEST_CODEX_PATH: override }),
+		)
+
+		assert.deepEqual(result, { kind: "codex", path: override, source: "override" })
 	})
 
 	it("reports a missing bundled runtime instead of masking a damaged install", () => {

@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld("palot", {
 	/** Restarts the managed OpenCode server (stops and re-starts with current settings). */
 	restartOpenCode: () => ipcRenderer.invoke("opencode:restart"),
 
+	/** Lists enabled and detected future agent engines without reading their credentials. */
+	agentEngines: {
+		list: () => ipcRenderer.invoke("agent-engines:list"),
+	},
+
 	// --- Credential storage (safeStorage-backed) ---
 
 	credential: {

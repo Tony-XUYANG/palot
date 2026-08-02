@@ -14,6 +14,7 @@ import {
 	POPULAR_PROVIDER_IDS,
 	PROVIDER_KEY_URLS,
 	resolveAvailableChinaModelCandidates,
+	resolveAvailableCodexModelCandidates,
 	resolveCatalogModelCandidates,
 	resolveVerifiedChinaModelCandidates,
 	VERIFIED_CHINA_PROVIDER_IDS,
@@ -121,6 +122,23 @@ describe("provider recommendations", () => {
 		assert.deepEqual(
 			available.map((candidate) => `${candidate.providerID}/${candidate.modelID}`),
 			["kimi-for-coding/kimi-for-coding", "moonshotai-cn/kimi-k2.5"],
+		)
+	})
+
+	it("does not recommend Codex models missing from the live catalog", () => {
+		const available = resolveAvailableCodexModelCandidates([
+			{
+				id: "openai",
+				models: {
+					"gpt-5.3-codex": {},
+					"gpt-5.3-codex-removed": {},
+				},
+			},
+		])
+
+		assert.deepEqual(
+			available.map((candidate) => `${candidate.providerID}/${candidate.modelID}`),
+			["openai/gpt-5.3-codex"],
 		)
 	})
 

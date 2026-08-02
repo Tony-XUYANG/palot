@@ -333,10 +333,11 @@ describe("writeHistorySessionsDetailed (legacy)", () => {
 		expect(result.totalProcessed).toBe(1)
 
 		// Should have written project, session, message, and part files
-		const projectFiles = result.filesWritten.filter((f) => f.includes("/project/"))
-		const sessionFiles = result.filesWritten.filter((f) => f.includes("/session/"))
-		const messageFiles = result.filesWritten.filter((f) => f.includes("/message/"))
-		const partFiles = result.filesWritten.filter((f) => f.includes("/part/"))
+		const normalizedFiles = result.filesWritten.map((file) => file.replaceAll("\\", "/"))
+		const projectFiles = normalizedFiles.filter((f) => f.includes("/project/"))
+		const sessionFiles = normalizedFiles.filter((f) => f.includes("/session/"))
+		const messageFiles = normalizedFiles.filter((f) => f.includes("/message/"))
+		const partFiles = normalizedFiles.filter((f) => f.includes("/part/"))
 		expect(projectFiles).toHaveLength(1)
 		expect(sessionFiles).toHaveLength(1)
 		expect(messageFiles).toHaveLength(1)

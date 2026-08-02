@@ -1,5 +1,38 @@
 # @palot/desktop
 
+## 0.12.0-beta.0
+
+### Minor Changes
+
+- [`d2a8e3c`](https://github.com/Tony-XUYANG/palot/commit/d2a8e3c4b066d391e9e59fbce8f640e4b86cbc1b) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Feature Chinese model providers during onboarding and provider setup, with dedicated China and Global recommendations plus official API-key links.
+
+- [`f136600`](https://github.com/Tony-XUYANG/palot/commit/f13660017616f27fb95a5d5a376eb0591acba4c1) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add Docker-free GitHub Actions image builds, bundled GitHub CLI browser authentication, Sealos workspace selection and template inputs, observable deployment stages, and stronger public runtime verification.
+
+- [`48da9e4`](https://github.com/Tony-XUYANG/palot/commit/48da9e41074b5f94ba40848c6e38e857e8f3dc8f) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add a Sealos deployment workspace with readiness checks, device-flow sign-in, Agent preparation, template dry-run and deployment, logs, and public runtime verification. Fall back to local Git working-tree data when OpenCode returns an empty session diff so Review still shows Agent changes.
+
+- [`60cdb91`](https://github.com/Tony-XUYANG/palot/commit/60cdb914fb2bc6c5f52f7b610bebbfa178b2efc3) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add China-focused model recommendations and actionable provider error guidance for authentication, billing, rate limits, outages, and context limits.
+
+- [`d8e1513`](https://github.com/Tony-XUYANG/palot/commit/d8e1513c34fc8d3c757b966f61e49d8cb24f8a44) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Bundle pinned OpenCode and MinGit runtimes in the Windows x64 installer so Palot starts and works without separate CLI installation or PATH setup.
+
+- [`d37abf7`](https://github.com/Tony-XUYANG/palot/commit/d37abf7be63df65c028cc5e524fedf42d6ed5a9a) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Prioritize Kimi, GLM, and DeepSeek in provider setup, keep global providers as optional compatibility paths, filter domestic model candidates against the live OpenCode catalog, improve actionable provider error messages, and preserve the hidden immutable-image artifact in generated GitHub Actions builds.
+
+- [`5dc5f7a`](https://github.com/Tony-XUYANG/palot/commit/5dc5f7a0778a26658c2db2489fb3855203489106) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Feature OpenAI Codex as a first-class provider path with ChatGPT OAuth or API-key setup and dedicated Codex model recommendations.
+
+- Harden live Codex recommendations and provider errors, add an OpenCode-backed agent engine contract, and gate future official Codex CLI integration behind a structured compatibility probe.
+
+### Patch Changes
+
+- [`e2a55e2`](https://github.com/Tony-XUYANG/palot/commit/e2a55e2e56809f11d65dff924fd3bfa8a9ce5658) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Keep Sealos remote deployments moving when GHCR is already public or a transient
+  kubectl or HTTP transport failure interrupts verification. Official Sealos domains
+  now use direct Node HTTPS transport while custom domains keep Electron system proxy behavior,
+  and Launchpad checks use the authenticated Sealos region.
+
+- [`0bf03f7`](https://github.com/Tony-XUYANG/palot/commit/0bf03f792441212e47fbd6a356109ffded40733f) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add a resumable one-flow deployment experience that builds immutable images with GitHub Actions, deploys or updates Sealos, and verifies the public runtime.
+
+- [`aafb4f5`](https://github.com/Tony-XUYANG/palot/commit/aafb4f58de648b36a8d3a16a0c424f3833406d05) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Point release metadata, update checks, documentation, and Windows build automation at the Tony-XUYANG/palot public repository.
+
+- [`98c028c`](https://github.com/Tony-XUYANG/palot/commit/98c028cc69418b4e4d66049d6597703021a48dbc) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Mark DeepSeek and GLM as verified domestic providers, keep Kimi as an optional candidate, and link directly to the Kimi Code key console.
+
 ## 0.11.0
 
 ### Minor Changes

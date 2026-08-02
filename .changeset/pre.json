@@ -1,0 +1,25 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "@palot/desktop": "0.11.0",
+    "@palot/server": "0.4.0",
+    "@palot/configconv": "0.5.2",
+    "configconv": "0.5.2",
+    "@palot/ui": "0.6.0"
+  },
+  "changesets": [
+    "bright-china-providers",
+    "bright-dockerless-sealos",
+    "bright-sealos-deploy",
+    "calm-builds-deploy",
+    "calm-model-guidance",
+    "calm-resumable-sealos-flow",
+    "calm-windows-runtime",
+    "gentle-public-repo",
+    "kind-china-first-providers",
+    "kind-codex-access",
+    "steady-agent-engines",
+    "warm-verified-china-models"
+  ]
+}
