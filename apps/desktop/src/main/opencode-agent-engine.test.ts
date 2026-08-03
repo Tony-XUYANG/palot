@@ -9,7 +9,12 @@ describe("OpenCode agent engine", () => {
 		let stopped = false
 		const promptInputs: Array<Record<string, unknown>> = []
 		let abortedSession = ""
-		const session = { id: "session-1", title: "Acceptance" } as Session
+		const session = {
+			id: "session-1",
+			title: "Acceptance",
+			directory: "C:\\project",
+			time: { created: 1, updated: 2 },
+		} as Session
 		const eventStream = {
 			async *[Symbol.asyncIterator]() {
 				yield { directory: "C:\\project", payload: { type: "server.connected" } }
@@ -65,7 +70,13 @@ describe("OpenCode agent engine", () => {
 			state: "connected",
 			providerIDs: ["deepseek", "openai"],
 		})
-		assert.equal(await engine.createSession("C:\\project", "Acceptance"), session)
+		assert.deepEqual(await engine.createSession("C:\\project", "Acceptance"), {
+			id: "session-1",
+			title: "Acceptance",
+			directory: "C:\\project",
+			createdAt: 1,
+			updatedAt: 2,
+		})
 		await engine.prompt({
 			directory: "C:\\project",
 			sessionID: session.id,
@@ -79,7 +90,14 @@ describe("OpenCode agent engine", () => {
 		await engine.cancel("C:\\project", session.id)
 		assert.equal(abortedSession, session.id)
 		assert.deepEqual(await engine.diff("C:\\project", session.id), [])
-		assert.equal(await engine.events(), eventStream)
+		const events = await engine.events()
+		const firstEvent = await events[Symbol.asyncIterator]().next()
+		assert.deepEqual(firstEvent.value, {
+			type: "server.connected",
+			payload: { type: "server.connected" },
+			directory: "C:\\project",
+			sessionID: undefined,
+		})
 		assert.equal(await engine.stop(), true)
 		assert.equal(stopped, true)
 	})
