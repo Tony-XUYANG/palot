@@ -37,6 +37,7 @@ import type {
 } from "../../hooks/use-opencode-data"
 import { createLogger } from "../../lib/logger"
 import { formatRequestError } from "../../lib/model-errors"
+import { normalizeProviderBaseUrl } from "../../lib/provider-config"
 import { PROVIDER_KEY_URLS, ZEN_PROVIDER_ID, ZEN_SIGNUP_URL } from "../../lib/providers"
 import { getBaseClient } from "../../services/connection-manager"
 import { ProviderIcon } from "./provider-icon"
@@ -87,6 +88,8 @@ interface ProviderField {
 	persist: "auth" | "config"
 	/** Help text shown below the field */
 	help?: string
+	/** Initial value written to provider config unless the user changes it */
+	initialValue?: string
 }
 
 /** Configuration for a provider that can be set up via a form */
@@ -104,6 +107,28 @@ interface ConfigurableProvider {
  * These show a multi-field form instead of env-var instructions.
  */
 const CONFIGURABLE_PROVIDERS: ConfigurableProvider[] = [
+	{
+		id: "openai",
+		fields: [
+			{
+				key: "apiKey",
+				label: "API Key",
+				placeholder: "sk-...",
+				secret: true,
+				required: true,
+				persist: "auth",
+			},
+			{
+				key: "baseURL",
+				label: "Endpoint URL",
+				placeholder: "https://api.openai.com/v1",
+				required: true,
+				persist: "config",
+				initialValue: "https://api.openai.com/v1",
+				help: "Use the official endpoint or an OpenAI-compatible HTTPS gateway",
+			},
+		],
+	},
 	{
 		id: "azure",
 		docsAnchor: "azure-openai",
@@ -282,7 +307,7 @@ export function ConnectProviderDialog({
 			if (authMethods.length === 1) {
 				const method = authMethods[0]
 				if (method.type === "api") {
-					setStep({ type: "api-key" })
+					setStep({ type: provider?.id === "openai" ? "configure" : "api-key" })
 				} else {
 					setStep({ type: "oauth", method: 0 })
 				}
@@ -360,7 +385,9 @@ export function ConnectProviderDialog({
 				) : step.type === "select-method" ? (
 					<MethodSelectView
 						authMethods={authMethods ?? []}
-						onSelectApiKey={() => setStep({ type: "api-key" })}
+						onSelectApiKey={() =>
+							setStep({ type: provider.id === "openai" ? "configure" : "api-key" })
+						}
 						onSelectOAuth={(methodIndex) => setStep({ type: "oauth", method: methodIndex })}
 					/>
 				) : step.type === "api-key" ? (
@@ -534,7 +561,7 @@ function ConfigureProviderView({
 	const [values, setValues] = useState<Record<string, string>>(() => {
 		const initial: Record<string, string> = {}
 		for (const field of config?.fields ?? []) {
-			initial[field.key] = ""
+			initial[field.key] = field.initialValue ?? ""
 		}
 		return initial
 	})
@@ -543,7 +570,7 @@ function ConfigureProviderView({
 	useEffect(() => {
 		const initial: Record<string, string> = {}
 		for (const field of config?.fields ?? []) {
-			initial[field.key] = ""
+			initial[field.key] = field.initialValue ?? ""
 		}
 		setValues(initial)
 	}, [config])
@@ -568,6 +595,14 @@ function ConfigureProviderView({
 				const configFields = config.fields.filter(
 					(f) => f.persist === "config" && values[f.key]?.trim(),
 				)
+				const normalizedConfigValues = new Map(
+					configFields.map((field) => [
+						field.key,
+						field.key === "baseURL"
+							? normalizeProviderBaseUrl(values[field.key])
+							: values[field.key].trim(),
+					]),
+				)
 
 				// Set the API key / credential via auth.json
 				if (authField && values[authField.key]?.trim()) {
@@ -581,7 +616,7 @@ function ConfigureProviderView({
 				if (configFields.length > 0) {
 					const options: Record<string, string> = {}
 					for (const field of configFields) {
-						options[field.key] = values[field.key].trim()
+						options[field.key] = normalizedConfigValues.get(field.key) ?? ""
 					}
 					await client.global.config.update({
 						config: {
