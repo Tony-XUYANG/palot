@@ -1,0 +1,219 @@
+apiVersion: app.sealos.io/v1
+kind: Template
+metadata:
+  name: palot-cloud-gateway
+spec:
+  title: Palot Cloud Gateway
+  url: https://github.com/Tony-XUYANG/palot
+  gitRepo: https://github.com/Tony-XUYANG/palot
+  author: Palot
+  description: Prepaid DeepSeek and GLM gateway with transactional usage billing.
+  readme: https://raw.githubusercontent.com/labring-actions/templates/kb-0.9/template/palot-cloud-gateway/README.md
+  icon: https://raw.githubusercontent.com/labring-actions/templates/kb-0.9/template/palot-cloud-gateway/logo.png
+  templateType: inline
+  locale: en
+  i18n:
+    zh:
+      description: 面向 Palot 的 DeepSeek 与 GLM 预付费网关，提供事务化用量计费。
+      readme: https://raw.githubusercontent.com/labring-actions/templates/kb-0.9/template/palot-cloud-gateway/README_zh.md
+  categories:
+    - ai
+    - backend
+  defaults:
+    app_name:
+      type: string
+      value: palot-cloud-${{ random(8) }}
+    app_host:
+      type: string
+      value: palot-cloud-${{ random(8) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{ defaults.app_name }}
+  labels:
+    app: ${{ defaults.app_name }}
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}
+  annotations:
+    originImageName: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:abd5f055d215cd7388886f2932351335f9d9ff019f2fbf4c20f049e7a8dd306c
+    deploy.cloud.sealos.io/minReplicas: "1"
+    deploy.cloud.sealos.io/maxReplicas: "1"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: ${{ defaults.app_name }}
+  template:
+    metadata:
+      labels:
+        app: ${{ defaults.app_name }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ${{ defaults.app_name }}
+          image: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:abd5f055d215cd7388886f2932351335f9d9ff019f2fbf4c20f049e7a8dd306c
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          env:
+            - name: PALOT_POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-db-conn-credential
+                  key: host
+            - name: PALOT_POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-db-conn-credential
+                  key: port
+            - name: PALOT_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-db-conn-credential
+                  key: username
+            - name: PALOT_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-db-conn-credential
+                  key: password
+            - name: PALOT_POSTGRES_DATABASE
+              value: postgres
+            - name: PALOT_TOKEN_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: PALOT_TOKEN_PEPPER
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: DEEPSEEK_API_KEY
+            - name: DEEPSEEK_BASE_URL
+              value: https://api.deepseek.com
+            - name: ZHIPUAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: ZHIPUAI_API_KEY
+            - name: ZHIPUAI_BASE_URL
+              value: https://open.bigmodel.cn/api/paas/v4
+            - name: PALOT_MARKUP_BASIS_POINTS
+              value: "3000"
+            - name: PORT
+              value: "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 20m
+              memory: 25Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ defaults.app_name }}
+  labels:
+    app: ${{ defaults.app_name }}
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}
+spec:
+  selector:
+    app: ${{ defaults.app_name }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${{ defaults.app_name }}
+  labels:
+    app: ${{ defaults.app_name }}
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}
+    cloud.sealos.io/app-deploy-manager-domain: ${{ defaults.app_host }}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    nginx.ingress.kubernetes.io/server-snippet: |
+      client_header_buffer_size 64k;
+      large_client_header_buffers 4 128k;
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/client-body-buffer-size: 64k
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 64k
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($request_uri ~* \.(js|css|gif|jpe?g|png)) {
+        expires 30d;
+        add_header Cache-Control "public";
+      }
+spec:
+  rules:
+    - host: ${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: ${{ defaults.app_name }}
+                port:
+                  number: 8080
+  tls:
+    - hosts:
+        - ${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+      secretName: ${{ SEALOS_CERT_SECRET_NAME }}
+---
+apiVersion: app.sealos.io/v1
+kind: App
+metadata:
+  name: ${{ defaults.app_name }}
+  labels:
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}
+spec:
+  data:
+    url: https://${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}/health
+  displayType: normal
+  icon: https://raw.githubusercontent.com/Tony-XUYANG/palot/commercial/windows-runtime/apps/desktop/resources/icon.png
+  name: Palot Cloud Gateway
+  type: link

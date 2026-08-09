@@ -43,6 +43,16 @@ async function setup(fetchImplementation: GatewayFetch, initialCreditMicros = 10
 }
 
 describe("Palot Cloud gateway HTTP API", () => {
+	it("separates process liveness from database readiness", async () => {
+		const { app, repository } = await setup(fetch)
+		assert.equal((await app.request("/live")).status, 200)
+		repository.health = async () => {
+			throw new Error("database unavailable")
+		}
+		assert.equal((await app.request("/live")).status, 200)
+		assert.equal((await app.request("/health")).status, 503)
+	})
+
 	it("requires authentication and exposes configured, priced models", async () => {
 		const { app, headers } = await setup(fetch)
 		assert.equal((await app.request("/v1/models")).status, 401)

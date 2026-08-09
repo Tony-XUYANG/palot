@@ -117,6 +117,8 @@ export function createGatewayApp(dependencies: GatewayAppDependencies) {
 	const app = new Hono<{ Variables: GatewayVariables }>()
 	const requestFetch: GatewayFetch = dependencies.fetch ?? fetch
 
+	app.get("/live", (c) => c.json({ status: "ok" as const }))
+
 	app.get("/health", async (c) => {
 		try {
 			await dependencies.repository.health()

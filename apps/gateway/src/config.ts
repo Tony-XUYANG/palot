@@ -20,6 +20,23 @@ function requireEnvironment(environment: NodeJS.ProcessEnv, name: string): strin
 	return value
 }
 
+function resolveDatabaseUrl(environment: NodeJS.ProcessEnv): string {
+	const explicitUrl = environment.DATABASE_URL?.trim()
+	if (explicitUrl) return explicitUrl
+	if (!environment.PALOT_POSTGRES_HOST?.trim()) {
+		throw new Error("DATABASE_URL or PALOT_POSTGRES_HOST is required")
+	}
+	const host = requireEnvironment(environment, "PALOT_POSTGRES_HOST")
+	const port = Number(requireEnvironment(environment, "PALOT_POSTGRES_PORT"))
+	if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+		throw new Error("PALOT_POSTGRES_PORT must be an integer between 1 and 65535")
+	}
+	const username = requireEnvironment(environment, "PALOT_POSTGRES_USERNAME")
+	const password = requireEnvironment(environment, "PALOT_POSTGRES_PASSWORD")
+	const database = environment.PALOT_POSTGRES_DATABASE?.trim() || "postgres"
+	return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`
+}
+
 function normalizeHttpsUrl(value: string, name: string): string {
 	const url = new URL(value)
 	if (url.protocol !== "https:") throw new Error(`${name} must use HTTPS`)
@@ -30,7 +47,7 @@ function normalizeHttpsUrl(value: string, name: string): string {
 }
 
 export function readGatewayConfig(environment: NodeJS.ProcessEnv = process.env): GatewayConfig {
-	const databaseUrl = requireEnvironment(environment, "DATABASE_URL")
+	const databaseUrl = resolveDatabaseUrl(environment)
 	const tokenPepper = requireEnvironment(environment, "PALOT_TOKEN_PEPPER")
 	if (tokenPepper.length < 32) {
 		throw new Error("PALOT_TOKEN_PEPPER must contain at least 32 characters")

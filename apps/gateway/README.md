@@ -38,3 +38,12 @@ embedded in the application.
 
 All `/v1` routes require `Authorization: Bearer <Palot token>`. The optional `Idempotency-Key` header
 prevents duplicate charging. Monetary values are serialized as integer micro-yuan strings.
+
+## Sealos credentials
+
+The deployment template never accepts or contains upstream provider keys. Before deploying, run
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/set-palot-cloud-sealos-secrets.ps1`
+from the repository root. It reads the DeepSeek and Zhipu AI keys through hidden prompts and sends
+a Secret manifest directly to `kubectl` over stdin. The values are not written to the project,
+command line, or deployment log. Re-running the script updates the provider keys while preserving
+the existing token pepper.
