@@ -141,16 +141,31 @@ if ($SecretName -notmatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$") {
 }
 
 if ([string]::IsNullOrWhiteSpace($Namespace)) {
-	$Namespace = & $Kubectl --kubeconfig $Kubeconfig --insecure-skip-tls-verify `
-		config view --minify -o "jsonpath={.contexts[0].context.namespace}"
-	if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($Namespace)) {
+	$previousErrorActionPreference = $ErrorActionPreference
+	$ErrorActionPreference = "Continue"
+	try {
+		$Namespace = & $Kubectl --kubeconfig $Kubeconfig --insecure-skip-tls-verify `
+			config view --minify -o "jsonpath={.contexts[0].context.namespace}" 2>$null
+		$namespaceExitCode = $LASTEXITCODE
+	}
+	finally {
+		$ErrorActionPreference = $previousErrorActionPreference
+	}
+	if ($namespaceExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($Namespace)) {
 		throw "Unable to resolve the Sealos namespace from kubeconfig"
 	}
 }
 
-$existingJson = & $Kubectl --kubeconfig $Kubeconfig --insecure-skip-tls-verify `
-	-n $Namespace get secret $SecretName -o json 2>$null
-$existingExitCode = $LASTEXITCODE
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+	$existingJson = & $Kubectl --kubeconfig $Kubeconfig --insecure-skip-tls-verify `
+		-n $Namespace get secret $SecretName -o json 2>$null
+	$existingExitCode = $LASTEXITCODE
+}
+finally {
+	$ErrorActionPreference = $previousErrorActionPreference
+}
 $pepperData = $null
 if ($existingExitCode -eq 0) {
 	$existing = $existingJson | ConvertFrom-Json
@@ -181,9 +196,17 @@ $manifest = @{
 	}
 }
 
-$manifest | ConvertTo-Json -Depth 8 -Compress | & $Kubectl --kubeconfig $Kubeconfig `
-	--insecure-skip-tls-verify -n $Namespace apply -f -
-if ($LASTEXITCODE -ne 0) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+	$manifest | ConvertTo-Json -Depth 8 -Compress | & $Kubectl --kubeconfig $Kubeconfig `
+		--insecure-skip-tls-verify -n $Namespace apply -f - 2>$null
+	$applyExitCode = $LASTEXITCODE
+}
+finally {
+	$ErrorActionPreference = $previousErrorActionPreference
+}
+if ($applyExitCode -ne 0) {
 	throw "kubectl could not apply the Palot Cloud credential Secret"
 }
 
