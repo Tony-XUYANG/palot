@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"enabled": false,
+	"packaged": false,
+	"platform": "win32-x64",
+	"runtime": {
+		"name": "@openai/codex",
+		"version": "0.146.0",
+		"packageUrl": "https://registry.npmjs.org/@openai/codex/-/codex-0.146.0-win32-x64.tgz",
+		"packageSha256": "a7b0c568c1ee6ba6de7c419ae5ccf1473f229871caafed0205432654a2b8ec6f",
+		"executableSha256": "bc343ba420dc2e2e9f59e6fc5e5bf0aae1cd8c771fc319665241fc9c0271fddb",
+		"source": "https://github.com/openai/codex/tree/rust-v0.146.0",
+		"license": "Apache-2.0"
+	},
+	"protocol": {
+		"command": ["app-server", "--listen", "stdio://", "--strict-config"],
+		"framing": "newline-delimited-json-rpc",
+		"experimental": true
+	}
+}
