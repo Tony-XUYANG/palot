@@ -17,7 +17,7 @@
     },
     "apps/desktop": {
       "name": "@palot/desktop",
-      "version": "0.11.0",
+      "version": "0.12.0-beta.0",
       "dependencies": {
         "@fontsource-variable/inter": "^5.2.8",
         "@fontsource/ibm-plex-mono": "^5.2.7",
@@ -74,6 +74,17 @@
       },
       "optionalDependencies": {
         "electron-liquid-glass": "^1.1.1",
+      },
+    },
+    "apps/gateway": {
+      "name": "@palot/gateway",
+      "version": "0.1.0",
+      "dependencies": {
+        "hono": "4.11.9",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.2.14",
+        "typescript": "^5.8.3",
       },
     },
     "apps/server": {
@@ -617,6 +628,8 @@
     "@palot/configconv": ["@palot/configconv@workspace:packages/configconv"],
 
     "@palot/desktop": ["@palot/desktop@workspace:apps/desktop"],
+
+    "@palot/gateway": ["@palot/gateway@workspace:apps/gateway"],
 
     "@palot/server": ["@palot/server@workspace:apps/server"],
 

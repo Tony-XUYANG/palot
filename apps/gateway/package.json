@@ -1,0 +1,23 @@
+{
+	"name": "@palot/gateway",
+	"version": "0.1.0",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"dev": "bun run --hot src/index.ts",
+		"start": "bun run src/index.ts",
+		"admin": "bun run src/admin.ts",
+		"build": "bun build src/index.ts src/admin.ts --outdir dist --target bun",
+		"build:types": "tsc",
+		"check-types": "tsgo --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"hono": "4.11.9"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.2.14",
+		"typescript": "^5.8.3"
+	}
+}
