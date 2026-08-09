@@ -2,12 +2,12 @@ FROM oven/bun:1.3.8-alpine
 
 WORKDIR /app
 
-COPY package.json bun.lock bunfig.toml ./
-COPY apps/gateway/package.json apps/gateway/package.json
+COPY apps/gateway/package.json package.json
+COPY apps/gateway/bun.docker.lock bun.lock
 RUN bun install --frozen-lockfile --production
 
-COPY apps/gateway apps/gateway
-WORKDIR /app/apps/gateway
+COPY apps/gateway/src src
+COPY apps/gateway/migrations migrations
 
 ENV NODE_ENV=production
 ENV PORT=8080

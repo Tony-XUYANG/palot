@@ -49,3 +49,9 @@ AGENTS.local.md
 
 # Local working directory
 .local/
+
+# Local Sealos deployment state (templates remain tracked)
+.sealos/analysis.json
+.sealos/build/
+.sealos/state.json
+.sealos/template-match.json
