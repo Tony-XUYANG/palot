@@ -89,7 +89,7 @@ describe("Palot Cloud gateway HTTP API", () => {
 		}
 		assert.equal((await app.request("/v1/chat/completions", request)).status, 200)
 		assert.equal(authorization, "Bearer server-deepseek-key")
-		assert.equal(upstreamModel, "deepseek-chat")
+		assert.equal(upstreamModel, "deepseek-v4-flash")
 		const summary = await repository.getAccountSummary(account.id)
 		assert.equal(summary?.recentUsage[0]?.chargedMicros, 200n)
 		assert.equal(summary?.recentUsage[0]?.usage?.source, "provider")

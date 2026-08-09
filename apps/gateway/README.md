@@ -29,6 +29,10 @@ bun run admin -- price:set palot-glm-coding <input> <output> <cache-read>
 The operator must review the official upstream price before every update. No stale model price is
 embedded in the application.
 
+The initial upstream routes are `deepseek-v4-flash` and `glm-4.7-flashx`. Their public Palot model
+IDs stay stable so upstream revisions do not break desktop configuration. A route may be changed
+only after official model discovery, a real completion smoke test, and price review.
+
 ## HTTP surface
 
 - `GET /health` checks database availability without authentication.

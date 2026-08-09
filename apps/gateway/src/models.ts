@@ -19,9 +19,9 @@ export interface PalotCloudModelDefinition {
 export const PALOT_CLOUD_MODELS = [
 	{
 		id: "palot-deepseek-chat",
-		label: "Palot DeepSeek",
+		label: "Palot DeepSeek V4 Flash",
 		provider: "deepseek",
-		upstreamModel: "deepseek-chat",
+		upstreamModel: "deepseek-v4-flash",
 		apiKeyEnvironmentVariable: "DEEPSEEK_API_KEY",
 		baseUrlEnvironmentVariable: "DEEPSEEK_BASE_URL",
 		defaultBaseUrl: "https://api.deepseek.com",
@@ -29,9 +29,9 @@ export const PALOT_CLOUD_MODELS = [
 	},
 	{
 		id: "palot-glm-coding",
-		label: "Palot GLM Coding",
+		label: "Palot GLM 4.7 FlashX",
 		provider: "zhipuai",
-		upstreamModel: "glm-4.7-flash",
+		upstreamModel: "glm-4.7-flashx",
 		apiKeyEnvironmentVariable: "ZHIPUAI_API_KEY",
 		baseUrlEnvironmentVariable: "ZHIPUAI_BASE_URL",
 		defaultBaseUrl: "https://open.bigmodel.cn/api/paas/v4",
