@@ -15,6 +15,7 @@ import { useChromeTier } from "../hooks/use-chrome-tier"
 import { useDiscovery } from "../hooks/use-discovery"
 import { useMockMode } from "../hooks/use-mock-mode"
 import { useNotifications } from "../hooks/use-notifications"
+import { usePalotCloudBootstrap } from "../hooks/use-palot-cloud"
 import { useAgentActions, useServerConnection } from "../hooks/use-server"
 import { useServerSettingsSync } from "../hooks/use-servers"
 import { useSystemAccentColor } from "../hooks/use-system-accent-color"
@@ -45,6 +46,7 @@ export function RootLayout() {
 	useThemeEffect()
 	useChromeTier()
 	useSystemAccentColor()
+	usePalotCloudBootstrap()
 
 	const agents = useAgents()
 	const { forkSession } = useAgentActions()

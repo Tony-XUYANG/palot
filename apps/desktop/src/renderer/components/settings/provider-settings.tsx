@@ -61,6 +61,7 @@ import {
 	useProviderAuthMethods,
 } from "../../hooks/use-opencode-data"
 import { createLogger } from "../../lib/logger"
+import { PALOT_CLOUD_PROVIDER_ID } from "../../lib/palot-cloud"
 import {
 	CHINA_PROVIDER_IDS,
 	CODEX_PROVIDER_IDS,
@@ -79,6 +80,7 @@ import {
 } from "../../lib/providers"
 import { getBaseClient } from "../../services/connection-manager"
 import { ConnectProviderDialog } from "./connect-provider-dialog"
+import { PalotCloudSettings } from "./palot-cloud-settings"
 import { ProviderIcon } from "./provider-icon"
 import { SettingsSection } from "./settings-section"
 
@@ -167,7 +169,7 @@ export function ProviderSettings() {
 	const connectedSet = new Set(allProviders.connected)
 
 	const connectedProviders = allProviders.all
-		.filter((p) => connectedSet.has(p.id))
+		.filter((p) => connectedSet.has(p.id) && p.id !== PALOT_CLOUD_PROVIDER_ID)
 		.sort(compareByPopularity)
 
 	const popularUnconnected = allProviders.all
@@ -209,6 +211,7 @@ export function ProviderSettings() {
 	return (
 		<div className="space-y-8">
 			<ProviderSettingsHeader />
+			<PalotCloudSettings onProviderConfigured={reload} />
 
 			{connectedProviders.length > 0 && (
 				<SettingsSection title="Connected">
@@ -335,8 +338,7 @@ function ProviderSettingsHeader() {
 		<div>
 			<h2 className="text-xl font-semibold">Providers</h2>
 			<p className="text-sm text-muted-foreground mt-1">
-				Use your own provider key. Palot stores credentials through OpenCode and never bundles a
-				third-party relay.{" "}
+				BYOK credentials are stored through OpenCode. Palot Cloud is optional.{" "}
 				<a
 					href="https://opencode.ai/docs/providers/"
 					target="_blank"

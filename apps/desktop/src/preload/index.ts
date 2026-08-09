@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld("palot", {
 	/** Gets the URL of the running server, or null. */
 	getServerUrl: () => ipcRenderer.invoke("opencode:url"),
 
+	palotCloud: {
+		status: () => ipcRenderer.invoke("palot-cloud:status"),
+		bootstrap: () => ipcRenderer.invoke("palot-cloud:bootstrap"),
+		connect: (token: string) => ipcRenderer.invoke("palot-cloud:connect", token),
+		disconnect: () => ipcRenderer.invoke("palot-cloud:disconnect"),
+	},
+
 	/** Stops the managed OpenCode server. */
 	stopOpenCode: () => ipcRenderer.invoke("opencode:stop"),
 

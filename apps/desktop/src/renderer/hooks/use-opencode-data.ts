@@ -463,6 +463,31 @@ export interface ConnectedProviderInfo {
 	env: string[]
 }
 
+const MOCK_ALL_PROVIDERS: AllProvidersData = {
+	all: MOCK_PROVIDERS.providers.map((provider) => ({
+		id: provider.id,
+		name: provider.name,
+		env: Object.keys(provider.env),
+		models: provider.models,
+	})),
+	defaults: MOCK_PROVIDERS.defaults,
+	connected: ["bedrock"],
+}
+
+const MOCK_CONNECTED_PROVIDERS = new Map<string, ConnectedProviderInfo>([
+	[
+		"bedrock",
+		{
+			id: "bedrock",
+			name: "AWS Bedrock",
+			source: "config",
+			env: [],
+		},
+	],
+])
+
+const MOCK_PROVIDER_AUTH_METHODS: Record<string, SdkProviderAuthMethod[]> = {}
+
 // ============================================================
 // Provider management hooks
 // ============================================================
@@ -504,6 +529,15 @@ export function useAllProviders(): {
 	const reload = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: queryKeys.allProviders })
 	}, [queryClient])
+
+	if (isMockMode) {
+		return {
+			data: MOCK_ALL_PROVIDERS,
+			loading: false,
+			error: null,
+			reload,
+		}
+	}
 
 	return {
 		data: data ?? null,
@@ -556,6 +590,15 @@ export function useConnectedProviders(): {
 		queryClient.invalidateQueries({ queryKey: queryKeys.connectedProviders })
 	}, [queryClient])
 
+	if (isMockMode) {
+		return {
+			data: MOCK_CONNECTED_PROVIDERS,
+			loading: false,
+			error: null,
+			reload,
+		}
+	}
+
 	return {
 		data: data ?? null,
 		loading: isLoading,
@@ -586,6 +629,14 @@ export function useProviderAuthMethods(): {
 		},
 		enabled: connected && !isMockMode,
 	})
+
+	if (isMockMode) {
+		return {
+			data: MOCK_PROVIDER_AUTH_METHODS,
+			loading: false,
+			error: null,
+		}
+	}
 
 	return {
 		data: data ?? null,

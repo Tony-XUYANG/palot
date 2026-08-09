@@ -83,6 +83,12 @@ import {
 } from "./sealos-service"
 import { getOpaqueWindows, getSettings, onSettingsChanged, updateSettings } from "./settings-store"
 import {
+	bootstrapPalotCloud,
+	connectPalotCloud,
+	disconnectPalotCloud,
+	getPalotCloudStatus,
+} from "./palot-cloud-service"
+import {
 	checkForUpdates,
 	downloadUpdate,
 	getUpdateState,
@@ -211,6 +217,31 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(
 		"agent-engines:list",
 		withLogging("agent-engines:list", async () => await listAgentEngineDescriptors()),
+	)
+
+	// --- Palot Cloud ---
+
+	ipcMain.handle(
+		"palot-cloud:status",
+		withLogging("palot-cloud:status", async () => await getPalotCloudStatus()),
+	)
+
+	ipcMain.handle(
+		"palot-cloud:bootstrap",
+		withLogging("palot-cloud:bootstrap", async () => await bootstrapPalotCloud()),
+	)
+
+	ipcMain.handle(
+		"palot-cloud:connect",
+		withLogging(
+			"palot-cloud:connect",
+			async (_, token: string) => await connectPalotCloud(token),
+		),
+	)
+
+	ipcMain.handle(
+		"palot-cloud:disconnect",
+		withLogging("palot-cloud:disconnect", async () => await disconnectPalotCloud()),
 	)
 
 	ipcMain.handle(

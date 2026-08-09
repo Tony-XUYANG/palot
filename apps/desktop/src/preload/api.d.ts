@@ -573,6 +573,71 @@ export interface UpdateAutomationInput {
 	execution?: Partial<ExecutionConfig>
 }
 
+// ============================================================
+// Palot Cloud types
+// ============================================================
+
+export interface PalotCloudModelInfo {
+	id: string
+	name: string
+	pricing: {
+		currency: "CNY"
+		unit: "million_tokens"
+		inputMicros: string
+		outputMicros: string
+		cacheReadMicros: string
+		version: number
+	}
+}
+
+export interface PalotCloudUsageInfo {
+	id: string
+	model: string
+	priceVersion: number
+	state: "reserved" | "settled" | "refunded"
+	reservedMicros: string
+	chargedMicros: string
+	usage: {
+		inputTokens: number
+		outputTokens: number
+		cacheReadTokens: number
+		source: "provider" | "estimated"
+	} | null
+	createdAt: string
+	settledAt: string | null
+}
+
+export interface PalotCloudAccountInfo {
+	id: string
+	name: string
+	state: "active" | "frozen"
+	balanceMicros: string
+	currency: "CNY"
+	recentUsage: PalotCloudUsageInfo[]
+}
+
+export interface PalotCloudStatus {
+	available: boolean
+	connected: boolean
+	encryptionAvailable: boolean
+	gatewayHost: string | null
+	account: PalotCloudAccountInfo | null
+	models: PalotCloudModelInfo[]
+	error: string | null
+}
+
+export interface PalotCloudProviderSetup {
+	providerId: "palot-cloud"
+	baseUrl: string
+	sessionToken: string
+	models: PalotCloudModelInfo[]
+}
+
+export interface PalotCloudConnectionResult {
+	status: PalotCloudStatus
+	setup: PalotCloudProviderSetup | null
+}
+
 export interface PalotAPI {
 	/** The host platform: "darwin", "win32", or "linux". */
 	platform: NodeJS.Platform
@@ -589,6 +654,12 @@ export interface PalotAPI {
 	restartOpenCode: () => Promise<OpenCodeServerInfo>
 	agentEngines: {
 		list: () => Promise<AgentEngineDescriptor[]>
+	}
+	palotCloud: {
+		status: () => Promise<PalotCloudStatus>
+		bootstrap: () => Promise<PalotCloudConnectionResult>
+		connect: (token: string) => Promise<PalotCloudConnectionResult>
+		disconnect: () => Promise<PalotCloudStatus>
 	}
 	getModelState: () => Promise<ModelState>
 	updateModelRecent: (model: ModelRef) => Promise<ModelState>
