@@ -105,17 +105,20 @@ The following prerelease evidence was collected from the source state following 
 and the accepted Palot Cloud gateway image. Reports and runtime logs remain under ignored `.local/`
 and `.sealos/` directories; only this sanitized summary is published.
 
-- Installer: `Palot-0.12.0-beta.1-win-x64.exe`, 250,581,287 bytes, SHA-256
-  `cbfda8fcaaabad689d2cff9b2d7bc689311adc7d29f389ce20fa70757c065525`.
+- Public installer: `Palot-0.12.0-beta.1-win-x64.exe`, 250,558,322 bytes, SHA-256
+  `fa6c0d20e8f0f57bc646f4a4ae16c04a56d47483a381ac3cd47474abf3e82ffb`. The GitHub asset
+  digest, `SHA256SUMS.txt`, and a fresh download produced the same value.
 - Signature: `NotSigned`. This is allowed only for the Beta and remains a hard blocker for the stable
   release.
 - Windows 11 Pro x64 build 26200: passed as a non-administrator user from an installation path with
   spaces, with no system Git, OpenCode, or Docker available on `PATH`.
 - Upgrade: the public `v0.12.0-beta.0` installer, verified as SHA-256
   `90243ef434ca8ae1ea79e39af75dab824675d3c5e9a40a05e5f1348bc865e597`, upgraded to
-  `v0.12.0-beta.1` while preserving isolated XDG and Electron user data. The preceding `v0.11.0` to
-  `v0.12.0-beta.0` gate also passed. Silent uninstall removed the application and preserved the same
-  user data.
+  a local `v0.12.0-beta.1` candidate from the release commit, SHA-256
+  `cbfda8fcaaabad689d2cff9b2d7bc689311adc7d29f389ce20fa70757c065525`, while preserving isolated
+  XDG and Electron user data. The GitHub Windows release job independently tested its uploaded
+  artifact from the `v0.11.0` baseline. Silent uninstall removed the application and preserved the
+  same user data.
 - Bundled runtime: OpenCode `1.18.5`, MinGit `2.55.0.windows.3`, GitHub CLI `2.96.0`, and kubectl
   `1.36.1` all launched while `PATH` was empty. The installed application remained running for the
   15-second launch smoke.
@@ -126,7 +129,8 @@ and `.sealos/` directories; only this sanitized summary is published.
   8080 and the final 62-second comparison reported one Ready Pod, zero restarts, zero replacements,
   zero readiness changes, zero active Warning Events, and no log findings.
 - Package scan: no model key, OAuth code, database connection string, kubeconfig, `palot.db`, or
-  local Agent smoke data was present in the packaged application.
+  local Agent smoke data was present in either the local candidate or the downloaded public
+  application. The public package contained exactly one accepted Palot Cloud gateway URL.
 
 This baseline qualifies the package for unsigned Beta testing. A trusted Authenticode signature,
 timestamp, signed upgrade test, and automatic-update test are still required before `v0.12.0` can be
