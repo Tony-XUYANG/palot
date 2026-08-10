@@ -71,7 +71,7 @@ jobs:
         run: docker buildx imagetools inspect '${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}'
 
       - name: Upload immutable image metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: palot-cloud-gateway-image-${{ github.sha }}
           path: |
