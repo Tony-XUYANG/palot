@@ -8,6 +8,7 @@ import {
 	shell,
 	systemPreferences,
 } from "electron"
+import { sanitizeOpenCodeProviderResponse } from "../shared/opencode-provider-sanitizer"
 import { listAgentEngineDescriptors } from "./agent-engine-registry"
 import {
 	acceptRun,
@@ -142,7 +143,7 @@ async function handleFetchProxy(
 		body: req.body ?? undefined,
 	})
 
-	const body = await response.text()
+	const body = sanitizeOpenCodeProviderResponse(req.url, response.status, await response.text())
 	const headers: Record<string, string> = {}
 	response.headers.forEach((value, key) => {
 		headers[key] = value
@@ -153,7 +154,7 @@ async function handleFetchProxy(
 		method: req.method,
 		url: req.url,
 		status: response.status,
-		bodyLength: body.length,
+		bodyLength: body?.length ?? 0,
 		durationMs,
 	})
 

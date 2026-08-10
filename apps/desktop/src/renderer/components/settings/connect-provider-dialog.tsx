@@ -31,6 +31,7 @@ import {
 	ZapIcon,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { sanitizeOpenCodeProviderPayload } from "../../../shared/opencode-provider-sanitizer"
 import type {
 	CatalogProvider,
 	SdkProviderAuthMethod as ProviderAuthMethod,
@@ -1247,7 +1248,9 @@ async function refreshProviderCatalog(
 ): Promise<number> {
 	await client.global.dispose()
 	const result = await client.provider.list()
-	const data = result.data as { all?: CatalogProvider[] }
+	const data = sanitizeOpenCodeProviderPayload("/provider", result.data) as {
+		all?: CatalogProvider[]
+	}
 	const provider = data.all?.find((entry) => entry.id === providerID)
 	if (!provider) {
 		throw new Error("OpenCode did not return a model catalog for this provider")

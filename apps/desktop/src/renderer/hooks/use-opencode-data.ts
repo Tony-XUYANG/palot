@@ -2,8 +2,8 @@ import type {
 	Agent as SdkAgent,
 	Command as SdkCommand,
 	Config as SdkConfig,
-	Model as SdkModel,
-	Provider as SdkProvider,
+	Model as OpenCodeModel,
+	Provider as OpenCodeProvider,
 	ProviderAuthMethod as SdkProviderAuthMethod,
 } from "@opencode-ai/sdk/v2/client"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -14,12 +14,17 @@ import { isMockModeAtom } from "../atoms/mock-mode"
 import { MOCK_AGENTS, MOCK_CONFIG, MOCK_PROVIDERS } from "../lib/mock-data"
 import { fetchModelState, updateModelRecent } from "../services/backend"
 import { getBaseClient, getProjectClient } from "../services/connection-manager"
+import { sanitizeOpenCodeProviderPayload } from "../../shared/opencode-provider-sanitizer"
 
 // ============================================================
-// Re-exports — use SDK types directly
+// SDK-derived UI types
 // ============================================================
 
-export type { SdkAgent, SdkCommand, SdkConfig, SdkModel, SdkProvider, SdkProviderAuthMethod }
+export type SdkModel = Omit<OpenCodeModel, "headers">
+export type SdkProvider = Pick<OpenCodeProvider, "id" | "name" | "source" | "env"> & {
+	models: Record<string, SdkModel>
+}
+export type { SdkAgent, SdkCommand, SdkConfig, SdkProviderAuthMethod }
 
 // ============================================================
 // Derived types for our UI layer
@@ -180,7 +185,7 @@ export function useProviders(directory: string | null): {
 			const client = getProjectClient(directory!)
 			if (!client) throw new Error("No client for directory")
 			const result = await client.config.providers()
-			const raw = result.data as {
+			const raw = sanitizeOpenCodeProviderPayload("/config/providers", result.data) as {
 				providers: SdkProvider[]
 				default: Record<string, string>
 			}
@@ -512,7 +517,7 @@ export function useAllProviders(): {
 			const client = getBaseClient()
 			if (!client) throw new Error("Not connected to server")
 			const result = await client.provider.list()
-			const raw = result.data as {
+			const raw = sanitizeOpenCodeProviderPayload("/provider", result.data) as {
 				all: CatalogProvider[]
 				default: Record<string, string>
 				connected: string[]
