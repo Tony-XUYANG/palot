@@ -98,3 +98,33 @@ Record each result without secrets:
 DeepSeek and GLM must each complete a real edit, Review Diff, automated checks, remote GitHub
 Actions build, Sealos HTTPS deployment, `/health`, random 404, readiness, converged logs, and a
 60-second stability check before `v0.12.0` is stable. Official Codex CLI remains outside this gate.
+
+## 5. Verified `v0.12.0-beta.0` Baseline
+
+The following prerelease evidence was collected from commit `38ff4ba` and the accepted Palot Cloud
+gateway image. Reports and runtime logs remain under ignored `.local/` and `.sealos/` directories;
+only this sanitized summary is published.
+
+- Installer: `Palot-0.12.0-beta.0-win-x64.exe`, 250,581,161 bytes, SHA-256
+  `66b62c7ea244d507ddd269c002052d90fac713ca45623852a881e85d6e57103e`.
+- Signature: `NotSigned`. This is allowed only for the Beta and remains a hard blocker for the stable
+  release.
+- Windows 11 Pro x64 build 26200: passed as a non-administrator user from an installation path with
+  spaces, with no system Git, OpenCode, or Docker available on `PATH`.
+- Upgrade: `v0.11.0` to `v0.12.0-beta.0` preserved isolated XDG and Electron user data. Silent
+  uninstall removed the application and preserved the same user data.
+- Bundled runtime: OpenCode `1.18.5`, MinGit `2.55.0.windows.3`, GitHub CLI `2.96.0`, and kubectl
+  `1.36.1` all launched while `PATH` was empty. The installed application remained running for the
+  15-second launch smoke.
+- Agent workflows: DeepSeek and GLM each completed a real code edit. The working-tree Review Diff
+  reported both changed files and the isolated Node.js project passed all 8 tests.
+- Palot Cloud: the public HTTPS gateway returned 200 for `/live` and `/health`, 401 for an
+  unauthorized `/v1/models` request, and 404 for a random missing route. The Launchpad port matched
+  8080 and the final 62-second comparison reported one Ready Pod, zero restarts, zero replacements,
+  zero readiness changes, zero active Warning Events, and no log findings.
+- Package scan: no model key, OAuth code, database connection string, kubeconfig, `palot.db`, or
+  local Agent smoke data was present in the packaged application.
+
+This baseline qualifies the package for unsigned Beta testing. A trusted Authenticode signature,
+timestamp, signed upgrade test, and automatic-update test are still required before `v0.12.0` can be
+published as stable.
