@@ -6,9 +6,11 @@
     "@palot/server": "0.4.0",
     "@palot/configconv": "0.5.2",
     "configconv": "0.5.2",
-    "@palot/ui": "0.6.0"
+    "@palot/ui": "0.6.0",
+    "@palot/gateway": "0.1.0"
   },
   "changesets": [
+    "brave-cloud-credits",
     "bright-china-providers",
     "bright-dockerless-sealos",
     "bright-sealos-deploy",
@@ -19,6 +21,7 @@
     "gentle-public-repo",
     "kind-china-first-providers",
     "kind-codex-access",
+    "quiet-windows-acceptance",
     "steady-agent-engines",
     "warm-verified-china-models"
   ]

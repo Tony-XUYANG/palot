@@ -99,20 +99,23 @@ DeepSeek and GLM must each complete a real edit, Review Diff, automated checks, 
 Actions build, Sealos HTTPS deployment, `/health`, random 404, readiness, converged logs, and a
 60-second stability check before `v0.12.0` is stable. Official Codex CLI remains outside this gate.
 
-## 5. Verified `v0.12.0-beta.0` Baseline
+## 5. Verified `v0.12.0-beta.1` Baseline
 
-The following prerelease evidence was collected from commit `38ff4ba` and the accepted Palot Cloud
-gateway image. Reports and runtime logs remain under ignored `.local/` and `.sealos/` directories;
-only this sanitized summary is published.
+The following prerelease evidence was collected from the source state following commit `01bffed`
+and the accepted Palot Cloud gateway image. Reports and runtime logs remain under ignored `.local/`
+and `.sealos/` directories; only this sanitized summary is published.
 
-- Installer: `Palot-0.12.0-beta.0-win-x64.exe`, 250,581,161 bytes, SHA-256
-  `66b62c7ea244d507ddd269c002052d90fac713ca45623852a881e85d6e57103e`.
+- Installer: `Palot-0.12.0-beta.1-win-x64.exe`, 250,581,287 bytes, SHA-256
+  `cbfda8fcaaabad689d2cff9b2d7bc689311adc7d29f389ce20fa70757c065525`.
 - Signature: `NotSigned`. This is allowed only for the Beta and remains a hard blocker for the stable
   release.
 - Windows 11 Pro x64 build 26200: passed as a non-administrator user from an installation path with
   spaces, with no system Git, OpenCode, or Docker available on `PATH`.
-- Upgrade: `v0.11.0` to `v0.12.0-beta.0` preserved isolated XDG and Electron user data. Silent
-  uninstall removed the application and preserved the same user data.
+- Upgrade: the public `v0.12.0-beta.0` installer, verified as SHA-256
+  `90243ef434ca8ae1ea79e39af75dab824675d3c5e9a40a05e5f1348bc865e597`, upgraded to
+  `v0.12.0-beta.1` while preserving isolated XDG and Electron user data. The preceding `v0.11.0` to
+  `v0.12.0-beta.0` gate also passed. Silent uninstall removed the application and preserved the same
+  user data.
 - Bundled runtime: OpenCode `1.18.5`, MinGit `2.55.0.windows.3`, GitHub CLI `2.96.0`, and kubectl
   `1.36.1` all launched while `PATH` was empty. The installed application remained running for the
   15-second launch smoke.

@@ -1,5 +1,13 @@
 # @palot/desktop
 
+## 0.12.0-beta.1
+
+### Minor Changes
+
+- [`d7be7fd`](https://github.com/Tony-XUYANG/palot/commit/d7be7fd14423552f50ff1103ec884336e08d4ac8) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add the optional Palot Cloud prepaid provider with strict OS-encrypted credentials, a loopback-only OpenCode proxy, balance and usage settings, and a production gateway enabled only after Sealos deployment acceptance.
+
+- [`8921166`](https://github.com/Tony-XUYANG/palot/commit/8921166aa5cdf105eb2969cef7ded6fdb7b93984) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add safe Windows Sandbox and Hyper-V acceptance tooling, decouple the agent-engine contract from OpenCode SDK types, and add a packaged-off official Codex app-server preview with JSON-RPC tests. Allow OpenAI API-key users to select the official endpoint or a validated OpenAI-compatible HTTPS gateway without reading CC Switch credentials.
+
 ## 0.12.0-beta.0
 
 ### Minor Changes
