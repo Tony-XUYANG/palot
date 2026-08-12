@@ -1,5 +1,13 @@
 # @palot/desktop
 
+## 0.12.0-beta.2
+
+### Patch Changes
+
+- [`4f59e48`](https://github.com/Tony-XUYANG/palot/commit/4f59e480a6e54f90f864e5f67675150462db4594) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Keep API keys out of provider UI state while allowing an OpenAI endpoint configuration to set or replace its credential.
+
+- [`c5d1a03`](https://github.com/Tony-XUYANG/palot/commit/c5d1a030c8bcc3651cc5ab9ee1287c05d1ca8875) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Filter credential-bearing OpenCode provider fields in the Electron main process and before browser-mode provider data enters Renderer query state.
+
 ## 0.12.0-beta.1
 
 ### Minor Changes
