@@ -162,3 +162,37 @@ state. Local evidence remains under ignored `.local/` and `.sealos/` directories
 - The current OpenAI Codex compatibility request reached the official API but its configured key was
   rejected as incorrect. Codex remains available but is not marked as accepted by this run and does
   not block the domestic `v0.12` release gate.
+
+## 7. Verified Public `v0.12.0-beta.2` Baseline
+
+The public prerelease was built from commit `404c9c0`. The release and its complete cross-platform
+artifacts are available from [GitHub Release `v0.12.0-beta.2`](https://github.com/Tony-XUYANG/palot/releases/tag/v0.12.0-beta.2).
+The [release workflow run](https://github.com/Tony-XUYANG/palot/actions/runs/31577172618) and the
+[source CI run](https://github.com/Tony-XUYANG/palot/actions/runs/31577012901) both completed
+successfully.
+
+- Public Windows installer: `Palot-0.12.0-beta.2-win-x64.exe`, 250,560,314 bytes, SHA-256
+  `85ee8a0962c282bafbfd597a28f5f54926f756a8800ed3ee15d2bb72ddcd9564`. The GitHub asset digest,
+  `SHA256SUMS.txt`, and a fresh download produced the same value.
+- Signature: `NotSigned`. The package remains an unsigned prerelease and must not be promoted as a
+  stable release.
+- The local installer gate upgraded `v0.12.0-beta.1` to a `v0.12.0-beta.2` candidate, launched all
+  four bundled runtimes with an empty `PATH`, kept Palot running for 15 seconds, and preserved user
+  data after uninstall. The GitHub Windows job independently upgraded the `v0.11.0` baseline to the
+  public artifact.
+- A persistent Windows 11 Pro x64 build 26200 VM passed as the non-administrator Chinese user
+  `Palot测试用户`, using an installation path with spaces and no system Git, OpenCode, or Docker. It
+  upgraded `v0.12.0-beta.1` to `v0.12.0-beta.2`, launched OpenCode `1.18.5`, MinGit
+  `2.55.0.windows.3`, GitHub CLI `2.96.0`, and kubectl `1.36.1`, and preserved user data after
+  uninstall.
+- The downloaded public installer was independently unpacked and its `app.asar` extracted. A scan of
+  367 application text and metadata files found zero OpenAI keys, OAuth callback codes, GitHub
+  tokens, bearer tokens, private keys, JWTs, kubeconfig secrets, or credential-bearing database
+  URLs. A single broad `sk-` match was classified as a `verilog-sk-prompt-*` syntax-highlighting
+  symbol, not a credential.
+- The complete unpacked installer contained no `auth.json`, kubeconfig, `palot.db`, `.env`, Agent
+  smoke directory, Windows acceptance directory, or local `.sealos` state.
+
+This evidence keeps `v0.12.0-beta.2` suitable for public Beta testing. Trusted Authenticode signing,
+a timestamp, signed upgrade coverage, and automatic-update verification remain mandatory before the
+stable `v0.12.0` release.

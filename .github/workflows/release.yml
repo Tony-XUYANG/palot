@@ -414,7 +414,11 @@ jobs:
 
           if [ -f "$CHANGELOG_FILE" ]; then
             # Extract content between this version header and the next version header
-            CONTENT=$(awk "/^## ${VERSION}$/,/^## [0-9]/" "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
+            CONTENT=$(awk -v version="$VERSION" '
+              $0 == "## " version { found=1; next }
+              found && /^## [0-9]/ { exit }
+              found { print }
+            ' "$CHANGELOG_FILE")
             if [ -n "$CONTENT" ]; then
               BODY="$CONTENT"
             fi
