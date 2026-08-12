@@ -574,7 +574,7 @@ export function useConnectedProviders(): {
 			const client = getBaseClient()
 			if (!client) throw new Error("Not connected to server")
 			const result = await client.config.providers()
-			const raw = result.data as {
+			const raw = sanitizeOpenCodeProviderPayload("/config/providers", result.data) as {
 				providers: Array<{
 					id: string
 					name: string
@@ -584,7 +584,12 @@ export function useConnectedProviders(): {
 			}
 			const map = new Map<string, ConnectedProviderInfo>()
 			for (const p of raw.providers ?? []) {
-				map.set(p.id, { id: p.id, name: p.name, source: p.source, env: p.env })
+				map.set(p.id, {
+					id: p.id,
+					name: p.name,
+					source: p.source,
+					env: p.env,
+				})
 			}
 			return map
 		},

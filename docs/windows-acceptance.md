@@ -135,3 +135,30 @@ and `.sealos/` directories; only this sanitized summary is published.
 This baseline qualifies the package for unsigned Beta testing. A trusted Authenticode signature,
 timestamp, signed upgrade test, and automatic-update test are still required before `v0.12.0` can be
 published as stable.
+
+## 6. Refreshed Domestic Deployment Acceptance - 2026-08-12
+
+The domestic-provider and Docker-free deployment path was repeated against the current development
+state. Local evidence remains under ignored `.local/` and `.sealos/` directories.
+
+- DeepSeek `deepseek-chat` added `GET /api/ready` and a focused test in 34 seconds. Commit `2e68e8f`
+  passed 8/8 tests.
+- GLM `glm-4.7-flash` added consistent JSON 405 handling and `Allow: GET` tests in 120 seconds.
+  Commit `3388e22` passed 10/10 tests.
+- OpenCode returned an empty Session Diff for both runs, and the existing working-tree Review Diff
+  fallback exposed the complete focused changes. Sensitive-diff scans found no credentials.
+- GitHub Actions run `31572138646` built the public acceptance project without local Docker and
+  produced immutable image
+  `ghcr.io/tony-xuyang/palot-acceptance-web@sha256:635b209603450b21c878591d7f14cedd38e4ccbfda71ff5ad218f38221b13bd5`
+  from commit `3388e22f644d5f930bfcb42ddc59270570e7ed88`.
+- Sealos updated the existing `palot-acceptance-nqykmwuy` deployment in the Hangzhou region and
+  workspace `ns-fmb1gbvg`. The retained public URL is
+  `https://palot-acceptance-kqmzszvo.sealoshzh.site`.
+- Launchpad reported a matching public HTTP network on port 3000. `/`, `/health`, `/api/ready`, and
+  `/api/info` returned 200; `POST /health` returned JSON 405 with `Allow: GET`; a random missing path
+  returned JSON 404.
+- The final runtime comparison covered 226 seconds and reported one Ready Pod, zero restarts, zero
+  replacements, zero readiness changes, zero active Warning Events, and no log findings.
+- The current OpenAI Codex compatibility request reached the official API but its configured key was
+  rejected as incorrect. Codex remains available but is not marked as accepted by this run and does
+  not block the domestic `v0.12` release gate.

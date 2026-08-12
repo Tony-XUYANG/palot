@@ -371,6 +371,7 @@ function ConnectedProviderRow({
 	const source = sourceInfo?.source ?? "api"
 	const isEnvConnected = source === "env"
 	const hasManualAuth = source === "api" || source === "custom"
+	const canManageConfigApiKey = provider.id === "openai" && source === "config"
 
 	const isZen = provider.id === ZEN_PROVIDER_ID
 	const zenFree = isZen && isZenFreeTier(provider.models)
@@ -450,9 +451,9 @@ function ConnectedProviderRow({
 			</div>
 			<div className="flex w-full items-center justify-end gap-2 pl-11 sm:w-auto sm:pl-0">
 				<TooltipProvider>
-					{zenFree ? (
+					{zenFree || canManageConfigApiKey ? (
 						<Button variant="outline" size="sm" className="h-7 text-xs" onClick={onConnect}>
-							Add API key
+							{canManageConfigApiKey ? "Set API key" : "Add API key"}
 						</Button>
 					) : (
 						<>
