@@ -4,7 +4,9 @@ param(
 	[string]$PreviousInstallerPath = "",
 	[Parameter(Mandatory = $true)]
 	[string]$ResultsDirectory,
-	[switch]$AllowUnsigned
+	[string]$ExpectedPublisher = "",
+	[switch]$AllowUnsigned,
+	[switch]$RequireTimestamp
 )
 
 Set-StrictMode -Version Latest
@@ -41,6 +43,12 @@ try {
 	}
 	if ($AllowUnsigned) {
 		$arguments.AllowUnsigned = $true
+	}
+	if (-not [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+		$arguments.ExpectedPublisher = $ExpectedPublisher
+	}
+	if ($RequireTimestamp) {
+		$arguments.RequireTimestamp = $true
 	}
 	& $installerTest @arguments
 	$passed = $true

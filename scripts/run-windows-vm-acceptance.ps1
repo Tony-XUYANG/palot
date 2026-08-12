@@ -9,7 +9,9 @@ param(
 	[string]$PreviousInstallerPath,
 	[string]$GuestWorkingDirectory = "C:\Palot Acceptance With Spaces",
 	[string]$ReportPath = "",
+	[string]$ExpectedPublisher = "",
 	[switch]$AllowUnsigned,
+	[switch]$RequireTimestamp,
 	[switch]$ConsoleCredential
 )
 
@@ -82,13 +84,17 @@ try {
 		$guestInstallerPath,
 		$guestPreviousInstallerPath,
 		$guestTestPath,
-		$AllowUnsigned.IsPresent
+		$AllowUnsigned.IsPresent,
+		$ExpectedPublisher,
+		$RequireTimestamp.IsPresent
 	) -ScriptBlock {
 		param(
 			[string]$InstallerPath,
 			[string]$PreviousInstallerPath,
 			[string]$InstallerTestPath,
-			[bool]$AllowUnsigned
+			[bool]$AllowUnsigned,
+			[string]$ExpectedPublisher,
+			[bool]$RequireTimestamp
 		)
 
 		Set-StrictMode -Version Latest
@@ -122,6 +128,12 @@ try {
 		}
 		if ($AllowUnsigned) {
 			$arguments.AllowUnsigned = $true
+		}
+		if (-not [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+			$arguments.ExpectedPublisher = $ExpectedPublisher
+		}
+		if ($RequireTimestamp) {
+			$arguments.RequireTimestamp = $true
 		}
 		$messages = @(& $InstallerTestPath @arguments *>&1 | ForEach-Object {
 			$_.ToString()

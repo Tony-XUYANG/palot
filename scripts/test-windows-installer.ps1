@@ -3,7 +3,9 @@ param(
 	[string]$InstallerPath,
 	[string]$PreviousInstallerPath = "",
 	[string]$InstallDirectory = "",
+	[string]$ExpectedPublisher = "",
 	[switch]$AllowUnsigned,
+	[switch]$RequireTimestamp,
 	[switch]$SkipLaunch,
 	[switch]$KeepArtifacts
 )
@@ -34,6 +36,45 @@ function Assert-CommandVersion {
 		throw "Bundled runtime check failed for $FilePath. Output: $output"
 	}
 	Write-Host "PASS: $Expected"
+}
+
+function Assert-AuthenticodeSignature {
+	param(
+		[Parameter(Mandatory = $true)][string]$Path,
+		[Parameter(Mandatory = $true)][string]$Label,
+		[string]$ExpectedPublisher = "",
+		[bool]$AllowUnsigned = $false,
+		[bool]$RequireTimestamp = $false
+	)
+	$signature = Get-AuthenticodeSignature -FilePath $Path
+	if ($signature.Status -eq [Management.Automation.SignatureStatus]::Valid) {
+		if (-not $signature.SignerCertificate) {
+			throw "$Label has a valid status but no signer certificate"
+		}
+		$publisher = $signature.SignerCertificate.Subject
+		if (
+			-not [string]::IsNullOrWhiteSpace($ExpectedPublisher) -and
+			-not $publisher.Equals($ExpectedPublisher, [StringComparison]::OrdinalIgnoreCase)
+		) {
+			throw "$Label publisher mismatch: $publisher"
+		}
+		if ($RequireTimestamp -and -not $signature.TimeStamperCertificate) {
+			throw "$Label does not contain a trusted Authenticode timestamp"
+		}
+		Write-Host "PASS: $Label Authenticode signature is valid"
+		if (-not [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+			Write-Host "PASS: $Label publisher matches $ExpectedPublisher"
+		}
+		if ($RequireTimestamp) {
+			Write-Host "PASS: $Label contains a trusted Authenticode timestamp"
+		}
+		return
+	}
+	if ($AllowUnsigned -and $signature.Status -eq [Management.Automation.SignatureStatus]::NotSigned) {
+		Write-Host "PASS: unsigned $Label explicitly allowed for this prerelease"
+		return
+	}
+	throw "$Label signature gate failed: $($signature.Status)"
 }
 
 function Get-DescendantProcessIds {
@@ -105,14 +146,15 @@ $initialInstaller = $installer
 if (-not [string]::IsNullOrWhiteSpace($PreviousInstallerPath)) {
 	$initialInstaller = (Get-Item -LiteralPath $PreviousInstallerPath).FullName
 }
-$signature = Get-AuthenticodeSignature -FilePath $installer
-if ($signature.Status -eq [Management.Automation.SignatureStatus]::Valid) {
-	Write-Host "PASS: installer Authenticode signature is valid"
-} elseif ($AllowUnsigned -and $signature.Status -eq [Management.Automation.SignatureStatus]::NotSigned) {
-	Write-Host "PASS: unsigned installer explicitly allowed for this prerelease"
-} else {
-	throw "Installer signature gate failed: $($signature.Status)"
+if (-not $AllowUnsigned -and [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+	throw "Signed installer acceptance requires -ExpectedPublisher"
 }
+if ($AllowUnsigned -and $RequireTimestamp) {
+	throw "-AllowUnsigned and -RequireTimestamp cannot be used together"
+}
+Assert-AuthenticodeSignature -Path $installer -Label "installer" `
+	-ExpectedPublisher $ExpectedPublisher -AllowUnsigned $AllowUnsigned.IsPresent `
+	-RequireTimestamp $RequireTimestamp.IsPresent
 
 $smokeRoot = Join-Path ([IO.Path]::GetTempPath()) `
 	"palot-installer-smoke-$([Guid]::NewGuid().ToString('N'))"
@@ -155,6 +197,9 @@ try {
 	if (-not (Test-Path -LiteralPath $appExecutable -PathType Leaf)) {
 		throw "Upgrade install removed the application executable"
 	}
+	Assert-AuthenticodeSignature -Path $appExecutable -Label "installed application" `
+		-ExpectedPublisher $ExpectedPublisher -AllowUnsigned $AllowUnsigned.IsPresent `
+		-RequireTimestamp $RequireTimestamp.IsPresent
 	if (
 		-not (Test-Path -LiteralPath $sentinel -PathType Leaf) -or
 		-not (Test-Path -LiteralPath $userDataSentinel -PathType Leaf)
@@ -216,6 +261,9 @@ try {
 	if (-not $uninstaller) {
 		throw "NSIS uninstaller was not found"
 	}
+	Assert-AuthenticodeSignature -Path $uninstaller.FullName -Label "uninstaller" `
+		-ExpectedPublisher $ExpectedPublisher -AllowUnsigned $AllowUnsigned.IsPresent `
+		-RequireTimestamp $RequireTimestamp.IsPresent
 	Invoke-HiddenProcess -FilePath $uninstaller.FullName -ArgumentList @("/S")
 	$deadline = [DateTime]::UtcNow.AddSeconds(60)
 	while ((Test-Path -LiteralPath $appExecutable) -and [DateTime]::UtcNow -lt $deadline) {

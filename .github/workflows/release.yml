@@ -14,6 +14,7 @@ concurrency:
 env:
   WINDOWS_UPGRADE_BASE_VERSION: "0.11.0"
   WINDOWS_UPGRADE_BASE_SHA256: "d5e774539bca43b7365be75464842cab1cf7af4f16db59047ad22bbb72f33595"
+  WINDOWS_SIGNING_PUBLISHER: ${{ vars.WINDOWS_SIGNING_PUBLISHER }}
 
 jobs:
   # ──────────────────────────────────────────────
@@ -224,12 +225,22 @@ jobs:
         env:
           WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
         run: |
-          $isPrerelease = "${{ contains(needs.changeset.outputs.version, '-') }}" -eq "true"
-          if (-not $isPrerelease -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
-            throw "Stable Windows releases require WINDOWS_CSC_LINK before packaging"
+          $version = "${{ needs.changeset.outputs.version }}"
+          $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
+          if (-not $allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            throw "Windows RC and stable releases require WINDOWS_CSC_LINK before packaging"
           }
-          if ($isPrerelease -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
-            Write-Host "Unsigned Windows installer allowed for this prerelease"
+          if (-not $allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
+            throw "Windows RC and stable releases require the WINDOWS_SIGNING_PUBLISHER repository variable"
+          }
+          if (
+            -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK) -and
+            [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)
+          ) {
+            throw "Signed Windows releases require the WINDOWS_SIGNING_PUBLISHER repository variable"
+          }
+          if ($allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
+            Write-Host "Unsigned Windows installer allowed for this Alpha or Beta preview"
           }
 
       - name: Package Windows app
@@ -262,6 +273,10 @@ jobs:
           if ($installers.Count -ne 1) {
             throw "Expected one Windows x64 installer, found $($installers.Count)"
           }
+          node ./scripts/verify-windows-update-manifest.cjs `
+            --manifest apps/desktop/release/latest.yml `
+            --installer $installers[0].FullName `
+            --version "${{ needs.changeset.outputs.version }}"
           $baseVersion = $env:WINDOWS_UPGRADE_BASE_VERSION
           $previousInstaller = Join-Path $env:RUNNER_TEMP "Palot-$baseVersion-win-x64.exe"
           $previousUrl = "https://github.com/Tony-XUYANG/palot/releases/download/v$baseVersion/Palot-$baseVersion-win-x64.exe"
@@ -270,14 +285,21 @@ jobs:
           if ($actualHash -ne $env:WINDOWS_UPGRADE_BASE_SHA256) {
             throw "Upgrade baseline SHA-256 mismatch: $actualHash"
           }
-          $isPrerelease = "${{ contains(needs.changeset.outputs.version, '-') }}" -eq "true"
-          if ($isPrerelease) {
-            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName `
-              -PreviousInstallerPath $previousInstaller -AllowUnsigned
-          } else {
-            ./scripts/test-windows-installer.ps1 -InstallerPath $installers[0].FullName `
-              -PreviousInstallerPath $previousInstaller
+          $version = "${{ needs.changeset.outputs.version }}"
+          $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
+          $testArguments = @{
+            InstallerPath = $installers[0].FullName
+            PreviousInstallerPath = $previousInstaller
           }
+          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
+            $testArguments.ExpectedPublisher = $env:WINDOWS_SIGNING_PUBLISHER
+          }
+          if ($allowsUnsignedPreview) {
+            $testArguments.AllowUnsigned = $true
+          } else {
+            $testArguments.RequireTimestamp = $true
+          }
+          ./scripts/test-windows-installer.ps1 @testArguments
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'linux'

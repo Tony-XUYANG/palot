@@ -4,7 +4,9 @@ param(
 	[string]$PreviousInstallerPath = "",
 	[string]$OutputPath = "",
 	[string]$ResultsDirectory = "",
+	[string]$ExpectedPublisher = "",
 	[switch]$AllowUnsigned,
+	[switch]$RequireTimestamp,
 	[switch]$Launch
 )
 
@@ -52,6 +54,12 @@ if (-not [string]::IsNullOrWhiteSpace($PreviousInstallerPath)) {
 }
 if ($AllowUnsigned) {
 	$arguments += "-AllowUnsigned"
+}
+if (-not [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+	$arguments += @("-ExpectedPublisher", $ExpectedPublisher)
+}
+if ($RequireTimestamp) {
+	$arguments += "-RequireTimestamp"
 }
 $command = "powershell.exe " + (($arguments | ForEach-Object { '"' + $_.Replace('"', '`"') + '"' }) -join " ")
 
