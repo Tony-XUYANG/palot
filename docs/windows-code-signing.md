@@ -16,6 +16,48 @@ Before purchasing, record the applicant type, supported countries, verification 
 renewal term, timestamp service, GitHub Actions support, and total recurring cost. Do not buy a
 certificate until the applicant identity is confirmed.
 
+## Current Procurement Decision - 2026-08-12
+
+The primary candidate for an individual developer in mainland China is SSL.com IV Code Signing with
+eSigner cloud signing. Do not purchase it until SSL.com support confirms in writing that a mainland
+China government-issued identity document and telephone number are eligible for IV validation.
+
+- SSL.com IV Code Signing is advertised for individual developers without a registered company. The
+  one-year certificate price is USD 129 and standard validation requires a government-issued ID.
+- eSigner Tier 1 is USD 180 per year for 240 signings and one credential. The expected first-year
+  total is therefore USD 309 before tax, currency conversion, or payment fees.
+- SSL.com documents GitHub Actions integration using four secrets: account username, account
+  password, credential ID, and TOTP secret. Palot must never store these values in source, logs, or
+  artifacts.
+- The published `SSLcom/actions-codesigner` example currently uses a moving `develop` branch and has
+  no stable release tag. Any Palot integration must pin a reviewed commit SHA and must not use
+  `@develop` or another mutable branch.
+- Microsoft Artifact Signing Basic costs USD 9.99 per month for 5,000 signatures and supports
+  managed certificates, CI integrations, and external timestamping. However, Microsoft currently
+  limits Public Trust organization validation to a published country list that does not include
+  mainland China, while individual validation is limited to the United States and Canada. Private
+  Trust does not make a public Windows installer trusted, so this option is not suitable for Palot's
+  current applicant.
+
+Before payment, ask SSL.com support to confirm all of the following in one written response:
+
+1. Mainland China individual validation is supported for the applicant's exact ID type.
+2. eSigner Tier 1 can sign Windows `.exe` files from GitHub-hosted Windows runners without a hardware
+   token or interactive approval.
+3. Authenticode RFC 3161 timestamping is included and remains valid after certificate expiry.
+4. The displayed publisher subject will be the applicant's verified legal name and can be supplied
+   exactly as the `WINDOWS_SIGNING_PUBLISHER` repository variable.
+5. Renewal, refund, failed-validation, tax, and currency-conversion terms are confirmed before
+   checkout.
+
+Official pages reviewed for this decision:
+
+- [SSL.com IV Code Signing](https://www.ssl.com/products/software-integrity/code-signing/iv/)
+- [SSL.com eSigner pricing](https://www.ssl.com/products/software-integrity/signing-service/)
+- [SSL.com GitHub Actions integration](https://www.ssl.com/how-to/cloud-code-signing-integration-with-github-actions/)
+- [Microsoft Artifact Signing prerequisites](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart#prerequisites)
+- [Microsoft Artifact Signing pricing](https://azure.microsoft.com/en-us/pricing/details/artifact-signing/)
+
 ## Release Configuration
 
 The current workflow supports an electron-builder-compatible PFX through:
