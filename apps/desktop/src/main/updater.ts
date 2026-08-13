@@ -222,7 +222,9 @@ export async function installUpdate(): Promise<void> {
 		return
 	}
 	const autoUpdater = await getAutoUpdater()
-	autoUpdater.quitAndInstall(false, true)
+	// Windows NSIS must run silently here. Passing false opens the installer wizard and leaves the
+	// update blocked until the user manually completes it.
+	autoUpdater.quitAndInstall(true, true)
 }
 
 /**
