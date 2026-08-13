@@ -193,6 +193,21 @@ successfully.
 - The complete unpacked installer contained no `auth.json`, kubeconfig, `palot.db`, `.env`, Agent
   smoke directory, Windows acceptance directory, or local `.sealos` state.
 
+The automatic-update defect found during follow-up testing was fixed in commit `e380311`: Windows
+now calls `quitAndInstall(true, true)`, so NSIS runs silently instead of opening an interactive
+wizard. An isolated real update then downloaded the public `v0.12.0-beta.2` payload, updated a
+locally built fixed `v0.12.0-beta.1` baseline to `v0.12.0-beta.2`, preserved XDG and Electron data,
+and preserved the same data after uninstall. The reusable acceptance tooling and regression tests
+were committed in `b74033a`; [CI run 31688767817](https://github.com/Tony-XUYANG/palot/actions/runs/31688767817)
+passed.
+
+The public `v0.12.0-beta.2` binary predates the silent-install fix, so it cannot bootstrap a fully
+automatic update to the RC. `v0.12.0-beta.3` will be the first public updater baseline containing
+the fix. After that bootstrap release, the release workflow must verify the public
+`beta.3 -> rc.1` path, including publisher, timestamp, data preservation, and uninstall behavior.
+Before publishing the RC, replace `WINDOWS_AUTO_UPDATE_BASE_SHA256` in the release workflow with the
+SHA-256 recorded in the public `beta.3` release; the placeholder intentionally blocks RC builds.
+
 This evidence keeps `v0.12.0-beta.2` suitable for public Beta testing. Trusted Authenticode signing,
-a timestamp, signed upgrade coverage, and automatic-update verification remain mandatory before the
-stable `v0.12.0` release.
+a timestamp, signed upgrade coverage, and a public `beta.3 -> rc.1` automatic-update pass remain
+mandatory before the stable `v0.12.0` release.

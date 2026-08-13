@@ -17,6 +17,8 @@
 			"scripts/**/*.js",
 			"scripts/run-electron-updater-driver.cjs",
 			"scripts/run-electron-updater-driver.test.cjs",
+			"scripts/scan-windows-package.cjs",
+			"scripts/scan-windows-package.test.cjs",
 			"*.json",
 			"**/package.json",
 			"**/tsconfig.json",

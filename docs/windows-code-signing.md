@@ -78,6 +78,9 @@ no signing configuration is present, and the installer smoke test verifies the i
 application, and uninstaller signatures again after packaging. RC and stable artifacts must use the
 configured publisher and contain a trusted timestamp. The workflow also verifies that `latest.yml`
 names the exact installer and matches its version, size, and SHA-512 before uploading either file.
+All releases are initially published as prereleases so their public update assets can be tested.
+Only an unqualified stable version is promoted to GitHub Latest, and only after the public Windows
+automatic-update test succeeds; a failed gate leaves it visibly marked as a prerelease.
 
 ## Acceptance
 

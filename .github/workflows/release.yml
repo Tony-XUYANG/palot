@@ -14,6 +14,11 @@ concurrency:
 env:
   WINDOWS_UPGRADE_BASE_VERSION: "0.11.0"
   WINDOWS_UPGRADE_BASE_SHA256: "d5e774539bca43b7365be75464842cab1cf7af4f16db59047ad22bbb72f33595"
+  # beta.3 will be the first public build containing the silent updater fix. Later RC/stable
+  # releases use it as their automatic-update baseline; beta.3 itself is the bootstrap exception.
+  WINDOWS_AUTO_UPDATE_BASE_VERSION: "0.12.0-beta.3"
+  # Fill this with beta.3's published SHA-256 before releasing an RC. The gate rejects placeholders.
+  WINDOWS_AUTO_UPDATE_BASE_SHA256: "PENDING_BETA_3_RELEASE"
   WINDOWS_SIGNING_PUBLISHER: ${{ vars.WINDOWS_SIGNING_PUBLISHER }}
 
 jobs:
@@ -301,6 +306,10 @@ jobs:
           }
           ./scripts/test-windows-installer.ps1 @testArguments
 
+      - name: Scan Windows package for sensitive information
+        if: matrix.platform == 'win'
+        run: node ./scripts/scan-windows-package.cjs --root apps/desktop/release/win-unpacked
+
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
@@ -460,9 +469,110 @@ jobs:
           name: Palot ${{ needs.changeset.outputs.version }}
           body_path: /tmp/release-notes.md
           draft: false
-          prerelease: ${{ contains(needs.changeset.outputs.version, '-') }}
+          # Stable artifacts remain prerelease until the public automatic-update gate passes.
+          prerelease: true
           files: |
             release-files/*
-          make_latest: ${{ !contains(needs.changeset.outputs.version, '-') }}
+          make_latest: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows-auto-update:
+    name: Verify public Windows automatic update
+    needs: [changeset, release]
+    if: >-
+      needs.changeset.outputs.should-release == 'true' &&
+      needs.changeset.outputs.version != '0.12.0-beta.2' &&
+      needs.changeset.outputs.version != '0.12.0-beta.3'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download automatic-update baseline
+        shell: pwsh
+        run: |
+          $version = $env:WINDOWS_AUTO_UPDATE_BASE_VERSION
+          $name = "Palot-$version-win-x64.exe"
+          $url = "https://github.com/Tony-XUYANG/palot/releases/download/v$version/$name"
+          $destination = Join-Path $env:RUNNER_TEMP $name
+          Invoke-WebRequest -Uri $url -OutFile $destination
+          if ($env:WINDOWS_AUTO_UPDATE_BASE_SHA256 -notmatch '^[a-f0-9]{64}$') {
+            throw "Set WINDOWS_AUTO_UPDATE_BASE_SHA256 to the published beta.3 installer hash"
+          }
+          $actualHash = (Get-FileHash $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:WINDOWS_AUTO_UPDATE_BASE_SHA256) {
+            throw "Automatic-update baseline SHA-256 mismatch: $actualHash"
+          }
+
+      - name: Wait for public update assets
+        shell: pwsh
+        run: |
+          $version = "${{ needs.changeset.outputs.version }}"
+          $baseUrl = "https://github.com/Tony-XUYANG/palot/releases/download/v$version"
+          $assets = @(
+            "$baseUrl/latest.yml",
+            "$baseUrl/Palot-$version-win-x64.exe"
+          )
+          $deadline = [DateTime]::UtcNow.AddMinutes(10)
+          foreach ($asset in $assets) {
+            $ready = $false
+            do {
+              try {
+                $response = Invoke-WebRequest -Uri $asset -Method Head -MaximumRedirection 5
+                if ($response.StatusCode -eq 200) {
+                  Write-Host "Public release asset is ready: $asset"
+                  $ready = $true
+                  break
+                }
+              } catch {
+                Write-Host "Waiting for public release asset: $asset"
+              }
+              Start-Sleep -Seconds 10
+            } while ([DateTime]::UtcNow -lt $deadline)
+            if (-not $ready) {
+              throw "Public release asset did not become available: $asset"
+            }
+          }
+
+      - name: Update through the public GitHub release
+        shell: pwsh
+        run: |
+          $version = "${{ needs.changeset.outputs.version }}"
+          $baseline = Join-Path $env:RUNNER_TEMP `
+            "Palot-$env:WINDOWS_AUTO_UPDATE_BASE_VERSION-win-x64.exe"
+          $arguments = @{
+            BaselineInstallerPath = $baseline
+            ExpectedVersion = $version
+            DownloadTimeoutSeconds = 1200
+            AllowUnsigned = $true
+          }
+          $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
+          if (-not $allowsUnsignedPreview) {
+            if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
+              throw "RC and stable automatic updates require WINDOWS_SIGNING_PUBLISHER"
+            }
+            $arguments.ExpectedPublisher = $env:WINDOWS_SIGNING_PUBLISHER
+            $arguments.RequireTargetTimestamp = $true
+          }
+          ./scripts/test-windows-auto-update.ps1 @arguments
+
+  promote-stable:
+    name: Promote verified stable release
+    needs: [changeset, windows-auto-update]
+    if: >-
+      needs.changeset.outputs.should-release == 'true' &&
+      !contains(needs.changeset.outputs.version, '-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote release to latest
+        run: >-
+          gh release edit "${{ needs.changeset.outputs.tag }}"
+          --repo "${{ github.repository }}"
+          --prerelease=false
+          --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

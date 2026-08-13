@@ -5,6 +5,8 @@ param(
 	[string]$ExpectedVersion,
 	[string]$InstallDirectory = "",
 	[int]$DownloadTimeoutSeconds = 900,
+	[string]$ExpectedPublisher = "",
+	[switch]$RequireTargetTimestamp,
 	[switch]$AllowUnsigned,
 	[switch]$KeepArtifacts
 )
@@ -31,6 +33,36 @@ function Get-FreeTcpPort {
 		return ([Net.IPEndPoint]$listener.LocalEndpoint).Port
 	} finally {
 		$listener.Stop()
+	}
+}
+
+function Assert-TargetSignature {
+	param(
+		[Parameter(Mandatory = $true)][string]$Path,
+		[Parameter(Mandatory = $true)][string]$Label
+	)
+	if ([string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+		if ($RequireTargetTimestamp) {
+			throw "-RequireTargetTimestamp requires -ExpectedPublisher"
+		}
+		return
+	}
+	$signature = Get-AuthenticodeSignature -FilePath $Path
+	if ($signature.Status -ne [Management.Automation.SignatureStatus]::Valid) {
+		throw "$Label signature gate failed: $($signature.Status)"
+	}
+	if (-not $signature.SignerCertificate.Subject.Equals(
+		$ExpectedPublisher,
+		[StringComparison]::OrdinalIgnoreCase
+	)) {
+		throw "$Label publisher mismatch: $($signature.SignerCertificate.Subject)"
+	}
+	if ($RequireTargetTimestamp -and -not $signature.TimeStamperCertificate) {
+		throw "$Label does not contain a trusted Authenticode timestamp"
+	}
+	Write-Host "PASS: $Label signature matches $ExpectedPublisher"
+	if ($RequireTargetTimestamp) {
+		Write-Host "PASS: $Label contains a trusted Authenticode timestamp"
 	}
 }
 
@@ -84,6 +116,9 @@ function Assert-SafeAcceptanceRoot {
 }
 
 $baselineInstaller = (Get-Item -LiteralPath $BaselineInstallerPath).FullName
+if ($RequireTargetTimestamp -and [string]::IsNullOrWhiteSpace($ExpectedPublisher)) {
+	throw "-RequireTargetTimestamp requires -ExpectedPublisher"
+}
 $signature = Get-AuthenticodeSignature -FilePath $baselineInstaller
 if (
 	$signature.Status -ne [Management.Automation.SignatureStatus]::Valid -and
@@ -176,6 +211,7 @@ try {
 	if ($currentVersion -ne $ExpectedVersion) {
 		throw "Automatic update did not install $ExpectedVersion; current version is $currentVersion"
 	}
+	Assert-TargetSignature -Path $appExecutable -Label "updated application"
 	if (
 		-not (Test-Path -LiteralPath $xdgSentinel -PathType Leaf) -or
 		-not (Test-Path -LiteralPath $electronSentinel -PathType Leaf)
@@ -193,6 +229,7 @@ try {
 	if (-not $uninstaller) {
 		throw "NSIS uninstaller was not found after the update"
 	}
+	Assert-TargetSignature -Path $uninstaller.FullName -Label "updated uninstaller"
 	Invoke-HiddenProcess -FilePath $uninstaller.FullName -ArgumentList @("/S")
 	if (
 		-not (Test-Path -LiteralPath $xdgSentinel -PathType Leaf) -or
