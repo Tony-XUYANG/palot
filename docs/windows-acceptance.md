@@ -202,12 +202,30 @@ were committed in `b74033a`; [CI run 31688767817](https://github.com/Tony-XUYANG
 passed.
 
 The public `v0.12.0-beta.2` binary predates the silent-install fix, so it cannot bootstrap a fully
-automatic update to the RC. `v0.12.0-beta.3` will be the first public updater baseline containing
-the fix. After that bootstrap release, the release workflow must verify the public
-`beta.3 -> rc.1` path, including publisher, timestamp, data preservation, and uninstall behavior.
-Before publishing the RC, replace `WINDOWS_AUTO_UPDATE_BASE_SHA256` in the release workflow with the
-SHA-256 recorded in the public `beta.3` release; the placeholder intentionally blocks RC builds.
+automatic update to the RC. `v0.12.0-beta.3` is the first public updater baseline containing the
+fix. The release workflow must verify the public `beta.3 -> rc.1` path, including publisher,
+timestamp, data preservation, and uninstall behavior. `WINDOWS_AUTO_UPDATE_BASE_SHA256` now pins the
+SHA-256 recorded in the public `beta.3` release.
 
 This evidence keeps `v0.12.0-beta.2` suitable for public Beta testing. Trusted Authenticode signing,
 a timestamp, signed upgrade coverage, and a public `beta.3 -> rc.1` automatic-update pass remain
 mandatory before the stable `v0.12.0` release.
+
+## 8. Public `v0.12.0-beta.3` Update Baseline
+
+The [public prerelease](https://github.com/Tony-XUYANG/palot/releases/tag/v0.12.0-beta.3) was built
+from commit `fd15327`. [Release workflow 31770496413](https://github.com/Tony-XUYANG/palot/actions/runs/31770496413)
+completed successfully across Windows x64, macOS arm64/x64, and Linux x64.
+
+- Windows installer: `Palot-0.12.0-beta.3-win-x64.exe`, 250,560,064 bytes, SHA-256
+  `d5915efff4fa290bc7af176e1075acd2237a2bd6c7e8d0fee1a5c73e603987f4`.
+- The Windows job passed runtime preparation, manifest integrity, unsigned Beta signature policy,
+  upgrade installation, empty-PATH bundled runtime checks, launch, uninstall data preservation, and
+  the new unpacked-package sensitive-information scan before uploading the artifact.
+- The release is intentionally marked prerelease and the post-release automatic-update job is
+  intentionally skipped because `beta.3` is the bootstrap source rather than an update target.
+- `WINDOWS_AUTO_UPDATE_BASE_SHA256` now pins the public installer digest. RC and stable workflows
+  must use this exact baseline and fail if the asset changes.
+
+The next required update evidence is a signed, timestamped public `beta.3 -> rc.1` pass. No RC or
+stable version may be promoted to Latest until that check succeeds.

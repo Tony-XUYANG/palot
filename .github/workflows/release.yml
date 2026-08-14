@@ -17,8 +17,7 @@ env:
   # beta.3 will be the first public build containing the silent updater fix. Later RC/stable
   # releases use it as their automatic-update baseline; beta.3 itself is the bootstrap exception.
   WINDOWS_AUTO_UPDATE_BASE_VERSION: "0.12.0-beta.3"
-  # Fill this with beta.3's published SHA-256 before releasing an RC. The gate rejects placeholders.
-  WINDOWS_AUTO_UPDATE_BASE_SHA256: "PENDING_BETA_3_RELEASE"
+  WINDOWS_AUTO_UPDATE_BASE_SHA256: "d5915efff4fa290bc7af176e1075acd2237a2bd6c7e8d0fee1a5c73e603987f4"
   WINDOWS_SIGNING_PUBLISHER: ${{ vars.WINDOWS_SIGNING_PUBLISHER }}
 
 jobs:
