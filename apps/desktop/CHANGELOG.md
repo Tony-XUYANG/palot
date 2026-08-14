@@ -1,5 +1,13 @@
 # @palot/desktop
 
+## 0.12.0-beta.3
+
+### Patch Changes
+
+- [`83cd447`](https://github.com/Tony-XUYANG/palot/commit/83cd447cc7f6eaece73586fddd585f6ee6da01f4) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Block Windows releases when the unpacked application contains credentials, local configuration, acceptance artifacts, or other sensitive data, and verify signed targets during automatic updates.
+
+- [`b74033a`](https://github.com/Tony-XUYANG/palot/commit/b74033a23f30caacd7b876259a942d89a77077a9) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Install downloaded Windows updates silently, and add an isolated acceptance test that verifies automatic upgrades and uninstalls preserve Palot user data.
+
 ## 0.12.0-beta.2
 
 ### Patch Changes

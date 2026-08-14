@@ -24,6 +24,8 @@
     "kind-codex-access",
     "quiet-windows-acceptance",
     "safe-provider-boundary",
+    "secure-windows-package",
+    "silent-windows-updates",
     "steady-agent-engines",
     "warm-verified-china-models"
   ]
