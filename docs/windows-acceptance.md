@@ -229,3 +229,23 @@ completed successfully across Windows x64, macOS arm64/x64, and Linux x64.
 
 The next required update evidence is a signed, timestamped public `beta.3 -> rc.1` pass. No RC or
 stable version may be promoted to Latest until that check succeeds.
+
+## 9. Public `v0.12.0-beta.4` Release
+
+The [public prerelease](https://github.com/Tony-XUYANG/palot/releases/tag/v0.12.0-beta.4) was built
+from commit `db73b91`. [Release workflow 31935615524](https://github.com/Tony-XUYANG/palot/actions/runs/31935615524)
+completed successfully across Windows x64, macOS arm64/x64, and Linux x64.
+
+- Windows installer: `Palot-0.12.0-beta.4-win-x64.exe`, 250,563,447 bytes, SHA-256
+  `55ab50a14f73ae437e4d7c8fdc961c5ddc1aaa3f40861cfdca4bbf5538af89e4`.
+- The Windows job passed runtime preparation, update-manifest integrity, the unsigned Beta policy,
+  Beta.3 to Beta.4 upgrade installation, empty-PATH bundled runtime checks, launch, uninstall data
+  preservation, and the unpacked-package sensitive-information scan.
+- The public automatic-update job passed using the published Beta.3 baseline and the public Beta.4
+  `latest.yml` and installer. The release remains a prerelease because it is unsigned.
+- `WINDOWS_AUTO_UPDATE_BASE_VERSION` and `WINDOWS_AUTO_UPDATE_BASE_SHA256` intentionally remain
+  pinned to Beta.3: it is the first public build containing the silent updater fix and is the
+  minimum compatibility baseline for the future RC gate. Beta.4 is the current manual test target.
+
+The next required evidence is a signed, timestamped public `beta.4 -> rc.1` (or newer signed
+baseline) pass. No RC or stable version may be promoted to Latest until that check succeeds.
