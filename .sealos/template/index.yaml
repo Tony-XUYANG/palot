@@ -35,7 +35,7 @@ metadata:
     app: ${{ defaults.app_name }}
     cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}
   annotations:
-    originImageName: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:11f0be03519cb78b703dae69550b4cd2005f65d798619c3f347a015cbd2cc714
+    originImageName: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:8fb38299873ed0091c9abc93bcd2ea116f1e62aed87a8d45a6e773377d4c02dc
     deploy.cloud.sealos.io/minReplicas: "1"
     deploy.cloud.sealos.io/maxReplicas: "1"
 spec:
@@ -59,7 +59,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ${{ defaults.app_name }}
-          image: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:11f0be03519cb78b703dae69550b4cd2005f65d798619c3f347a015cbd2cc714
+          image: ghcr.io/tony-xuyang/palot-cloud-gateway@sha256:8fb38299873ed0091c9abc93bcd2ea116f1e62aed87a8d45a6e773377d4c02dc
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
