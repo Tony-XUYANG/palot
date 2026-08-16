@@ -4,6 +4,7 @@
 
 import { readGatewayConfig } from "./config"
 import { resolvePalotCloudModel } from "./models"
+import { createPaymentProvider } from "./payment-provider"
 import { PostgresGatewayRepository } from "./postgres-repository"
 import { applyMarkup, formatMicrosAsYuan, parseYuanToMicros } from "./pricing"
 
@@ -18,6 +19,8 @@ function usage(): never {
 			"  bun run admin account:freeze <account-id>",
 			"  bun run admin account:activate <account-id>",
 			"  bun run admin price:set <model-id> <input-yuan> <output-yuan> <cache-yuan>",
+			"  bun run admin topup:refund <order-id>",
+			"  bun run admin topup:reconcile",
 		].join("\n"),
 	)
 }
@@ -100,6 +103,44 @@ try {
 			console.log(
 				`Price ${price.modelId} version ${price.version} activated with ${config.markupBasisPoints} bps markup`,
 			)
+			break
+		}
+		case "topup:refund": {
+			const orderId = args[0]
+			if (!orderId) usage()
+			const provider = createPaymentProvider(config)
+			if (!provider) throw new Error("Payments are disabled")
+			const order = await repository.prepareTopupRefund(orderId)
+			if (order.channel !== provider.channel) {
+				throw new Error("The configured payment provider does not match this order")
+			}
+			if (order.state === "refunded") {
+				console.log(`Top-up order ${order.id} was already refunded`)
+				break
+			}
+			const refund = await provider.refund(order)
+			const completed = await repository.completeTopupRefund(order.id, refund.providerRefundNo)
+			console.log(`Top-up order ${completed.id} refunded through ${completed.channel}`)
+			break
+		}
+		case "topup:reconcile": {
+			const provider = createPaymentProvider(config)
+			if (!provider) throw new Error("Payments are disabled")
+			const orders = await repository.listTopupOrdersForReconciliation(
+				new Date(Date.now() - 24 * 60 * 60 * 1_000),
+				500,
+			)
+			let credited = 0
+			for (const order of orders) {
+				const notification = await provider.queryPayment(order)
+				if (!notification) continue
+				const result = await repository.completeTopupPayment({
+					...notification,
+					channel: provider.channel,
+				})
+				if (result.credited) credited++
+			}
+			console.log(`Reconciliation checked ${orders.length} order(s) and credited ${credited}`)
 			break
 		}
 		default:

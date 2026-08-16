@@ -99,4 +99,90 @@ describe("Palot Cloud in-memory billing repository", () => {
 		assert.equal((await repository.refund(first.usage.id, "Failed")).balanceMicros, 1_000n)
 		assert.equal((await repository.refund(first.usage.id, "Retried")).balanceMicros, 1_000n)
 	})
+
+	it("recovers expired reservations exactly once", async () => {
+		let now = new Date("2026-08-16T00:00:00.000Z")
+		const repository = new MemoryGatewayRepository("p".repeat(32), () => now)
+		const account = await repository.createAccount("Recovery user")
+		await repository.grantCredit({
+			accountId: account.id,
+			amountMicros: 1_000n,
+			idempotencyKey: "credit",
+			reason: "Test",
+		})
+		await repository.reserve({
+			accountId: account.id,
+			idempotencyKey: "expired-request",
+			modelId: "palot-deepseek-chat",
+			priceVersion: 1,
+			reservedMicros: 400n,
+		})
+
+		now = new Date("2026-08-16T00:16:00.000Z")
+		assert.equal(
+			await repository.refundExpiredReservations(new Date("2026-08-16T00:01:00.000Z")),
+			1,
+		)
+		assert.equal(
+			await repository.refundExpiredReservations(new Date("2026-08-16T00:01:00.000Z")),
+			0,
+		)
+		const summary = await repository.getAccountSummary(account.id)
+		assert.equal(summary?.balanceMicros, 1_000n)
+		assert.equal(summary?.recentUsage[0]?.state, "refunded")
+	})
+
+	it("credits payment notifications idempotently and reserves refunds", async () => {
+		const repository = new MemoryGatewayRepository("p".repeat(32))
+		const account = await repository.createAccount("Payment user")
+		const created = await repository.createTopupOrder({
+			accountId: account.id,
+			packageId: "credits-30",
+			channel: "sandbox",
+			idempotencyKey: "payment-1",
+			checkoutTokenHash: "a".repeat(64),
+			expiresAt: new Date(Date.now() + 60_000),
+		})
+		const notification = {
+			channel: "sandbox" as const,
+			orderId: created.order.id,
+			amountMicros: 30_000_000n,
+			providerEventId: "event-1",
+			providerTradeNo: "trade-1",
+			payloadHash: "b".repeat(64),
+		}
+		assert.equal((await repository.completeTopupPayment(notification)).credited, true)
+		assert.equal((await repository.completeTopupPayment(notification)).credited, false)
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 30_000_000n)
+		assert.equal((await repository.prepareTopupRefund(created.order.id)).state, "refunding")
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 0n)
+		assert.equal(
+			(await repository.completeTopupRefund(created.order.id, "sandbox-refund-1")).state,
+			"refunded",
+		)
+	})
+
+	it("lists only recent unresolved orders for reconciliation", async () => {
+		let now = new Date("2026-08-16T00:00:00.000Z")
+		const repository = new MemoryGatewayRepository("p".repeat(32), () => now)
+		const account = await repository.createAccount("Reconciliation user")
+		const pending = await repository.createTopupOrder({
+			accountId: account.id,
+			packageId: "credits-10",
+			channel: "sandbox",
+			idempotencyKey: "pending",
+			checkoutTokenHash: "a".repeat(64),
+			expiresAt: new Date("2026-08-16T00:15:00.000Z"),
+		})
+		now = new Date("2026-08-16T00:20:00.000Z")
+		await repository.closeExpiredTopupOrders(now)
+		const orders = await repository.listTopupOrdersForReconciliation(
+			new Date("2026-08-15T00:00:00.000Z"),
+			10,
+		)
+		assert.deepEqual(
+			orders.map((order) => order.id),
+			[pending.order.id],
+		)
+	})
 })

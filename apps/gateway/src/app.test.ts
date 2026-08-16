@@ -9,6 +9,11 @@ const config: GatewayConfig = {
 	tokenPepper: "p".repeat(32),
 	port: 8080,
 	markupBasisPoints: 3_000,
+	upstreamTimeoutMs: 25,
+	reservationTtlMs: 100,
+	paymentMode: "disabled",
+	publicUrl: null,
+	alipay: null,
 	providerCredentials: { deepseek: "server-deepseek-key", zhipuai: "server-zhipu-key" },
 	providerBaseUrls: {
 		deepseek: "https://deepseek.example.test",
@@ -116,6 +121,28 @@ describe("Palot Cloud gateway HTTP API", () => {
 		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 100_000_000n)
 	})
 
+	it("times out an unresponsive provider and refunds the reservation", async () => {
+		const mockFetch = ((_input, init) =>
+			new Promise<Response>((_resolve, reject) => {
+				const signal = init?.signal
+				if (!signal) throw new Error("Expected an upstream abort signal")
+				signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+			})) satisfies GatewayFetch
+		const { app, repository, account, headers } = await setup(mockFetch)
+		const response = await app.request("/v1/chat/completions", {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				model: "palot-deepseek-chat",
+				messages: [{ role: "user", content: "test timeout" }],
+				max_tokens: 10,
+			}),
+		})
+		assert.equal(response.status, 504)
+		assert.equal((await response.json()).error.code, "upstream_timeout")
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 100_000_000n)
+	})
+
 	it("returns a billing error before contacting the provider", async () => {
 		let called = false
 		const mockFetch = (async () => {
@@ -187,5 +214,54 @@ describe("Palot Cloud gateway HTTP API", () => {
 		const usage = (await repository.getAccountSummary(account.id))?.recentUsage[0]?.usage
 		assert.equal(usage?.source, "estimated")
 		assert.ok((usage?.outputTokens ?? 0) > 0)
+	})
+
+	it("creates and completes a sandbox top-up without trusting the client return page", async () => {
+		const sandboxConfig: GatewayConfig = {
+			...config,
+			paymentMode: "sandbox",
+			publicUrl: "https://cloud.example.test",
+		}
+		const repository = new MemoryGatewayRepository(sandboxConfig.tokenPepper)
+		const account = await repository.createAccount("Top-up user")
+		const token = await repository.createToken(account.id)
+		const app = createGatewayApp({ repository, config: sandboxConfig, fetch })
+		const headers = {
+			authorization: `Bearer ${token.rawToken}`,
+			"content-type": "application/json",
+			"idempotency-key": "topup-test-1",
+		}
+		const packages = await app.request("/v1/topups/packages", { headers })
+		assert.equal(packages.status, 200)
+		assert.equal(((await packages.json()) as { available: boolean }).available, true)
+		const created = await app.request("/v1/topups/orders", {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ packageId: "credits-10" }),
+		})
+		assert.equal(created.status, 200)
+		const order = (await created.json()) as { id: string; checkoutUrl: string; state: string }
+		assert.equal(order.state, "pending")
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 0n)
+
+		const checkoutUrl = new URL(order.checkoutUrl)
+		const checkout = await app.request(`${checkoutUrl.pathname}${checkoutUrl.search}`)
+		assert.equal(checkout.status, 200)
+		const tokenValue = checkoutUrl.searchParams.get("token")
+		const completed = await app.request("/payments/sandbox/complete", {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({ orderId: order.id, token: tokenValue ?? "" }),
+		})
+		assert.equal(completed.status, 200)
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 10_000_000n)
+
+		const duplicate = await app.request("/payments/sandbox/complete", {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({ orderId: order.id, token: tokenValue ?? "" }),
+		})
+		assert.equal(duplicate.status, 200)
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 10_000_000n)
 	})
 })

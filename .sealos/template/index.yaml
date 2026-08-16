@@ -111,6 +111,38 @@ spec:
               value: https://open.bigmodel.cn/api/paas/v4
             - name: PALOT_MARKUP_BASIS_POINTS
               value: "3000"
+            - name: PALOT_PAYMENT_MODE
+              value: disabled
+            - name: PALOT_PUBLIC_URL
+              value: https://${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+            - name: ALIPAY_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: ALIPAY_APP_ID
+                  optional: true
+            - name: ALIPAY_SELLER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: ALIPAY_SELLER_ID
+                  optional: true
+            - name: ALIPAY_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: ALIPAY_PRIVATE_KEY
+                  optional: true
+            - name: ALIPAY_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: palot-cloud-gateway-credentials
+                  key: ALIPAY_PUBLIC_KEY
+                  optional: true
+            - name: PALOT_UPSTREAM_TIMEOUT_MS
+              value: "300000"
+            - name: PALOT_RESERVATION_TTL_MS
+              value: "900000"
             - name: PORT
               value: "8080"
           ports:

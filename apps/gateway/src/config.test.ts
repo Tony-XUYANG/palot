@@ -12,6 +12,10 @@ describe("Palot Cloud environment", () => {
 		const config = readGatewayConfig(requiredEnvironment)
 		assert.equal(config.port, 8080)
 		assert.equal(config.markupBasisPoints, 3_000)
+		assert.equal(config.upstreamTimeoutMs, 300_000)
+		assert.equal(config.reservationTtlMs, 900_000)
+		assert.equal(config.paymentMode, "disabled")
+		assert.equal(config.publicUrl, null)
 		assert.equal(config.providerBaseUrls.deepseek, "https://api.deepseek.com")
 		assert.equal(config.providerCredentials.deepseek, null)
 	})
@@ -25,6 +29,39 @@ describe("Palot Cloud environment", () => {
 		assert.throws(
 			() => readGatewayConfig({ ...requiredEnvironment, PALOT_TOKEN_PEPPER: "short" }),
 			/at least 32/,
+		)
+		assert.throws(
+			() =>
+				readGatewayConfig({
+					...requiredEnvironment,
+					PALOT_UPSTREAM_TIMEOUT_MS: "300000",
+					PALOT_RESERVATION_TTL_MS: "300000",
+				}),
+			/PALOT_RESERVATION_TTL_MS/,
+		)
+		assert.throws(
+			() => readGatewayConfig({ ...requiredEnvironment, PALOT_PAYMENT_MODE: "sandbox" }),
+			/PALOT_PUBLIC_URL/,
+		)
+		const sandbox = readGatewayConfig({
+			...requiredEnvironment,
+			PALOT_PAYMENT_MODE: "sandbox",
+			PALOT_PUBLIC_URL: "https://cloud.example.test",
+		})
+		assert.equal(sandbox.paymentMode, "sandbox")
+		assert.equal(sandbox.publicUrl, "https://cloud.example.test")
+		assert.throws(
+			() =>
+				readGatewayConfig({
+					...requiredEnvironment,
+					PALOT_PAYMENT_MODE: "alipay",
+					PALOT_PUBLIC_URL: "https://cloud.example.test",
+					ALIPAY_APP_ID: "app-id",
+					ALIPAY_SELLER_ID: "seller-id",
+					ALIPAY_PRIVATE_KEY: "not-a-private-key",
+					ALIPAY_PUBLIC_KEY: "not-a-public-key",
+				}),
+			/Alipay RSA key material is invalid/,
 		)
 	})
 

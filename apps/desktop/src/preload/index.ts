@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld("palot", {
 		bootstrap: () => ipcRenderer.invoke("palot-cloud:bootstrap"),
 		connect: (token: string) => ipcRenderer.invoke("palot-cloud:connect", token),
 		disconnect: () => ipcRenderer.invoke("palot-cloud:disconnect"),
+		startTopup: (packageId: string) => ipcRenderer.invoke("palot-cloud:topup-start", packageId),
+		topupOrder: (orderId: string) => ipcRenderer.invoke("palot-cloud:topup-order", orderId),
 	},
 
 	/** Stops the managed OpenCode server. */

@@ -607,6 +607,29 @@ export interface PalotCloudUsageInfo {
 	settledAt: string | null
 }
 
+export interface PalotCloudTopupPackage {
+	id: string
+	label: string
+	amountMicros: string
+	creditMicros: string
+	currency: "CNY"
+}
+
+export interface PalotCloudTopupOrder {
+	id: string
+	packageId: string
+	channel: "alipay" | "sandbox"
+	state: "pending" | "paid" | "credited" | "closed" | "refunding" | "refunded" | "failed"
+	amountMicros: string
+	creditMicros: string
+	currency: "CNY"
+	createdAt: string
+	expiresAt: string
+	paidAt: string | null
+	creditedAt: string | null
+	refundedAt: string | null
+}
+
 export interface PalotCloudAccountInfo {
 	id: string
 	name: string
@@ -614,6 +637,7 @@ export interface PalotCloudAccountInfo {
 	balanceMicros: string
 	currency: "CNY"
 	recentUsage: PalotCloudUsageInfo[]
+	recentTopups: PalotCloudTopupOrder[]
 }
 
 export interface PalotCloudStatus {
@@ -623,6 +647,9 @@ export interface PalotCloudStatus {
 	gatewayHost: string | null
 	account: PalotCloudAccountInfo | null
 	models: PalotCloudModelInfo[]
+	paymentsAvailable: boolean
+	paymentChannel: "alipay" | "sandbox" | null
+	topupPackages: PalotCloudTopupPackage[]
 	error: string | null
 }
 
@@ -660,6 +687,8 @@ export interface PalotAPI {
 		bootstrap: () => Promise<PalotCloudConnectionResult>
 		connect: (token: string) => Promise<PalotCloudConnectionResult>
 		disconnect: () => Promise<PalotCloudStatus>
+		startTopup: (packageId: string) => Promise<PalotCloudTopupOrder>
+		topupOrder: (orderId: string) => Promise<PalotCloudTopupOrder>
 	}
 	getModelState: () => Promise<ModelState>
 	updateModelRecent: (model: ModelRef) => Promise<ModelState>

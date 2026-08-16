@@ -2,7 +2,10 @@
  * Environment validation for the Palot Cloud gateway.
  */
 
+import { createPrivateKey, createPublicKey } from "node:crypto"
+import type { AlipayConfig } from "./alipay"
 import type { UpstreamProviderId } from "./models"
+import type { PaymentChannel } from "./payments"
 import { DEFAULT_MARKUP_BASIS_POINTS } from "./pricing"
 
 export interface GatewayConfig {
@@ -10,8 +13,29 @@ export interface GatewayConfig {
 	tokenPepper: string
 	port: number
 	markupBasisPoints: number
+	upstreamTimeoutMs: number
+	reservationTtlMs: number
+	paymentMode: "disabled" | PaymentChannel
+	publicUrl: string | null
+	alipay: AlipayConfig | null
 	providerCredentials: Record<UpstreamProviderId, string | null>
 	providerBaseUrls: Record<UpstreamProviderId, string>
+}
+
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 5 * 60 * 1_000
+const DEFAULT_RESERVATION_TTL_MS = 15 * 60 * 1_000
+
+function readDuration(
+	environment: NodeJS.ProcessEnv,
+	name: string,
+	fallback: number,
+	minimum: number,
+): number {
+	const value = Number(environment[name] ?? fallback)
+	if (!Number.isInteger(value) || value < minimum || value > 24 * 60 * 60 * 1_000) {
+		throw new Error(`${name} must be an integer between ${minimum} and 86400000`)
+	}
+	return value
 }
 
 function requireEnvironment(environment: NodeJS.ProcessEnv, name: string): string {
@@ -46,6 +70,10 @@ function normalizeHttpsUrl(value: string, name: string): string {
 	return url.toString().replace(/\/$/, "")
 }
 
+function readPem(environment: NodeJS.ProcessEnv, name: string): string {
+	return requireEnvironment(environment, name).replace(/\\n/g, "\n")
+}
+
 export function readGatewayConfig(environment: NodeJS.ProcessEnv = process.env): GatewayConfig {
 	const databaseUrl = resolveDatabaseUrl(environment)
 	const tokenPepper = requireEnvironment(environment, "PALOT_TOKEN_PEPPER")
@@ -66,11 +94,58 @@ export function readGatewayConfig(environment: NodeJS.ProcessEnv = process.env):
 	) {
 		throw new Error("PALOT_MARKUP_BASIS_POINTS must be an integer between 0 and 100000")
 	}
+	const upstreamTimeoutMs = readDuration(
+		environment,
+		"PALOT_UPSTREAM_TIMEOUT_MS",
+		DEFAULT_UPSTREAM_TIMEOUT_MS,
+		1_000,
+	)
+	const reservationTtlMs = readDuration(
+		environment,
+		"PALOT_RESERVATION_TTL_MS",
+		DEFAULT_RESERVATION_TTL_MS,
+		upstreamTimeoutMs + 1,
+	)
+	const paymentMode = environment.PALOT_PAYMENT_MODE?.trim() || "disabled"
+	if (paymentMode !== "disabled" && paymentMode !== "sandbox" && paymentMode !== "alipay") {
+		throw new Error("PALOT_PAYMENT_MODE must be disabled, sandbox, or alipay")
+	}
+	const publicUrl =
+		paymentMode === "disabled"
+			? null
+			: normalizeHttpsUrl(requireEnvironment(environment, "PALOT_PUBLIC_URL"), "PALOT_PUBLIC_URL")
+	const alipay =
+		paymentMode === "alipay"
+			? {
+					appId: requireEnvironment(environment, "ALIPAY_APP_ID"),
+					sellerId: requireEnvironment(environment, "ALIPAY_SELLER_ID"),
+					privateKey: readPem(environment, "ALIPAY_PRIVATE_KEY"),
+					publicKey: readPem(environment, "ALIPAY_PUBLIC_KEY"),
+					gatewayUrl: normalizeHttpsUrl(
+						environment.ALIPAY_GATEWAY_URL ?? "https://openapi.alipay.com/gateway.do",
+						"ALIPAY_GATEWAY_URL",
+					),
+					publicUrl: publicUrl!,
+				}
+			: null
+	if (alipay) {
+		try {
+			createPrivateKey(alipay.privateKey)
+			createPublicKey(alipay.publicKey)
+		} catch {
+			throw new Error("Alipay RSA key material is invalid")
+		}
+	}
 	return {
 		databaseUrl,
 		tokenPepper,
 		port,
 		markupBasisPoints,
+		upstreamTimeoutMs,
+		reservationTtlMs,
+		paymentMode,
+		publicUrl,
+		alipay,
 		providerCredentials: {
 			deepseek: environment.DEEPSEEK_API_KEY?.trim() || null,
 			zhipuai: environment.ZHIPUAI_API_KEY?.trim() || null,

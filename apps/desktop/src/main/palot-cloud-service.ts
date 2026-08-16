@@ -2,14 +2,17 @@
  * Main-process Palot Cloud lifecycle, encrypted credentials, and loopback provider setup.
  */
 
+import { randomUUID } from "node:crypto"
 import path from "node:path"
-import { app, net, safeStorage } from "electron"
+import { app, net, safeStorage, shell } from "electron"
 import type {
 	PalotCloudAccountInfo,
 	PalotCloudConnectionResult,
 	PalotCloudModelInfo,
 	PalotCloudProviderSetup,
 	PalotCloudStatus,
+	PalotCloudTopupOrder,
+	PalotCloudTopupPackage,
 	PalotCloudUsageInfo,
 } from "../preload/api"
 import cloudManifest from "../../palot-cloud-manifest.json"
@@ -107,6 +110,75 @@ function parseAccount(value: unknown): PalotCloudAccountInfo {
 			const usage = parseUsage(item)
 			return usage ? [usage] : []
 		}),
+		recentTopups: (Array.isArray(value.recentTopups) ? value.recentTopups : []).flatMap((item) => {
+			try {
+				return [parseTopupOrder(item)]
+			} catch {
+				return []
+			}
+		}),
+	}
+}
+
+function parseTopupOrder(value: unknown): PalotCloudTopupOrder {
+	if (!isRecord(value)) throw new Error("Palot Cloud returned an invalid top-up order")
+	const state = value.state
+	if (
+		state !== "pending" &&
+		state !== "paid" &&
+		state !== "credited" &&
+		state !== "closed" &&
+		state !== "refunding" &&
+		state !== "refunded" &&
+		state !== "failed"
+	) {
+		throw new Error("Palot Cloud returned an invalid top-up state")
+	}
+	const channel = value.channel
+	if (channel !== "alipay" && channel !== "sandbox") {
+		throw new Error("Palot Cloud returned an invalid payment channel")
+	}
+	return {
+		id: readString(value.id, "top-up order id"),
+		packageId: readString(value.packageId, "top-up package id"),
+		channel,
+		state,
+		amountMicros: readString(value.amountMicros, "top-up amount"),
+		creditMicros: readString(value.creditMicros, "top-up credit"),
+		currency: "CNY",
+		createdAt: readString(value.createdAt, "top-up creation time"),
+		expiresAt: readString(value.expiresAt, "top-up expiry time"),
+		paidAt: value.paidAt === null ? null : readString(value.paidAt, "payment time"),
+		creditedAt: value.creditedAt === null ? null : readString(value.creditedAt, "credit time"),
+		refundedAt: value.refundedAt === null ? null : readString(value.refundedAt, "refund time"),
+	}
+}
+
+function parseTopupCatalog(value: unknown): {
+	available: boolean
+	channel: "alipay" | "sandbox" | null
+	packages: PalotCloudTopupPackage[]
+} {
+	if (!isRecord(value) || typeof value.available !== "boolean" || !Array.isArray(value.data)) {
+		throw new Error("Palot Cloud returned an invalid top-up catalog")
+	}
+	const channel = value.channel
+	if (channel !== null && channel !== "alipay" && channel !== "sandbox") {
+		throw new Error("Palot Cloud returned an invalid payment channel")
+	}
+	return {
+		available: value.available,
+		channel,
+		packages: value.data.map((item) => {
+			if (!isRecord(item)) throw new Error("Palot Cloud returned an invalid top-up package")
+			return {
+				id: readString(item.id, "top-up package id"),
+				label: readString(item.label, "top-up package label"),
+				amountMicros: readString(item.amountMicros, "top-up package amount"),
+				creditMicros: readString(item.creditMicros, "top-up package credit"),
+				currency: "CNY" as const,
+			}
+		}),
 	}
 }
 
@@ -147,11 +219,12 @@ class PalotCloudService {
 			return this.createStatus({ connected: Boolean(token), account: null, models: [] })
 		}
 		try {
-			const [account, models] = await Promise.all([
+			const [account, models, topups] = await Promise.all([
 				this.fetchAccount(token),
 				this.fetchModels(token),
+				this.fetchTopupCatalog(token),
 			])
-			return this.createStatus({ connected: true, account, models })
+			return this.createStatus({ connected: true, account, models, topups })
 		} catch (error) {
 			return this.createStatus({
 				connected: true,
@@ -166,12 +239,13 @@ class PalotCloudService {
 		const token = await this.tokenStore.read()
 		if (!token || !this.gatewayUrl) return { status: await this.status(), setup: null }
 		try {
-			const [account, models] = await Promise.all([
+			const [account, models, topups] = await Promise.all([
 				this.fetchAccount(token),
 				this.fetchModels(token),
+				this.fetchTopupCatalog(token),
 			])
 			const setup = await this.startProxy(token, models)
-			return { status: this.createStatus({ connected: true, account, models }), setup }
+			return { status: this.createStatus({ connected: true, account, models, topups }), setup }
 		} catch (error) {
 			return {
 				status: this.createStatus({
@@ -192,9 +266,10 @@ class PalotCloudService {
 		}
 		const token = rawToken.trim()
 		if (!TOKEN_PATTERN.test(token)) throw new Error("Enter a valid Palot Cloud access token")
-		const [account, models] = await Promise.all([
+		const [account, models, topups] = await Promise.all([
 			this.fetchAccount(token),
 			this.fetchModels(token),
+			this.fetchTopupCatalog(token),
 		])
 		const setup = await this.startProxy(token, models)
 		try {
@@ -203,7 +278,7 @@ class PalotCloudService {
 			await this.stopProxy()
 			throw error
 		}
-		return { status: this.createStatus({ connected: true, account, models }), setup }
+		return { status: this.createStatus({ connected: true, account, models, topups }), setup }
 	}
 
 	async disconnect(): Promise<PalotCloudStatus> {
@@ -216,6 +291,11 @@ class PalotCloudService {
 		connected: boolean
 		account: PalotCloudAccountInfo | null
 		models: PalotCloudModelInfo[]
+		topups?: {
+			available: boolean
+			channel: "alipay" | "sandbox" | null
+			packages: PalotCloudTopupPackage[]
+		}
 		error?: string | null
 	}): PalotCloudStatus {
 		return {
@@ -225,6 +305,9 @@ class PalotCloudService {
 			gatewayHost: this.gatewayUrl ? new URL(this.gatewayUrl).host : null,
 			account: input.account,
 			models: input.models,
+			paymentsAvailable: input.topups?.available ?? false,
+			paymentChannel: input.topups?.channel ?? null,
+			topupPackages: input.topups?.packages ?? [],
 			error: input.error ?? null,
 		}
 	}
@@ -261,9 +344,63 @@ class PalotCloudService {
 		return parseModels(await this.fetchJson("/v1/models", token))
 	}
 
-	private async fetchJson(pathname: string, token: string): Promise<unknown> {
+	private async fetchTopupCatalog(token: string) {
+		try {
+			return parseTopupCatalog(await this.fetchJson("/v1/topups/packages", token))
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("HTTP 404")) {
+				return { available: false, channel: null, packages: [] }
+			}
+			throw error
+		}
+	}
+
+	async startTopup(packageId: string): Promise<PalotCloudTopupOrder> {
+		const token = await this.requireToken()
+		const value = await this.fetchJson("/v1/topups/orders", token, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"idempotency-key": randomUUID(),
+			},
+			body: JSON.stringify({ packageId }),
+		})
+		if (!isRecord(value)) throw new Error("Palot Cloud returned an invalid checkout")
+		const checkoutUrl = new URL(readString(value.checkoutUrl, "checkout URL"))
+		const gatewayUrl = new URL(this.gatewayUrl!)
+		if (
+			checkoutUrl.origin !== gatewayUrl.origin ||
+			!checkoutUrl.pathname.startsWith("/checkout/")
+		) {
+			throw new Error("Palot Cloud returned an unsafe checkout URL")
+		}
+		await shell.openExternal(checkoutUrl.toString())
+		return parseTopupOrder(value)
+	}
+
+	async topupOrder(orderId: string): Promise<PalotCloudTopupOrder> {
+		if (!/^[0-9a-f-]{36}$/i.test(orderId)) throw new Error("Top-up order id is invalid")
+		const token = await this.requireToken()
+		return parseTopupOrder(
+			await this.fetchJson(`/v1/topups/orders/${encodeURIComponent(orderId)}`, token),
+		)
+	}
+
+	private async requireToken(): Promise<string> {
+		if (!this.gatewayUrl) throw new Error("Palot Cloud is not enabled in this build")
+		const token = await this.tokenStore.read()
+		if (!token) throw new Error("Connect Palot Cloud before purchasing credits")
+		return token
+	}
+
+	private async fetchJson(
+		pathname: string,
+		token: string,
+		init: Omit<RequestInit, "signal"> = {},
+	): Promise<unknown> {
 		const response = await net.fetch(`${this.gatewayUrl}${pathname}`, {
-			headers: { authorization: `Bearer ${token}` },
+			...init,
+			headers: { authorization: `Bearer ${token}`, ...init.headers },
 			signal: AbortSignal.timeout(10_000),
 		})
 		if (response.status === 401) throw new Error("Palot Cloud access token is invalid")
@@ -294,4 +431,12 @@ export async function connectPalotCloud(token: string): Promise<PalotCloudConnec
 
 export async function disconnectPalotCloud(): Promise<PalotCloudStatus> {
 	return await getService().disconnect()
+}
+
+export async function startPalotCloudTopup(packageId: string): Promise<PalotCloudTopupOrder> {
+	return await getService().startTopup(packageId)
+}
+
+export async function getPalotCloudTopupOrder(orderId: string): Promise<PalotCloudTopupOrder> {
+	return await getService().topupOrder(orderId)
 }

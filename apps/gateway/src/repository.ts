@@ -2,6 +2,13 @@
  * Persistence contract for accounts, pricing, reservations, and append-only billing state.
  */
 
+import type {
+	CheckoutOrder,
+	PaymentChannel,
+	PaymentNotification,
+	PaymentOrder,
+	TopupPackage,
+} from "./payments"
 import type { ModelPrice, TokenUsage } from "./pricing"
 
 export type AccountState = "active" | "frozen"
@@ -30,6 +37,7 @@ export interface UsageRecord {
 
 export interface AccountSummary extends GatewayAccount {
 	recentUsage: UsageRecord[]
+	recentTopups: PaymentOrder[]
 }
 
 export interface ReservationResult {
@@ -67,6 +75,25 @@ export interface GatewayRepository {
 		usage: TokenUsage
 	}): Promise<SettlementResult>
 	refund(usageId: string, reason: string): Promise<SettlementResult>
+	refundExpiredReservations(cutoff: Date): Promise<number>
+	listTopupPackages(): Promise<TopupPackage[]>
+	createTopupOrder(input: {
+		accountId: string
+		packageId: string
+		channel: PaymentChannel
+		idempotencyKey: string
+		checkoutTokenHash: string
+		expiresAt: Date
+	}): Promise<{ created: boolean; order: PaymentOrder }>
+	getTopupOrder(accountId: string, orderId: string): Promise<PaymentOrder | null>
+	getCheckoutOrder(orderId: string, checkoutTokenHash: string): Promise<CheckoutOrder | null>
+	completeTopupPayment(
+		input: PaymentNotification & { channel: PaymentChannel },
+	): Promise<{ credited: boolean; order: PaymentOrder }>
+	closeExpiredTopupOrders(now: Date): Promise<number>
+	listTopupOrdersForReconciliation(createdAfter: Date, limit: number): Promise<PaymentOrder[]>
+	prepareTopupRefund(orderId: string): Promise<PaymentOrder>
+	completeTopupRefund(orderId: string, providerRefundNo: string): Promise<PaymentOrder>
 	createAccount(name: string): Promise<GatewayAccount>
 	createToken(accountId: string): Promise<CreateTokenResult>
 	revokeToken(tokenPrefix: string): Promise<boolean>

@@ -3,6 +3,13 @@
  */
 
 import { randomUUID } from "node:crypto"
+import type {
+	CheckoutOrder,
+	PaymentChannel,
+	PaymentNotification,
+	PaymentOrder,
+	TopupPackage,
+} from "./payments"
 import type { ModelPrice, TokenUsage } from "./pricing"
 import {
 	type AccountState,
@@ -33,9 +40,47 @@ export class MemoryGatewayRepository implements GatewayRepository {
 	private readonly usage = new Map<string, UsageRecord>()
 	private readonly usageByIdempotency = new Map<string, string>()
 	private readonly grantKeys = new Set<string>()
+	private readonly topupPackages = new Map<string, TopupPackage>([
+		[
+			"credits-10",
+			{
+				id: "credits-10",
+				label: "CNY 10",
+				amountMicros: 10_000_000n,
+				creditMicros: 10_000_000n,
+				sortOrder: 10,
+			},
+		],
+		[
+			"credits-30",
+			{
+				id: "credits-30",
+				label: "CNY 30",
+				amountMicros: 30_000_000n,
+				creditMicros: 30_000_000n,
+				sortOrder: 20,
+			},
+		],
+		[
+			"credits-100",
+			{
+				id: "credits-100",
+				label: "CNY 100",
+				amountMicros: 100_000_000n,
+				creditMicros: 100_000_000n,
+				sortOrder: 30,
+			},
+		],
+	])
+	private readonly topupOrders = new Map<string, CheckoutOrder>()
+	private readonly topupByIdempotency = new Map<string, string>()
+	private readonly paymentEvents = new Set<string>()
 	private mutationTail = Promise.resolve()
 
-	constructor(private readonly tokenPepper: string) {}
+	constructor(
+		private readonly tokenPepper: string,
+		private readonly now: () => Date = () => new Date(),
+	) {}
 
 	async health(): Promise<boolean> {
 		return true
@@ -63,7 +108,12 @@ export class MemoryGatewayRepository implements GatewayRepository {
 			.toSorted((left, right) => right.createdAt.localeCompare(left.createdAt))
 			.slice(0, 20)
 			.map((item) => structuredClone(item))
-		return { ...account, recentUsage }
+		const recentTopups = [...this.topupOrders.values()]
+			.filter((item) => item.accountId === accountId)
+			.toSorted((left, right) => right.createdAt.localeCompare(left.createdAt))
+			.slice(0, 10)
+			.map((item) => this.publicOrder(item))
+		return { ...account, recentUsage, recentTopups }
 	}
 
 	async listActivePrices(): Promise<ModelPrice[]> {
@@ -98,7 +148,7 @@ export class MemoryGatewayRepository implements GatewayRepository {
 				throw new InsufficientBalanceError("Insufficient Palot Cloud balance")
 			}
 			account.balanceMicros -= input.reservedMicros
-			const now = new Date().toISOString()
+			const now = this.now().toISOString()
 			const usage: UsageRecord = {
 				id: randomUUID(),
 				accountId: input.accountId,
@@ -137,7 +187,7 @@ export class MemoryGatewayRepository implements GatewayRepository {
 			record.state = "settled"
 			record.chargedMicros = chargedMicros
 			record.usage = input.usage
-			record.settledAt = new Date().toISOString()
+			record.settledAt = this.now().toISOString()
 			return { usage: structuredClone(record), balanceMicros: account.balanceMicros }
 		})
 	}
@@ -152,8 +202,170 @@ export class MemoryGatewayRepository implements GatewayRepository {
 			account.balanceMicros += record.reservedMicros
 			record.state = "refunded"
 			record.chargedMicros = 0n
-			record.settledAt = new Date().toISOString()
+			record.settledAt = this.now().toISOString()
 			return { usage: structuredClone(record), balanceMicros: account.balanceMicros }
+		})
+	}
+
+	async refundExpiredReservations(cutoff: Date): Promise<number> {
+		return await this.withMutation(() => {
+			let refunded = 0
+			for (const record of this.usage.values()) {
+				if (record.state !== "reserved" || new Date(record.createdAt) >= cutoff) continue
+				const account = this.requireAccount(record.accountId)
+				account.balanceMicros += record.reservedMicros
+				record.state = "refunded"
+				record.chargedMicros = 0n
+				record.settledAt = this.now().toISOString()
+				refunded++
+			}
+			return refunded
+		})
+	}
+
+	async listTopupPackages(): Promise<TopupPackage[]> {
+		return [...this.topupPackages.values()]
+			.toSorted((left, right) => left.sortOrder - right.sortOrder)
+			.map((item) => ({ ...item }))
+	}
+
+	async createTopupOrder(input: {
+		accountId: string
+		packageId: string
+		channel: PaymentChannel
+		idempotencyKey: string
+		checkoutTokenHash: string
+		expiresAt: Date
+	}): Promise<{ created: boolean; order: PaymentOrder }> {
+		return await this.withMutation(() => {
+			this.requireActiveAccount(input.accountId)
+			const duplicateKey = `${input.accountId}:${input.idempotencyKey}`
+			const existingId = this.topupByIdempotency.get(duplicateKey)
+			if (existingId) {
+				return { created: false, order: this.publicOrder(this.topupOrders.get(existingId)!) }
+			}
+			const topupPackage = this.topupPackages.get(input.packageId)
+			if (!topupPackage) throw new RepositoryNotFoundError("Top-up package not found")
+			const order: CheckoutOrder = {
+				id: randomUUID(),
+				accountId: input.accountId,
+				packageId: topupPackage.id,
+				channel: input.channel,
+				state: "pending",
+				amountMicros: topupPackage.amountMicros,
+				creditMicros: topupPackage.creditMicros,
+				checkoutTokenHash: input.checkoutTokenHash,
+				providerTradeNo: null,
+				providerRefundNo: null,
+				createdAt: this.now().toISOString(),
+				expiresAt: input.expiresAt.toISOString(),
+				paidAt: null,
+				creditedAt: null,
+				refundedAt: null,
+			}
+			this.topupOrders.set(order.id, order)
+			this.topupByIdempotency.set(duplicateKey, order.id)
+			return { created: true, order: this.publicOrder(order) }
+		})
+	}
+
+	async getTopupOrder(accountId: string, orderId: string): Promise<PaymentOrder | null> {
+		const order = this.topupOrders.get(orderId)
+		return order?.accountId === accountId ? this.publicOrder(order) : null
+	}
+
+	async getCheckoutOrder(
+		orderId: string,
+		checkoutTokenHash: string,
+	): Promise<CheckoutOrder | null> {
+		const order = this.topupOrders.get(orderId)
+		return order?.checkoutTokenHash === checkoutTokenHash ? structuredClone(order) : null
+	}
+
+	async completeTopupPayment(
+		input: PaymentNotification & { channel: PaymentChannel },
+	): Promise<{ credited: boolean; order: PaymentOrder }> {
+		return await this.withMutation(() => {
+			const eventKey = `${input.channel}:${input.providerEventId}`
+			const order = this.topupOrders.get(input.orderId)
+			if (!order) throw new RepositoryNotFoundError("Top-up order not found")
+			if (this.paymentEvents.has(eventKey) || order.state === "credited") {
+				return { credited: false, order: this.publicOrder(order) }
+			}
+			if (order.channel !== input.channel || order.amountMicros !== input.amountMicros) {
+				throw new Error("Payment notification does not match the order")
+			}
+			if (order.state !== "pending" && order.state !== "closed") {
+				throw new Error("Top-up order cannot be credited")
+			}
+			const reusedTrade = [...this.topupOrders.values()].find(
+				(item) => item.providerTradeNo === input.providerTradeNo && item.id !== order.id,
+			)
+			if (reusedTrade) throw new Error("Provider trade number is already in use")
+			const account = this.requireAccount(order.accountId)
+			account.balanceMicros += order.creditMicros
+			const now = this.now().toISOString()
+			order.state = "credited"
+			order.providerTradeNo = input.providerTradeNo
+			order.paidAt = now
+			order.creditedAt = now
+			this.paymentEvents.add(eventKey)
+			return { credited: true, order: this.publicOrder(order) }
+		})
+	}
+
+	async closeExpiredTopupOrders(now: Date): Promise<number> {
+		return await this.withMutation(() => {
+			let closed = 0
+			for (const order of this.topupOrders.values()) {
+				if (order.state === "pending" && new Date(order.expiresAt) < now) {
+					order.state = "closed"
+					closed++
+				}
+			}
+			return closed
+		})
+	}
+
+	async listTopupOrdersForReconciliation(
+		createdAfter: Date,
+		limit: number,
+	): Promise<PaymentOrder[]> {
+		return [...this.topupOrders.values()]
+			.filter(
+				(order) =>
+					(order.state === "pending" || order.state === "closed") &&
+					new Date(order.createdAt) >= createdAfter,
+			)
+			.toSorted((left, right) => left.createdAt.localeCompare(right.createdAt))
+			.slice(0, limit)
+			.map((order) => this.publicOrder(order))
+	}
+
+	async prepareTopupRefund(orderId: string): Promise<PaymentOrder> {
+		return await this.withMutation(() => {
+			const order = this.requireTopupOrder(orderId)
+			if (order.state === "refunding" || order.state === "refunded") return this.publicOrder(order)
+			if (order.state !== "credited") throw new Error("Top-up order cannot be refunded")
+			const account = this.requireAccount(order.accountId)
+			if (account.balanceMicros < order.creditMicros) {
+				throw new InsufficientBalanceError("Account balance is lower than the top-up credit")
+			}
+			account.balanceMicros -= order.creditMicros
+			order.state = "refunding"
+			return this.publicOrder(order)
+		})
+	}
+
+	async completeTopupRefund(orderId: string, providerRefundNo: string): Promise<PaymentOrder> {
+		return await this.withMutation(() => {
+			const order = this.requireTopupOrder(orderId)
+			if (order.state === "refunded") return this.publicOrder(order)
+			if (order.state !== "refunding") throw new Error("Top-up order is not awaiting a refund")
+			order.state = "refunded"
+			order.providerRefundNo = providerRefundNo
+			order.refundedAt = this.now().toISOString()
+			return this.publicOrder(order)
 		})
 	}
 
@@ -266,6 +478,17 @@ export class MemoryGatewayRepository implements GatewayRepository {
 		const usage = this.usage.get(usageId)
 		if (!usage) throw new RepositoryNotFoundError("Usage record not found")
 		return usage
+	}
+
+	private requireTopupOrder(orderId: string): CheckoutOrder {
+		const order = this.topupOrders.get(orderId)
+		if (!order) throw new RepositoryNotFoundError("Top-up order not found")
+		return order
+	}
+
+	private publicOrder(order: CheckoutOrder): PaymentOrder {
+		const { checkoutTokenHash: _checkoutTokenHash, ...result } = order
+		return structuredClone(result)
 	}
 
 	private cloneAccount(account: GatewayAccount | null): GatewayAccount | null {

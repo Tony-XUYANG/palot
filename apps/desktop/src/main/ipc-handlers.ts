@@ -87,7 +87,9 @@ import {
 	bootstrapPalotCloud,
 	connectPalotCloud,
 	disconnectPalotCloud,
+	getPalotCloudTopupOrder,
 	getPalotCloudStatus,
+	startPalotCloudTopup,
 } from "./palot-cloud-service"
 import {
 	checkForUpdates,
@@ -243,6 +245,22 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(
 		"palot-cloud:disconnect",
 		withLogging("palot-cloud:disconnect", async () => await disconnectPalotCloud()),
+	)
+
+	ipcMain.handle(
+		"palot-cloud:topup-start",
+		withLogging(
+			"palot-cloud:topup-start",
+			async (_, packageId: string) => await startPalotCloudTopup(packageId),
+		),
+	)
+
+	ipcMain.handle(
+		"palot-cloud:topup-order",
+		withLogging(
+			"palot-cloud:topup-order",
+			async (_, orderId: string) => await getPalotCloudTopupOrder(orderId),
+		),
 	)
 
 	ipcMain.handle(

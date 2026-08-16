@@ -3,8 +3,17 @@
  */
 
 import { randomUUID } from "node:crypto"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import { SQL } from "bun"
+import type {
+	CheckoutOrder,
+	PaymentChannel,
+	PaymentNotification,
+	PaymentOrder,
+	PaymentOrderState,
+	TopupPackage,
+} from "./payments"
 import type { ModelPrice, TokenUsage } from "./pricing"
 import {
 	type AccountState,
@@ -51,6 +60,32 @@ interface UsageRow {
 	usageSource: TokenUsage["source"] | null
 	createdAt: Date | string
 	settledAt: Date | string | null
+}
+
+interface TopupPackageRow {
+	id: string
+	label: string
+	amountMicros: bigint | string | number
+	creditMicros: bigint | string | number
+	sortOrder: number
+}
+
+interface PaymentOrderRow {
+	id: string
+	accountId: string
+	packageId: string
+	channel: PaymentChannel
+	state: PaymentOrderState
+	amountMicros: bigint | string | number
+	creditMicros: bigint | string | number
+	checkoutTokenHash: string
+	providerTradeNo: string | null
+	providerRefundNo: string | null
+	createdAt: Date | string
+	expiresAt: Date | string
+	paidAt: Date | string | null
+	creditedAt: Date | string | null
+	refundedAt: Date | string | null
 }
 
 function toBigInt(value: bigint | string | number): bigint {
@@ -108,6 +143,41 @@ function mapUsage(row: UsageRow): UsageRecord {
 	}
 }
 
+function mapTopupPackage(row: TopupPackageRow): TopupPackage {
+	return {
+		id: row.id,
+		label: row.label,
+		amountMicros: toBigInt(row.amountMicros),
+		creditMicros: toBigInt(row.creditMicros),
+		sortOrder: row.sortOrder,
+	}
+}
+
+function mapCheckoutOrder(row: PaymentOrderRow): CheckoutOrder {
+	return {
+		id: row.id,
+		accountId: row.accountId,
+		packageId: row.packageId,
+		channel: row.channel,
+		state: row.state,
+		amountMicros: toBigInt(row.amountMicros),
+		creditMicros: toBigInt(row.creditMicros),
+		checkoutTokenHash: row.checkoutTokenHash,
+		providerTradeNo: row.providerTradeNo,
+		providerRefundNo: row.providerRefundNo,
+		createdAt: toIsoString(row.createdAt),
+		expiresAt: toIsoString(row.expiresAt),
+		paidAt: row.paidAt ? toIsoString(row.paidAt) : null,
+		creditedAt: row.creditedAt ? toIsoString(row.creditedAt) : null,
+		refundedAt: row.refundedAt ? toIsoString(row.refundedAt) : null,
+	}
+}
+
+function mapPaymentOrder(row: PaymentOrderRow): PaymentOrder {
+	const { checkoutTokenHash: _checkoutTokenHash, ...order } = mapCheckoutOrder(row)
+	return order
+}
+
 const PRICE_COLUMNS = `
 	model_id AS "modelId",
 	version,
@@ -133,6 +203,24 @@ const USAGE_COLUMNS = `
 	settled_at AS "settledAt"
 `
 
+const PAYMENT_ORDER_COLUMNS = `
+	id,
+	account_id AS "accountId",
+	package_id AS "packageId",
+	channel,
+	state,
+	amount_micros AS "amountMicros",
+	credit_micros AS "creditMicros",
+	checkout_token_hash AS "checkoutTokenHash",
+	provider_trade_no AS "providerTradeNo",
+	provider_refund_no AS "providerRefundNo",
+	created_at AS "createdAt",
+	expires_at AS "expiresAt",
+	paid_at AS "paidAt",
+	credited_at AS "creditedAt",
+	refunded_at AS "refundedAt"
+`
+
 export class PostgresGatewayRepository implements GatewayRepository {
 	private readonly sql: SQL
 
@@ -144,8 +232,12 @@ export class PostgresGatewayRepository implements GatewayRepository {
 	}
 
 	async migrate(): Promise<void> {
-		const migrationPath = path.join(import.meta.dir, "../migrations/0001_initial.sql")
-		await this.sql.file(migrationPath)
+		const migrationDirectory = path.join(import.meta.dir, "../migrations")
+		const migrations = (await readdir(migrationDirectory))
+			.filter((name) => /^\d+_[a-z0-9_-]+\.sql$/.test(name))
+			.toSorted()
+		for (const migration of migrations)
+			await this.sql.file(path.join(migrationDirectory, migration))
 	}
 
 	async close(): Promise<void> {
@@ -194,7 +286,18 @@ export class PostgresGatewayRepository implements GatewayRepository {
 			ORDER BY created_at DESC
 			LIMIT 20
 		`
-		return { ...mapAccount(account), recentUsage: recentUsage.map(mapUsage) }
+		const recentTopups = await this.sql<PaymentOrderRow[]>`
+			SELECT ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)}
+			FROM payment_orders
+			WHERE account_id = ${accountId}
+			ORDER BY created_at DESC
+			LIMIT 10
+		`
+		return {
+			...mapAccount(account),
+			recentUsage: recentUsage.map(mapUsage),
+			recentTopups: recentTopups.map(mapPaymentOrder),
+		}
 	}
 
 	async listActivePrices(): Promise<ModelPrice[]> {
@@ -376,6 +479,278 @@ export class PostgresGatewayRepository implements GatewayRepository {
 			`
 			return { usage: mapUsage(updated[0]), balanceMicros }
 		})
+	}
+
+	async refundExpiredReservations(cutoff: Date): Promise<number> {
+		return await this.sql.begin("isolation level serializable", async (transaction) => {
+			const records = await transaction<UsageRow[]>`
+				SELECT ${transaction.unsafe(USAGE_COLUMNS)}
+				FROM usage_records
+				WHERE state = 'reserved' AND created_at < ${cutoff}
+				ORDER BY created_at, id
+				FOR UPDATE SKIP LOCKED
+			`
+			for (const recordRow of records) {
+				const record = mapUsage(recordRow)
+				const accounts = await transaction<AccountRow[]>`
+					SELECT id, name, state, balance_micros AS "balanceMicros"
+					FROM accounts WHERE id = ${record.accountId} FOR UPDATE
+				`
+				if (!accounts[0]) throw new RepositoryNotFoundError("Account not found")
+				const balanceMicros = mapAccount(accounts[0]).balanceMicros + record.reservedMicros
+				await transaction`
+					UPDATE accounts SET balance_micros = ${balanceMicros}, updated_at = NOW()
+					WHERE id = ${record.accountId}
+				`
+				await transaction`
+					UPDATE usage_records
+					SET state = 'refunded', charged_micros = 0, settled_at = NOW()
+					WHERE id = ${record.id}
+				`
+				await transaction`
+					INSERT INTO ledger_entries (
+						account_id, usage_id, kind, amount_micros, balance_after_micros,
+						idempotency_key, reason
+					) VALUES (
+						${record.accountId}, ${record.id}, 'refund', ${record.reservedMicros},
+						${balanceMicros}, ${`expire:${record.id}`}, 'Expired request reservation'
+					)
+				`
+			}
+			return records.length
+		})
+	}
+
+	async listTopupPackages(): Promise<TopupPackage[]> {
+		const rows = await this.sql<TopupPackageRow[]>`
+			SELECT
+				id,
+				label,
+				amount_micros AS "amountMicros",
+				credit_micros AS "creditMicros",
+				sort_order AS "sortOrder"
+			FROM topup_packages
+			WHERE active = TRUE
+			ORDER BY sort_order, id
+		`
+		return rows.map(mapTopupPackage)
+	}
+
+	async createTopupOrder(input: {
+		accountId: string
+		packageId: string
+		channel: PaymentChannel
+		idempotencyKey: string
+		checkoutTokenHash: string
+		expiresAt: Date
+	}): Promise<{ created: boolean; order: PaymentOrder }> {
+		return await this.sql.begin("isolation level serializable", async (transaction) => {
+			const existing = await transaction<PaymentOrderRow[]>`
+				SELECT ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+				FROM payment_orders
+				WHERE account_id = ${input.accountId} AND idempotency_key = ${input.idempotencyKey}
+				FOR UPDATE
+			`
+			if (existing[0]) return { created: false, order: mapPaymentOrder(existing[0]) }
+			const accounts = await transaction<AccountRow[]>`
+				SELECT id, name, state, balance_micros AS "balanceMicros"
+				FROM accounts WHERE id = ${input.accountId} FOR UPDATE
+			`
+			if (!accounts[0]) throw new RepositoryNotFoundError("Account not found")
+			if (accounts[0].state !== "active") throw new AccountUnavailableError("Account is frozen")
+			const packages = await transaction<TopupPackageRow[]>`
+				SELECT
+					id, label, amount_micros AS "amountMicros",
+					credit_micros AS "creditMicros", sort_order AS "sortOrder"
+				FROM topup_packages WHERE id = ${input.packageId} AND active = TRUE
+			`
+			const topupPackage = packages[0]
+			if (!topupPackage) throw new RepositoryNotFoundError("Top-up package not found")
+			const rows = await transaction<PaymentOrderRow[]>`
+				INSERT INTO payment_orders (
+					id, account_id, package_id, channel, state, amount_micros, credit_micros,
+					idempotency_key, checkout_token_hash, expires_at
+				) VALUES (
+					${randomUUID()}, ${input.accountId}, ${input.packageId}, ${input.channel}, 'pending',
+					${topupPackage.amountMicros}, ${topupPackage.creditMicros}, ${input.idempotencyKey},
+					${input.checkoutTokenHash}, ${input.expiresAt}
+				)
+				RETURNING ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+			`
+			return { created: true, order: mapPaymentOrder(rows[0]) }
+		})
+	}
+
+	async getTopupOrder(accountId: string, orderId: string): Promise<PaymentOrder | null> {
+		const rows = await this.sql<PaymentOrderRow[]>`
+			SELECT ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)}
+			FROM payment_orders WHERE id = ${orderId} AND account_id = ${accountId}
+		`
+		return rows[0] ? mapPaymentOrder(rows[0]) : null
+	}
+
+	async getCheckoutOrder(
+		orderId: string,
+		checkoutTokenHash: string,
+	): Promise<CheckoutOrder | null> {
+		const rows = await this.sql<PaymentOrderRow[]>`
+			SELECT ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)}
+			FROM payment_orders
+			WHERE id = ${orderId} AND checkout_token_hash = ${checkoutTokenHash}
+		`
+		return rows[0] ? mapCheckoutOrder(rows[0]) : null
+	}
+
+	async completeTopupPayment(
+		input: PaymentNotification & { channel: PaymentChannel },
+	): Promise<{ credited: boolean; order: PaymentOrder }> {
+		return await this.sql.begin("isolation level serializable", async (transaction) => {
+			const priorEvents = await transaction<{ orderId: string }[]>`
+				SELECT order_id AS "orderId" FROM payment_events
+				WHERE channel = ${input.channel} AND provider_event_id = ${input.providerEventId}
+			`
+			const rows = await transaction<PaymentOrderRow[]>`
+				SELECT ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+				FROM payment_orders WHERE id = ${input.orderId} FOR UPDATE
+			`
+			const row = rows[0]
+			if (!row) throw new RepositoryNotFoundError("Top-up order not found")
+			if (priorEvents[0]) return { credited: false, order: mapPaymentOrder(row) }
+			const order = mapCheckoutOrder(row)
+			if (order.channel !== input.channel || order.amountMicros !== input.amountMicros) {
+				throw new Error("Payment notification does not match the order")
+			}
+			if (order.state === "credited" || order.state === "refunding" || order.state === "refunded") {
+				await transaction`
+					INSERT INTO payment_events (
+						channel, provider_event_id, provider_trade_no, order_id, payload_hash, result
+					) VALUES (
+						${input.channel}, ${input.providerEventId}, ${input.providerTradeNo},
+						${order.id}, ${input.payloadHash}, 'duplicate'
+					)
+				`
+				return { credited: false, order: mapPaymentOrder(row) }
+			}
+			if (order.state !== "pending" && order.state !== "closed") {
+				throw new Error("Top-up order cannot be credited")
+			}
+			const accounts = await transaction<AccountRow[]>`
+				SELECT id, name, state, balance_micros AS "balanceMicros"
+				FROM accounts WHERE id = ${order.accountId} FOR UPDATE
+			`
+			if (!accounts[0]) throw new RepositoryNotFoundError("Account not found")
+			const balanceMicros = mapAccount(accounts[0]).balanceMicros + order.creditMicros
+			await transaction`
+				UPDATE accounts SET balance_micros = ${balanceMicros}, updated_at = NOW()
+				WHERE id = ${order.accountId}
+			`
+			const updated = await transaction<PaymentOrderRow[]>`
+				UPDATE payment_orders SET
+					state = 'credited', provider_trade_no = ${input.providerTradeNo},
+					paid_at = NOW(), credited_at = NOW()
+				WHERE id = ${order.id}
+				RETURNING ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+			`
+			await transaction`
+				INSERT INTO ledger_entries (
+					account_id, kind, amount_micros, balance_after_micros, idempotency_key, reason
+				) VALUES (
+					${order.accountId}, 'credit', ${order.creditMicros}, ${balanceMicros},
+					${`topup:${order.id}`}, 'Payment top-up'
+				)
+			`
+			await transaction`
+				INSERT INTO payment_events (
+					channel, provider_event_id, provider_trade_no, order_id, payload_hash, result
+				) VALUES (
+					${input.channel}, ${input.providerEventId}, ${input.providerTradeNo},
+					${order.id}, ${input.payloadHash}, 'credited'
+				)
+			`
+			return { credited: true, order: mapPaymentOrder(updated[0]) }
+		})
+	}
+
+	async closeExpiredTopupOrders(now: Date): Promise<number> {
+		const rows = await this.sql<{ id: string }[]>`
+			UPDATE payment_orders SET state = 'closed'
+			WHERE state = 'pending' AND expires_at < ${now}
+			RETURNING id
+		`
+		return rows.length
+	}
+
+	async listTopupOrdersForReconciliation(
+		createdAfter: Date,
+		limit: number,
+	): Promise<PaymentOrder[]> {
+		if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+			throw new Error("Reconciliation limit must be between 1 and 500")
+		}
+		const rows = await this.sql<PaymentOrderRow[]>`
+			SELECT ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)}
+			FROM payment_orders
+			WHERE state IN ('pending', 'closed') AND created_at >= ${createdAfter}
+			ORDER BY created_at
+			LIMIT ${limit}
+		`
+		return rows.map(mapPaymentOrder)
+	}
+
+	async prepareTopupRefund(orderId: string): Promise<PaymentOrder> {
+		return await this.sql.begin("isolation level serializable", async (transaction) => {
+			const rows = await transaction<PaymentOrderRow[]>`
+				SELECT ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+				FROM payment_orders WHERE id = ${orderId} FOR UPDATE
+			`
+			const row = rows[0]
+			if (!row) throw new RepositoryNotFoundError("Top-up order not found")
+			const order = mapCheckoutOrder(row)
+			if (order.state === "refunding" || order.state === "refunded") return mapPaymentOrder(row)
+			if (order.state !== "credited") throw new Error("Top-up order cannot be refunded")
+			const accounts = await transaction<AccountRow[]>`
+				SELECT id, name, state, balance_micros AS "balanceMicros"
+				FROM accounts WHERE id = ${order.accountId} FOR UPDATE
+			`
+			if (!accounts[0]) throw new RepositoryNotFoundError("Account not found")
+			const account = mapAccount(accounts[0])
+			if (account.balanceMicros < order.creditMicros) {
+				throw new InsufficientBalanceError("Account balance is lower than the top-up credit")
+			}
+			const balanceMicros = account.balanceMicros - order.creditMicros
+			await transaction`
+				UPDATE accounts SET balance_micros = ${balanceMicros}, updated_at = NOW()
+				WHERE id = ${order.accountId}
+			`
+			const updated = await transaction<PaymentOrderRow[]>`
+				UPDATE payment_orders SET state = 'refunding' WHERE id = ${order.id}
+				RETURNING ${transaction.unsafe(PAYMENT_ORDER_COLUMNS)}
+			`
+			await transaction`
+				INSERT INTO ledger_entries (
+					account_id, kind, amount_micros, balance_after_micros, idempotency_key, reason
+				) VALUES (
+					${order.accountId}, 'adjustment', ${-order.creditMicros}, ${balanceMicros},
+					${`topup-refund:${order.id}`}, 'Reserve balance for payment refund'
+				)
+			`
+			return mapPaymentOrder(updated[0])
+		})
+	}
+
+	async completeTopupRefund(orderId: string, providerRefundNo: string): Promise<PaymentOrder> {
+		const rows = await this.sql<PaymentOrderRow[]>`
+			UPDATE payment_orders SET
+				state = 'refunded', provider_refund_no = ${providerRefundNo}, refunded_at = NOW()
+			WHERE id = ${orderId} AND state = 'refunding'
+			RETURNING ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)}
+		`
+		if (rows[0]) return mapPaymentOrder(rows[0])
+		const existing = await this.sql<PaymentOrderRow[]>`
+			SELECT ${this.sql.unsafe(PAYMENT_ORDER_COLUMNS)} FROM payment_orders WHERE id = ${orderId}
+		`
+		if (existing[0]?.state === "refunded") return mapPaymentOrder(existing[0])
+		throw new RepositoryNotFoundError("Refunding top-up order not found")
 	}
 
 	async createAccount(name: string): Promise<GatewayAccount> {

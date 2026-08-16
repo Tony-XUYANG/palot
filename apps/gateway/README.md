@@ -39,9 +39,21 @@ only after official model discovery, a real completion smoke test, and price rev
 - `GET /v1/models` lists only configured providers with an active price.
 - `GET /v1/account` returns the authenticated balance and recent sanitized usage.
 - `POST /v1/chat/completions` accepts OpenAI-compatible streaming and non-streaming requests.
+- `GET /v1/topups/packages` lists the fixed CNY 10, CNY 30, and CNY 100 packages.
+- `POST /v1/topups/orders` creates an idempotent 15-minute external checkout.
+- `GET /v1/topups/orders/:id` returns the authenticated account's order state.
+- `POST /payments/alipay/notify` accepts only RSA2-verified Alipay merchant callbacks.
 
 All `/v1` routes require `Authorization: Bearer <Palot token>`. The optional `Idempotency-Key` header
 prevents duplicate charging. Monetary values are serialized as integer micro-yuan strings.
+
+Upstream calls time out after five minutes by default. A reservation that remains unfinished for
+15 minutes is refunded automatically on startup or by the minute-level recovery loop. Override
+`PALOT_UPSTREAM_TIMEOUT_MS` and `PALOT_RESERVATION_TTL_MS` together only when the reservation TTL
+remains longer than the request timeout.
+
+Payments default to `PALOT_PAYMENT_MODE=disabled`. See `docs/palot-cloud-payments.md` before using
+the isolated engineering sandbox or configuring Alipay merchant credentials.
 
 ## Sealos credentials
 

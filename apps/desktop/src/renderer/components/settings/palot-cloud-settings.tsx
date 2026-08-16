@@ -1,5 +1,5 @@
 /**
- * Palot Cloud prepaid balance and connection controls.
+ * Palot Cloud balance, top-up, and connection controls.
  */
 
 import { Button } from "@palot/ui/components/button"
@@ -7,9 +7,9 @@ import { Input } from "@palot/ui/components/input"
 import { Label } from "@palot/ui/components/label"
 import { Spinner } from "@palot/ui/components/spinner"
 import { useAtomValue } from "jotai"
-import { CloudIcon, RefreshCwIcon, UnplugIcon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
-import type { PalotCloudStatus } from "../../../preload/api"
+import { CloudIcon, RefreshCwIcon, UnplugIcon, WalletCardsIcon } from "lucide-react"
+import { startTransition, useCallback, useEffect, useState } from "react"
+import type { PalotCloudStatus, PalotCloudTopupOrder } from "../../../preload/api"
 import { isMockModeAtom } from "../../atoms/mock-mode"
 import { applyPalotCloudProvider, disablePalotCloudProvider } from "../../lib/palot-cloud"
 
@@ -17,17 +17,27 @@ interface PalotCloudSettingsProps {
 	onProviderConfigured: () => void
 }
 
+const MOCK_TOPUP_PACKAGES = [
+	{ id: "credits-10", label: "CNY 10", amountMicros: "10000000", creditMicros: "10000000", currency: "CNY" as const },
+	{ id: "credits-30", label: "CNY 30", amountMicros: "30000000", creditMicros: "30000000", currency: "CNY" as const },
+	{ id: "credits-100", label: "CNY 100", amountMicros: "100000000", creditMicros: "100000000", currency: "CNY" as const },
+]
+
 const MOCK_CONNECTED_STATUS: PalotCloudStatus = {
 	available: true,
 	connected: true,
 	encryptionAvailable: true,
 	gatewayHost: "cloud.palot.example",
+	paymentChannel: "sandbox",
+	paymentsAvailable: true,
+	topupPackages: MOCK_TOPUP_PACKAGES,
 	account: {
 		id: "account-demo",
 		name: "Palot Cloud Demo",
 		state: "active",
 		balanceMicros: "28760000",
 		currency: "CNY",
+		recentTopups: [],
 		recentUsage: [
 			{
 				id: "usage-demo",
@@ -81,7 +91,17 @@ const MOCK_DISCONNECTED_STATUS: PalotCloudStatus = {
 	connected: false,
 	account: null,
 	models: [],
+	paymentChannel: null,
+	paymentsAvailable: false,
+	topupPackages: [],
 }
+
+const TERMINAL_TOPUP_STATES = new Set<PalotCloudTopupOrder["state"]>([
+	"credited",
+	"closed",
+	"refunded",
+	"failed",
+])
 
 function formatMicros(value: string): string {
 	const micros = BigInt(value)
@@ -93,13 +113,48 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : "Palot Cloud request failed"
 }
 
+function createMockOrder(packageId: string): PalotCloudTopupOrder {
+	const topupPackage = MOCK_TOPUP_PACKAGES.find((item) => item.id === packageId)!
+	const now = new Date()
+	return {
+		id: crypto.randomUUID(),
+		packageId,
+		channel: "sandbox",
+		state: "pending",
+		amountMicros: topupPackage.amountMicros,
+		creditMicros: topupPackage.creditMicros,
+		currency: "CNY",
+		createdAt: now.toISOString(),
+		expiresAt: new Date(now.getTime() + 15 * 60_000).toISOString(),
+		paidAt: null,
+		creditedAt: null,
+		refundedAt: null,
+	}
+}
+
+function findOpenTopup(status: PalotCloudStatus): PalotCloudTopupOrder | null {
+	return (
+		status.account?.recentTopups.find(
+			(order) => order.state === "pending" || order.state === "paid",
+		) ?? null
+	)
+}
+
 export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsProps) {
 	const isMockMode = useAtomValue(isMockModeAtom)
 	const [status, setStatus] = useState<PalotCloudStatus | null>(null)
 	const [token, setToken] = useState("")
 	const [loading, setLoading] = useState(true)
-	const [action, setAction] = useState<"connect" | "disconnect" | "refresh" | null>(null)
+	const [action, setAction] = useState<"connect" | "disconnect" | "refresh" | "topup" | null>(
+		null,
+	)
+	const [topupPackageId, setTopupPackageId] = useState<string | null>(null)
+	const [pendingOrder, setPendingOrder] = useState<PalotCloudTopupOrder | null>(null)
 	const [error, setError] = useState<string | null>(null)
+	const applyStatus = useCallback((nextStatus: PalotCloudStatus) => {
+		setStatus(nextStatus)
+		setPendingOrder((current) => current ?? findOpenTopup(nextStatus))
+	}, [])
 
 	const refresh = useCallback(async () => {
 		if (isMockMode) {
@@ -113,18 +168,72 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 		setAction("refresh")
 		setError(null)
 		try {
-			setStatus(await window.palot.palotCloud.status())
+			applyStatus(await window.palot.palotCloud.status())
 		} catch (requestError) {
 			setError(errorMessage(requestError))
 		} finally {
 			setLoading(false)
 			setAction(null)
 		}
-	}, [isMockMode])
+	}, [applyStatus, isMockMode])
 
 	useEffect(() => {
 		refresh()
 	}, [refresh])
+
+	const pendingOrderId = pendingOrder?.id ?? null
+	const pendingOrderState = pendingOrder?.state ?? null
+	useEffect(() => {
+		if (!pendingOrderId || !pendingOrderState || TERMINAL_TOPUP_STATES.has(pendingOrderState)) return
+		let cancelled = false
+		let timer: ReturnType<typeof setTimeout> | null = null
+
+		const poll = async () => {
+			try {
+				if (isMockMode) {
+					const paidAt = new Date().toISOString()
+					startTransition(() => {
+						setPendingOrder((current) =>
+							current ? { ...current, state: "credited", paidAt, creditedAt: paidAt } : null,
+						)
+						setStatus((current) =>
+							current?.account
+								? {
+									...current,
+									account: {
+										...current.account,
+										balanceMicros: (
+											BigInt(current.account.balanceMicros) +
+											BigInt(pendingOrder?.creditMicros ?? "0")
+										).toString(),
+									},
+								}
+								: current,
+						)
+					})
+					return
+				}
+				if (!window.palot?.palotCloud) return
+				const nextOrder = await window.palot.palotCloud.topupOrder(pendingOrderId)
+				if (cancelled) return
+				startTransition(() => setPendingOrder(nextOrder))
+				if (nextOrder.state === "credited") {
+					const nextStatus = await window.palot.palotCloud.status()
+					if (!cancelled) startTransition(() => setStatus(nextStatus))
+					return
+				}
+				if (!TERMINAL_TOPUP_STATES.has(nextOrder.state)) timer = setTimeout(poll, 2_000)
+			} catch (requestError) {
+				if (!cancelled) setError(errorMessage(requestError))
+			}
+		}
+
+		timer = setTimeout(poll, isMockMode ? 800 : 2_000)
+		return () => {
+			cancelled = true
+			if (timer) clearTimeout(timer)
+		}
+	}, [isMockMode, pendingOrderId, pendingOrderState, pendingOrder?.creditMicros])
 
 	const connect = useCallback(async () => {
 		if (isMockMode && token.trim()) {
@@ -140,7 +249,7 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 			const result = await window.palot.palotCloud.connect(token.trim())
 			if (!result.setup) throw new Error("Palot Cloud did not return a provider setup")
 			await applyPalotCloudProvider(result.setup)
-			setStatus(result.status)
+			applyStatus(result.status)
 			setToken("")
 			onProviderConfigured()
 		} catch (requestError) {
@@ -148,11 +257,12 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 		} finally {
 			setAction(null)
 		}
-	}, [isMockMode, token, onProviderConfigured])
+	}, [applyStatus, isMockMode, token, onProviderConfigured])
 
 	const disconnect = useCallback(async () => {
 		if (isMockMode) {
 			setStatus(MOCK_DISCONNECTED_STATUS)
+			setPendingOrder(null)
 			onProviderConfigured()
 			return
 		}
@@ -163,6 +273,7 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 			const nextStatus = await window.palot.palotCloud.disconnect()
 			await disablePalotCloudProvider()
 			setStatus(nextStatus)
+			setPendingOrder(null)
 			onProviderConfigured()
 		} catch (requestError) {
 			setError(errorMessage(requestError))
@@ -170,6 +281,26 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 			setAction(null)
 		}
 	}, [isMockMode, onProviderConfigured])
+
+	const startTopup = useCallback(
+		async (packageId: string) => {
+			setAction("topup")
+			setTopupPackageId(packageId)
+			setError(null)
+			try {
+				const order = isMockMode
+					? createMockOrder(packageId)
+					: await window.palot!.palotCloud.startTopup(packageId)
+				setPendingOrder(order)
+			} catch (requestError) {
+				setError(errorMessage(requestError))
+			} finally {
+				setAction(null)
+				setTopupPackageId(null)
+			}
+		},
+		[isMockMode],
+	)
 
 	if (loading || !status) return null
 	if (!status.available && !status.connected) return null
@@ -191,7 +322,13 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 				</div>
 				{status.connected ? (
 					<div className="flex gap-2">
-						<Button variant="outline" size="icon" onClick={refresh} disabled={action !== null}>
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={refresh}
+							disabled={action !== null}
+							title="Refresh Palot Cloud"
+						>
 							{action === "refresh" ? (
 								<Spinner className="size-4" />
 							) : (
@@ -213,15 +350,59 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 						<div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
 							<div>
 								<p className="text-xs text-muted-foreground">Available balance</p>
-								<p className="text-lg font-semibold">¥{formatMicros(status.account.balanceMicros)}</p>
+								<p className="text-lg font-semibold">
+									CNY {formatMicros(status.account.balanceMicros)}
+								</p>
 							</div>
-							<p className="text-xs text-muted-foreground">Manual packs: ¥10 / ¥30 / ¥100</p>
+							{status.paymentsAvailable ? (
+								<div className="flex flex-wrap gap-2">
+									{status.topupPackages.map((topupPackage) => (
+										<Button
+											key={topupPackage.id}
+											variant="outline"
+											size="sm"
+											onClick={() => startTopup(topupPackage.id)}
+											disabled={action !== null}
+										>
+											{action === "topup" && topupPackageId === topupPackage.id ? (
+												<Spinner className="size-4" />
+											) : (
+												<WalletCardsIcon className="size-4" aria-hidden="true" />
+											)}
+											{topupPackage.label}
+										</Button>
+									))}
+								</div>
+							) : null}
 						</div>
+						{pendingOrder ? (
+							<div className="flex items-center justify-between gap-3 px-4 py-2.5">
+								<span className="truncate text-xs text-muted-foreground">
+									Top-up {pendingOrder.channel}
+								</span>
+								<span className="shrink-0 text-xs font-medium capitalize">
+									{pendingOrder.state} · CNY {formatMicros(pendingOrder.amountMicros)}
+								</span>
+							</div>
+						) : null}
+						{status.account.recentTopups
+							.filter((topup) => topup.id !== pendingOrder?.id)
+							.slice(0, 3)
+							.map((topup) => (
+								<div key={topup.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+									<span className="truncate text-xs text-muted-foreground">
+										Top-up {topup.channel}
+									</span>
+									<span className="shrink-0 text-xs capitalize">
+										{topup.state} · CNY {formatMicros(topup.amountMicros)}
+									</span>
+								</div>
+							))}
 						{status.models.map((model) => (
 							<div key={model.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
 								<span className="text-sm font-medium">{model.name}</span>
 								<span className="text-xs text-muted-foreground">
-									Input ¥{formatMicros(model.pricing.inputMicros)} / Output ¥
+									Input CNY {formatMicros(model.pricing.inputMicros)} / Output CNY{" "}
 									{formatMicros(model.pricing.outputMicros)} per 1M tokens
 								</span>
 							</div>
@@ -229,7 +410,9 @@ export function PalotCloudSettings({ onProviderConfigured }: PalotCloudSettingsP
 						{status.account.recentUsage.slice(0, 5).map((usage) => (
 							<div key={usage.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
 								<span className="truncate text-xs text-muted-foreground">{usage.model}</span>
-								<span className="shrink-0 text-xs">¥{formatMicros(usage.chargedMicros)}</span>
+								<span className="shrink-0 text-xs">
+									CNY {formatMicros(usage.chargedMicros)}
+								</span>
 							</div>
 						))}
 					</>
