@@ -1,5 +1,11 @@
 # @palot/desktop
 
+## 0.12.0-beta.4
+
+### Patch Changes
+
+- [`8064379`](https://github.com/Tony-XUYANG/palot/commit/80643792ac58e80c1d36ed43cd17ae71c1733f59) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add disabled-by-default Palot Cloud top-ups with transactional payment credit, RSA2 Alipay checkout and refund support, sandbox acceptance, desktop order polling, and recovery for timed-out model requests and expired reservations.
+
 ## 0.12.0-beta.3
 
 ### Patch Changes
