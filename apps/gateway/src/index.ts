@@ -11,6 +11,39 @@ const config = readGatewayConfig()
 const repository = new PostgresGatewayRepository(config.databaseUrl, config.tokenPepper)
 await repository.migrate()
 const paymentProvider = createPaymentProvider(config)
+let paymentAccountingHealthy = false
+
+const auditPaymentAccounting = async () => {
+	try {
+		const report = await repository.auditPaymentAccounting()
+		paymentAccountingHealthy = report.ok
+		if (report.ok) {
+			console.log(
+				`Payment accounting audit passed (${report.accountsChecked} accounts, ${report.ordersChecked} orders)`,
+			)
+			return
+		}
+		const findingCounts = Object.fromEntries(
+			[...new Set(report.findings.map((finding) => finding.code))].map((code) => [
+				code,
+				report.findings.filter((finding) => finding.code === code).length,
+			]),
+		)
+		console.error("Payment accounting audit found inconsistencies; new top-ups are disabled", {
+			findingCount: report.findings.length,
+			findingCounts,
+		})
+	} catch (error) {
+		paymentAccountingHealthy = false
+		console.error("Could not audit payment accounting; new top-ups are disabled", {
+			name: error instanceof Error ? error.name : "UnknownError",
+		})
+	}
+}
+
+await auditPaymentAccounting()
+const paymentAuditTimer = setInterval(auditPaymentAccounting, 24 * 60 * 60_000)
+paymentAuditTimer.unref()
 
 const recoverExpiredReservations = async () => {
 	try {
@@ -58,7 +91,12 @@ const reconcilePayments = async () => {
 const reconciliationTimer = setInterval(reconcilePayments, 5 * 60_000)
 reconciliationTimer.unref()
 
-const app = createGatewayApp({ repository, config, paymentProvider })
+const app = createGatewayApp({
+	repository,
+	config,
+	paymentProvider,
+	paymentAccountingHealthy: () => paymentAccountingHealthy,
+})
 
 let closing = false
 const close = async () => {
@@ -66,6 +104,7 @@ const close = async () => {
 	closing = true
 	clearInterval(recoveryTimer)
 	clearInterval(reconciliationTimer)
+	clearInterval(paymentAuditTimer)
 	await repository.close()
 	process.exit(0)
 }

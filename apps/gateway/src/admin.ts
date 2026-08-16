@@ -19,6 +19,7 @@ function usage(): never {
 			"  bun run admin account:freeze <account-id>",
 			"  bun run admin account:activate <account-id>",
 			"  bun run admin price:set <model-id> <input-yuan> <output-yuan> <cache-yuan>",
+			"  bun run admin topup:audit",
 			"  bun run admin topup:refund <order-id>",
 			"  bun run admin topup:reconcile",
 		].join("\n"),
@@ -121,6 +122,12 @@ try {
 			const refund = await provider.refund(order)
 			const completed = await repository.completeTopupRefund(order.id, refund.providerRefundNo)
 			console.log(`Top-up order ${completed.id} refunded through ${completed.channel}`)
+			break
+		}
+		case "topup:audit": {
+			const report = await repository.auditPaymentAccounting()
+			console.log(JSON.stringify(report, null, 2))
+			if (!report.ok) process.exitCode = 2
 			break
 		}
 		case "topup:reconcile": {

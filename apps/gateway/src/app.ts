@@ -42,6 +42,7 @@ export interface GatewayAppDependencies {
 	config: GatewayConfig
 	fetch?: GatewayFetch
 	paymentProvider?: PaymentProvider | null
+	paymentAccountingHealthy?: () => boolean
 }
 
 export type GatewayFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
@@ -189,6 +190,8 @@ export function createGatewayApp(dependencies: GatewayAppDependencies) {
 		dependencies.paymentProvider === undefined
 			? createPaymentProvider(dependencies.config)
 			: dependencies.paymentProvider
+	const paymentsAvailable = () =>
+		Boolean(paymentProvider) && (dependencies.paymentAccountingHealthy?.() ?? true)
 
 	app.get("/live", (c) => c.json({ status: "ok" as const }))
 
@@ -258,15 +261,16 @@ export function createGatewayApp(dependencies: GatewayAppDependencies) {
 
 	app.get("/v1/topups/packages", async (c) => {
 		const packages = await dependencies.repository.listTopupPackages()
+		const available = paymentsAvailable()
 		return c.json({
-			available: Boolean(paymentProvider),
-			channel: paymentProvider?.channel ?? null,
+			available,
+			channel: available ? (paymentProvider?.channel ?? null) : null,
 			data: packages.map(serializeTopupPackage),
 		})
 	})
 
 	app.post("/v1/topups/orders", async (c) => {
-		if (!paymentProvider || !dependencies.config.publicUrl) {
+		if (!paymentProvider || !dependencies.config.publicUrl || !paymentsAvailable()) {
 			return errorResponse(c, 503, "payments_unavailable", "Top-ups are not available")
 		}
 		let body: Record<string, unknown>

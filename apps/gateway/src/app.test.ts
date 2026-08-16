@@ -264,4 +264,83 @@ describe("Palot Cloud gateway HTTP API", () => {
 		assert.equal(duplicate.status, 200)
 		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 10_000_000n)
 	})
+
+	it("blocks new top-ups after an accounting audit failure without abandoning open orders", async () => {
+		const sandboxConfig: GatewayConfig = {
+			...config,
+			paymentMode: "sandbox",
+			publicUrl: "https://cloud.example.test",
+		}
+		const repository = new MemoryGatewayRepository(sandboxConfig.tokenPepper)
+		const account = await repository.createAccount("Audit guard user")
+		const token = await repository.createToken(account.id)
+		let accountingHealthy = true
+		const app = createGatewayApp({
+			repository,
+			config: sandboxConfig,
+			fetch,
+			paymentAccountingHealthy: () => accountingHealthy,
+		})
+		const headers = {
+			authorization: `Bearer ${token.rawToken}`,
+			"content-type": "application/json",
+			"idempotency-key": "topup-before-audit",
+		}
+		const created = await app.request("/v1/topups/orders", {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ packageId: "credits-10" }),
+		})
+		assert.equal(created.status, 200)
+		const order = (await created.json()) as { id: string; checkoutUrl: string }
+
+		accountingHealthy = false
+		const packages = await app.request("/v1/topups/packages", { headers })
+		assert.deepEqual(await packages.json(), {
+			available: false,
+			channel: null,
+			data: [
+				{
+					id: "credits-10",
+					label: "CNY 10",
+					amountMicros: "10000000",
+					creditMicros: "10000000",
+					currency: "CNY",
+				},
+				{
+					id: "credits-30",
+					label: "CNY 30",
+					amountMicros: "30000000",
+					creditMicros: "30000000",
+					currency: "CNY",
+				},
+				{
+					id: "credits-100",
+					label: "CNY 100",
+					amountMicros: "100000000",
+					creditMicros: "100000000",
+					currency: "CNY",
+				},
+			],
+		})
+		const blocked = await app.request("/v1/topups/orders", {
+			method: "POST",
+			headers: { ...headers, "idempotency-key": "topup-after-audit" },
+			body: JSON.stringify({ packageId: "credits-10" }),
+		})
+		assert.equal(blocked.status, 503)
+		assert.equal((await blocked.json()).error.code, "payments_unavailable")
+
+		const checkoutUrl = new URL(order.checkoutUrl)
+		const completed = await app.request("/payments/sandbox/complete", {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({
+				orderId: order.id,
+				token: checkoutUrl.searchParams.get("token") ?? "",
+			}),
+		})
+		assert.equal(completed.status, 200)
+		assert.equal((await repository.getAccountSummary(account.id))?.balanceMicros, 10_000_000n)
+	})
 })

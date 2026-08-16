@@ -20,7 +20,20 @@ payment without providing the purchased service.
 
 The gateway queries unresolved Alipay orders every five minutes for 24 hours, recovering successful
 payments whose callback was lost. Operators can run `bun run admin topup:reconcile` for an immediate
-bounded query. Provider settlement-statement reconciliation remains a live merchant acceptance gate.
+bounded query.
+
+An internal accounting audit runs at startup and every 24 hours. It compares every account balance
+with its append-only ledger, then checks payment credit entries, credited payment events, payment
+metadata, refund reservations, and refund metadata. A failed audit hides payment availability and
+rejects new order creation, while callbacks and checkout completion for existing orders remain
+enabled so a customer who already paid can still receive credit. Run the same gate manually:
+
+```text
+bun run admin topup:audit
+```
+
+The command emits a structured report and exits with code 2 when findings exist. Provider
+settlement-statement reconciliation remains a live merchant acceptance gate.
 
 ## Environment modes
 
@@ -56,4 +69,5 @@ review.
 - Forged, mismatched, duplicate, delayed, and out-of-order notifications covered by automated tests.
 - CNY 0.01-CNY 1.00 live payment, credit, refund, and settlement statement checked before beta sales.
 - Daily order, ledger, provider, and settlement reconciliation has zero unexplained difference.
+- `topup:audit` reports zero internal accounting findings before and after each payment test.
 - Payment credit latency is below 10 seconds for at least 99% of accepted callbacks.

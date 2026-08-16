@@ -55,6 +55,11 @@ remains longer than the request timeout.
 Payments default to `PALOT_PAYMENT_MODE=disabled`. See `docs/palot-cloud-payments.md` before using
 the isolated engineering sandbox or configuring Alipay merchant credentials.
 
+The gateway audits account balances, ledger entries, payment events, credits, and refund
+reservations on startup and every 24 hours. An inconsistency disables new top-up orders while
+existing paid orders can still be credited. Run `bun run admin -- topup:audit` for a structured
+on-demand report.
+
 ## Sealos credentials
 
 The deployment template never accepts or contains upstream provider keys. Before deploying, run

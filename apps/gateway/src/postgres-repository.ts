@@ -6,6 +6,12 @@ import { randomUUID } from "node:crypto"
 import { readdir } from "node:fs/promises"
 import path from "node:path"
 import { SQL } from "bun"
+import {
+	analyzePaymentAccounting,
+	type PaymentAccountingAudit,
+	type PaymentAuditAccountRow,
+	type PaymentAuditOrderRow,
+} from "./payment-audit"
 import type {
 	CheckoutOrder,
 	PaymentChannel,
@@ -247,6 +253,65 @@ export class PostgresGatewayRepository implements GatewayRepository {
 	async health(): Promise<boolean> {
 		await this.sql`SELECT 1 AS ok`
 		return true
+	}
+
+	async auditPaymentAccounting(): Promise<PaymentAccountingAudit> {
+		return await this.sql.begin(
+			"isolation level repeatable read read only",
+			async (transaction) => {
+				const accounts = await transaction<PaymentAuditAccountRow[]>`
+				SELECT
+					a.id,
+					a.balance_micros AS "balanceMicros",
+					COALESCE((
+						SELECT SUM(l.amount_micros)
+						FROM ledger_entries l
+						WHERE l.account_id = a.id
+					), 0) AS "ledgerMicros"
+				FROM accounts a
+				ORDER BY a.id
+				`
+				const orders = await transaction<PaymentAuditOrderRow[]>`
+				SELECT
+					o.id,
+					o.state,
+					o.credit_micros AS "creditMicros",
+					o.provider_trade_no AS "providerTradeNo",
+					o.provider_refund_no AS "providerRefundNo",
+					o.paid_at AS "paidAt",
+					o.credited_at AS "creditedAt",
+					o.refunded_at AS "refundedAt",
+					(
+						SELECT COUNT(*)::int
+						FROM ledger_entries l
+						WHERE l.idempotency_key = 'topup:' || o.id::text
+					) AS "creditLedgerCount",
+					COALESCE((
+						SELECT SUM(l.amount_micros)
+						FROM ledger_entries l
+						WHERE l.idempotency_key = 'topup:' || o.id::text
+					), 0) AS "creditLedgerMicros",
+					(
+						SELECT COUNT(*)::int
+						FROM ledger_entries l
+						WHERE l.idempotency_key = 'topup-refund:' || o.id::text
+					) AS "refundLedgerCount",
+					COALESCE((
+						SELECT SUM(l.amount_micros)
+						FROM ledger_entries l
+						WHERE l.idempotency_key = 'topup-refund:' || o.id::text
+					), 0) AS "refundLedgerMicros",
+					(
+						SELECT COUNT(*)::int
+						FROM payment_events e
+						WHERE e.order_id = o.id AND e.result = 'credited'
+					) AS "creditedEventCount"
+				FROM payment_orders o
+				ORDER BY o.created_at, o.id
+				`
+				return analyzePaymentAccounting(accounts, orders)
+			},
+		)
 	}
 
 	async authenticate(rawToken: string): Promise<GatewayAccount | null> {
