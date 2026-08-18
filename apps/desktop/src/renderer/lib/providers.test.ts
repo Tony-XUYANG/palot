@@ -125,6 +125,25 @@ describe("provider recommendations", () => {
 		)
 	})
 
+	it("resolves additional official domestic coding providers from the live catalog", () => {
+		const available = resolveAvailableChinaModelCandidates([
+			{ id: "alibaba-coding-plan-cn", models: { "qwen3-coder-next": {} } },
+			{ id: "tencent-coding-plan", models: { "tc-code-latest": {} } },
+			{ id: "stepfun-step-plan", models: { "step-3.7-flash": {} } },
+			{ id: "longcat", models: { "LongCat-2.0": {} } },
+		])
+
+		assert.deepEqual(
+			available.map((candidate) => `${candidate.providerID}/${candidate.modelID}`),
+			[
+				"alibaba-coding-plan-cn/qwen3-coder-next",
+				"tencent-coding-plan/tc-code-latest",
+				"stepfun-step-plan/step-3.7-flash",
+				"longcat/LongCat-2.0",
+			],
+		)
+	})
+
 	it("does not recommend Codex models missing from the live catalog", () => {
 		const available = resolveAvailableCodexModelCandidates([
 			{

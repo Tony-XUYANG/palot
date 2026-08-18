@@ -16,6 +16,10 @@ export const CHINA_PROVIDER_IDS = [
 	"siliconflow-cn",
 	"minimax-cn",
 	"modelscope",
+	"alibaba-coding-plan-cn",
+	"tencent-coding-plan",
+	"stepfun-step-plan",
+	"longcat",
 ] as const
 
 /** Providers that passed Palot's real code-edit and automated-test acceptance run. */
@@ -81,6 +85,25 @@ export const CHINA_MODEL_REGISTRY = [
 		tier: "candidate",
 		firstTier: false,
 	},
+	{
+		providerID: "alibaba-coding-plan-cn",
+		modelID: "qwen3-coder-next",
+		tier: "candidate",
+		firstTier: false,
+	},
+	{
+		providerID: "tencent-coding-plan",
+		modelID: "tc-code-latest",
+		tier: "candidate",
+		firstTier: false,
+	},
+	{
+		providerID: "stepfun-step-plan",
+		modelID: "step-3.7-flash",
+		tier: "candidate",
+		firstTier: false,
+	},
+	{ providerID: "longcat", modelID: "LongCat-2.0", tier: "candidate", firstTier: false },
 ] as const satisfies readonly ChinaModelCandidate[]
 
 /** Backwards-compatible name used by current model-selection surfaces. */
@@ -183,6 +206,10 @@ export const PROVIDER_KEY_URLS: Record<string, { label: string; url: string }> =
 	mistral: { label: "Get API key", url: "https://console.mistral.ai/api-keys/" },
 	deepseek: { label: "Get API key", url: "https://platform.deepseek.com/api_keys" },
 	"alibaba-cn": { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
+	"alibaba-coding-plan-cn": {
+		label: "Get API key",
+		url: "https://bailian.console.aliyun.com/?apiKey=1",
+	},
 	alibaba: { label: "Get API key", url: "https://bailian.console.aliyun.com/?apiKey=1" },
 	"kimi-for-coding": { label: "Get API key", url: "https://www.kimi.com/code/console" },
 	"moonshotai-cn": {
@@ -206,6 +233,12 @@ export const PROVIDER_KEY_URLS: Record<string, { label: string; url: string }> =
 		url: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
 	},
 	modelscope: { label: "Get API key", url: "https://modelscope.cn/my/myaccesstoken" },
+	"tencent-coding-plan": {
+		label: "Get API key",
+		url: "https://console.cloud.tencent.com/lkeap",
+	},
+	"stepfun-step-plan": { label: "Get API key", url: "https://platform.stepfun.com/" },
+	longcat: { label: "Get API key", url: "https://longcat.chat/" },
 	cohere: { label: "Get API key", url: "https://dashboard.cohere.com/api-keys" },
 	fireworks: { label: "Get API key", url: "https://fireworks.ai/account/api-keys" },
 	perplexity: { label: "Get API key", url: "https://www.perplexity.ai/settings/api" },
