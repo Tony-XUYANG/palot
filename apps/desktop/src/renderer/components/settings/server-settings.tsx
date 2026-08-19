@@ -6,7 +6,7 @@
  * Includes configuration for the local server's hostname, port, and password.
  */
 
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	Dialog,
 	DialogClose,
@@ -16,10 +16,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@palot/ui/components/dialog"
-import { Input } from "@palot/ui/components/input"
-import { Label } from "@palot/ui/components/label"
-import { Switch } from "@palot/ui/components/switch"
+} from "@palot/ui/components/dialog";
+import { Input } from "@palot/ui/components/input";
+import { Label } from "@palot/ui/components/label";
+import { Switch } from "@palot/ui/components/switch";
 import {
 	CheckCircle2Icon,
 	ChevronRightIcon,
@@ -34,23 +34,31 @@ import {
 	SettingsIcon,
 	TerminalIcon,
 	TrashIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import type { LocalServerConfig, RemoteServerConfig } from "../../../preload/api"
-import { useServerActions, useServers } from "../../hooks/use-servers"
-import { useSettings } from "../../hooks/use-settings"
-import { SettingsRow } from "./settings-row"
-import { SettingsSection } from "./settings-section"
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type {
+	LocalServerConfig,
+	RemoteServerConfig,
+} from "../../../preload/api";
+import { useServerActions, useServers } from "../../hooks/use-servers";
+import { useSettings } from "../../hooks/use-settings";
+import { SettingsRow } from "./settings-row";
+import { SettingsSection } from "./settings-section";
 
 // ============================================================
 // Main component
 // ============================================================
 
 export function ServerSettings() {
-	const { servers, activeServer, discoveredMdns } = useServers()
-	const { switchServer, removeServer, saveDiscoveredServer } = useServerActions()
-	const [editingServer, setEditingServer] = useState<RemoteServerConfig | null>(null)
-	const [savingMdnsId, setSavingMdnsId] = useState<string | null>(null)
+	const { t } = useTranslation("settings");
+	const { servers, activeServer, discoveredMdns } = useServers();
+	const { switchServer, removeServer, saveDiscoveredServer } =
+		useServerActions();
+	const [editingServer, setEditingServer] = useState<RemoteServerConfig | null>(
+		null,
+	);
+	const [savingMdnsId, setSavingMdnsId] = useState<string | null>(null);
 
 	// Filter out discovered servers that are already saved
 	const unsavedDiscovered = useMemo(() => {
@@ -59,46 +67,46 @@ export function ServerSettings() {
 				.filter((s) => s.type === "remote")
 				.map((s) => {
 					try {
-						const u = new URL(s.url)
-						return `${u.hostname}:${u.port || (u.protocol === "https:" ? "443" : "80")}`
+						const u = new URL(s.url);
+						return `${u.hostname}:${u.port || (u.protocol === "https:" ? "443" : "80")}`;
 					} catch {
-						return null
+						return null;
 					}
 				})
 				.filter(Boolean),
-		)
+		);
 
 		return discoveredMdns.filter((d) => {
-			const hostPort = `${d.host}:${d.port}`
-			if (savedUrls.has(hostPort)) return false
+			const hostPort = `${d.host}:${d.port}`;
+			if (savedUrls.has(hostPort)) return false;
 			for (const addr of d.addresses) {
-				if (savedUrls.has(`${addr}:${d.port}`)) return false
+				if (savedUrls.has(`${addr}:${d.port}`)) return false;
 			}
-			return true
-		})
-	}, [servers, discoveredMdns])
+			return true;
+		});
+	}, [servers, discoveredMdns]);
 
 	const handleSaveDiscovered = useCallback(
 		async (mdnsId: string) => {
-			const mdnsServer = discoveredMdns.find((s) => s.id === mdnsId)
-			if (!mdnsServer) return
-			setSavingMdnsId(mdnsId)
+			const mdnsServer = discoveredMdns.find((s) => s.id === mdnsId);
+			if (!mdnsServer) return;
+			setSavingMdnsId(mdnsId);
 			try {
-				await saveDiscoveredServer(mdnsServer)
+				await saveDiscoveredServer(mdnsServer);
 			} finally {
-				setSavingMdnsId(null)
+				setSavingMdnsId(null);
 			}
 		},
 		[discoveredMdns, saveDiscoveredServer],
-	)
+	);
 
 	return (
 		<div className="space-y-8">
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-xl font-semibold">Servers</h2>
+					<h2 className="text-xl font-semibold">{t("servers.title")}</h2>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Connect to local or remote OpenCode servers
+						{t("servers.description")}
 					</p>
 				</div>
 				<AddServerDialog />
@@ -106,16 +114,21 @@ export function ServerSettings() {
 
 			<SettingsSection>
 				{servers.map((server) => {
-					const isActive = activeServer.id === server.id
-					const isLocal = server.type === "local"
+					const isActive = activeServer.id === server.id;
+					const isLocal = server.type === "local";
 
 					return (
-						<div key={server.id} className="flex items-center justify-between gap-4 px-4 py-3">
+						<div
+							key={server.id}
+							className="flex items-center justify-between gap-4 px-4 py-3"
+						>
 							<div className="flex min-w-0 items-center gap-3">
 								{/* Icon */}
 								<div
 									className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
-										isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+										isActive
+											? "bg-primary/10 text-primary"
+											: "bg-muted text-muted-foreground"
 									}`}
 								>
 									{isLocal ? (
@@ -128,16 +141,18 @@ export function ServerSettings() {
 								{/* Name + details */}
 								<div className="min-w-0">
 									<div className="flex items-center gap-2">
-										<span className="truncate text-sm font-medium">{server.name}</span>
+										<span className="truncate text-sm font-medium">
+											{server.name}
+										</span>
 										{isActive && (
 											<span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-												Active
+												{t("servers.active")}
 											</span>
 										)}
 									</div>
 									<span className="block truncate text-xs text-muted-foreground">
 										{isLocal
-											? "Auto-managed local server"
+											? t("servers.localManaged")
 											: server.type === "remote"
 												? server.url
 												: `SSH: ${(server as { sshHost: string }).sshHost}`}
@@ -148,15 +163,25 @@ export function ServerSettings() {
 							{/* Actions */}
 							<div className="flex shrink-0 items-center gap-1">
 								{!isActive && (
-									<Button variant="outline" size="sm" onClick={() => switchServer(server.id)}>
-										Connect
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => switchServer(server.id)}
+									>
+										{t("common:actions.connect")}
 									</Button>
 								)}
 								{!isLocal && server.type === "remote" && (
 									<>
-										<Button variant="ghost" size="icon-sm" onClick={() => setEditingServer(server)}>
+										<Button
+											variant="ghost"
+											size="icon-sm"
+											onClick={() => setEditingServer(server)}
+										>
 											<PencilIcon aria-hidden="true" className="size-3.5" />
-											<span className="sr-only">Edit</span>
+											<span className="sr-only">
+												{t("common:actions.edit")}
+											</span>
 										</Button>
 										<Button
 											variant="ghost"
@@ -165,13 +190,15 @@ export function ServerSettings() {
 											onClick={() => removeServer(server.id)}
 										>
 											<TrashIcon aria-hidden="true" className="size-3.5" />
-											<span className="sr-only">Remove</span>
+											<span className="sr-only">
+												{t("common:actions.delete")}
+											</span>
 										</Button>
 									</>
 								)}
 							</div>
 						</div>
-					)
+					);
 				})}
 			</SettingsSection>
 
@@ -184,25 +211,31 @@ export function ServerSettings() {
 					<div>
 						<h3 className="flex items-center gap-2 text-base font-semibold">
 							<RadarIcon aria-hidden="true" className="size-4" />
-							Discovered on Network
+							{t("servers.discovered")}
 						</h3>
 						<p className="mt-1 text-sm text-muted-foreground">
-							OpenCode servers found via mDNS on your local network
+							{t("servers.discoveredDescription")}
 						</p>
 					</div>
 
 					<SettingsSection>
 						{unsavedDiscovered.map((mdns) => {
-							const displayAddr = mdns.addresses.find((a) => !a.includes(":")) || mdns.host
+							const displayAddr =
+								mdns.addresses.find((a) => !a.includes(":")) || mdns.host;
 
 							return (
-								<div key={mdns.id} className="flex items-center justify-between gap-4 px-4 py-3">
+								<div
+									key={mdns.id}
+									className="flex items-center justify-between gap-4 px-4 py-3"
+								>
 									<div className="flex min-w-0 items-center gap-3">
 										<div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
 											<RadarIcon aria-hidden="true" className="size-4" />
 										</div>
 										<div className="min-w-0">
-											<span className="block truncate text-sm font-medium">{mdns.name}</span>
+											<span className="block truncate text-sm font-medium">
+												{mdns.name}
+											</span>
 											<span className="block truncate text-xs text-muted-foreground">
 												{displayAddr}:{mdns.port}
 											</span>
@@ -215,14 +248,17 @@ export function ServerSettings() {
 										onClick={() => handleSaveDiscovered(mdns.id)}
 									>
 										{savingMdnsId === mdns.id ? (
-											<Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
+											<Loader2Icon
+												aria-hidden="true"
+												className="size-3.5 animate-spin"
+											/>
 										) : (
 											<SaveIcon aria-hidden="true" className="size-3.5" />
 										)}
-										Save
+										{t("common:actions.save")}
 									</Button>
 								</div>
-							)
+							);
 						})}
 					</SettingsSection>
 				</>
@@ -235,51 +271,60 @@ export function ServerSettings() {
 					server={editingServer}
 					open
 					onOpenChange={(open) => {
-						if (!open) setEditingServer(null)
+						if (!open) setEditingServer(null);
 					}}
 				/>
 			)}
 		</div>
-	)
+	);
 }
 
 // ============================================================
 // Local server configuration
 // ============================================================
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 function LocalServerSettings() {
-	const { settings, updateSettings } = useSettings()
+	const { t } = useTranslation("settings");
+	const { settings, updateSettings } = useSettings();
 	const localServer = settings.servers.servers.find((s) => s.id === "local") as
 		| LocalServerConfig
-		| undefined
+		| undefined;
 
-	const [hostname, setHostname] = useState(localServer?.hostname ?? "")
-	const [port, setPort] = useState(localServer?.port?.toString() ?? "")
-	const [password, setPassword] = useState("")
-	const [hasPassword, setHasPassword] = useState(localServer?.hasPassword ?? false)
-	const [mdns, setMdns] = useState(localServer?.mdns ?? false)
-	const [mdnsDomain, setMdnsDomain] = useState(localServer?.mdnsDomain ?? "")
-	const [saving, setSaving] = useState(false)
-	const [saved, setSaved] = useState(false)
+	const [hostname, setHostname] = useState(localServer?.hostname ?? "");
+	const [port, setPort] = useState(localServer?.port?.toString() ?? "");
+	const [password, setPassword] = useState("");
+	const [hasPassword, setHasPassword] = useState(
+		localServer?.hasPassword ?? false,
+	);
+	const [mdns, setMdns] = useState(localServer?.mdns ?? false);
+	const [mdnsDomain, setMdnsDomain] = useState(localServer?.mdnsDomain ?? "");
+	const [saving, setSaving] = useState(false);
+	const [saved, setSaved] = useState(false);
 
 	// Sync form state when settings are loaded asynchronously
 	useEffect(() => {
-		setHostname(localServer?.hostname ?? "")
-		setPort(localServer?.port?.toString() ?? "")
-		setHasPassword(localServer?.hasPassword ?? false)
-		setMdns(localServer?.mdns ?? false)
-		setMdnsDomain(localServer?.mdnsDomain ?? "")
-	}, [localServer?.hostname, localServer?.port, localServer?.hasPassword, localServer?.mdns, localServer?.mdnsDomain])
+		setHostname(localServer?.hostname ?? "");
+		setPort(localServer?.port?.toString() ?? "");
+		setHasPassword(localServer?.hasPassword ?? false);
+		setMdns(localServer?.mdns ?? false);
+		setMdnsDomain(localServer?.mdnsDomain ?? "");
+	}, [
+		localServer?.hostname,
+		localServer?.port,
+		localServer?.hasPassword,
+		localServer?.mdns,
+		localServer?.mdnsDomain,
+	]);
 
 	// Track whether form values differ from persisted settings
 	const isDirty = useMemo(() => {
-		const currentHostname = localServer?.hostname ?? ""
-		const currentPort = localServer?.port?.toString() ?? ""
-		const currentHasPassword = localServer?.hasPassword ?? false
-		const currentMdns = localServer?.mdns ?? false
-		const currentMdnsDomain = localServer?.mdnsDomain ?? ""
+		const currentHostname = localServer?.hostname ?? "";
+		const currentPort = localServer?.port?.toString() ?? "";
+		const currentHasPassword = localServer?.hasPassword ?? false;
+		const currentMdns = localServer?.mdns ?? false;
+		const currentMdnsDomain = localServer?.mdnsDomain ?? "";
 
 		return (
 			hostname !== currentHostname ||
@@ -288,26 +333,26 @@ function LocalServerSettings() {
 			hasPassword !== currentHasPassword ||
 			mdns !== currentMdns ||
 			mdnsDomain !== currentMdnsDomain
-		)
-	}, [hostname, port, password, hasPassword, mdns, mdnsDomain, localServer])
+		);
+	}, [hostname, port, password, hasPassword, mdns, mdnsDomain, localServer]);
 
 	const handleSave = useCallback(async () => {
-		setSaving(true)
-		setSaved(false)
+		setSaving(true);
+		setSaved(false);
 
 		try {
 			// Store password in secure storage if provided
 			if (password && isElectron) {
-				await window.palot.credential.store("local", password)
+				await window.palot.credential.store("local", password);
 			} else if (!hasPassword && isElectron) {
 				// If password was cleared, delete stored credential
-				await window.palot.credential.delete("local")
+				await window.palot.credential.delete("local");
 			}
 
 			// Update local server config in settings
-			const currentServers = settings.servers.servers
+			const currentServers = settings.servers.servers;
 			const updatedServers = currentServers.map((s) => {
-				if (s.id !== "local") return s
+				if (s.id !== "local") return s;
 				return {
 					id: "local" as const,
 					name: s.name,
@@ -317,72 +362,81 @@ function LocalServerSettings() {
 					hasPassword: password.length > 0 ? true : hasPassword,
 					mdns,
 					mdnsDomain: mdnsDomain.trim() || undefined,
-				} satisfies LocalServerConfig
-			})
+				} satisfies LocalServerConfig;
+			});
 
 			await updateSettings({
 				servers: {
 					servers: updatedServers,
 					activeServerId: settings.servers.activeServerId,
 				},
-			})
+			});
 
 			// Restart the server to apply new settings
 			if (isElectron) {
-				await window.palot.restartOpenCode()
+				await window.palot.restartOpenCode();
 			}
 
-			setPassword("")
-			setSaved(true)
-			setTimeout(() => setSaved(false), 3000)
+			setPassword("");
+			setSaved(true);
+			setTimeout(() => setSaved(false), 3000);
 		} finally {
-			setSaving(false)
+			setSaving(false);
 		}
-	}, [hostname, port, password, hasPassword, mdns, mdnsDomain, settings, updateSettings])
+	}, [
+		hostname,
+		port,
+		password,
+		hasPassword,
+		mdns,
+		mdnsDomain,
+		settings,
+		updateSettings,
+	]);
 
 	const handleClearPassword = useCallback(async () => {
 		if (isElectron) {
-			await window.palot.credential.delete("local")
+			await window.palot.credential.delete("local");
 		}
-		setHasPassword(false)
-		setPassword("")
+		setHasPassword(false);
+		setPassword("");
 
 		// Update settings to reflect no password
-		const currentServers = settings.servers.servers
+		const currentServers = settings.servers.servers;
 		const updatedServers = currentServers.map((s) => {
-			if (s.id !== "local") return s
-			return { ...s, hasPassword: false }
-		})
+			if (s.id !== "local") return s;
+			return { ...s, hasPassword: false };
+		});
 
 		await updateSettings({
 			servers: {
 				servers: updatedServers,
 				activeServerId: settings.servers.activeServerId,
 			},
-		})
+		});
 
 		// Restart the server without password
 		if (isElectron) {
-			await window.palot.restartOpenCode()
+			await window.palot.restartOpenCode();
 		}
-	}, [settings, updateSettings])
+	}, [settings, updateSettings]);
 
 	return (
 		<>
 			<div>
 				<h3 className="flex items-center gap-2 text-base font-semibold">
 					<SettingsIcon aria-hidden="true" className="size-4" />
-					Local Server Configuration
+					{t("servers.localConfiguration")}
 				</h3>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Configure how the local OpenCode server is started. Changes require a server restart.
+					{t("servers.localConfigurationDescription")}
 				</p>
 			</div>
 
 			<SettingsSection>
 				<SettingsRow
-					label="Hostname"
-					description='Bind address (default: 127.0.0.1). Use "0.0.0.0" to expose on the network.'
+					label={t("servers.hostname")}
+					description={t("servers.hostnameDescription")}
 				>
 					<Input
 						className="w-[200px]"
@@ -392,7 +446,10 @@ function LocalServerSettings() {
 					/>
 				</SettingsRow>
 
-				<SettingsRow label="Port" description="Port number for the server (default: 4101).">
+				<SettingsRow
+					label={t("servers.port")}
+					description={t("servers.portDescription")}
+				>
 					<Input
 						className="w-[200px]"
 						placeholder="4101"
@@ -405,22 +462,26 @@ function LocalServerSettings() {
 				</SettingsRow>
 
 				<SettingsRow
-					label="Password"
-					description="Protect the server with a password (passed as --password to opencode serve)."
+					label={t("servers.password")}
+					description={t("servers.passwordDescription")}
 				>
 					<div className="flex items-center gap-2">
 						{hasPassword && !password && (
 							<>
-								<span className="text-xs text-muted-foreground">Password set</span>
+								<span className="text-xs text-muted-foreground">
+									{t("servers.passwordSet")}
+								</span>
 								<Button variant="ghost" size="sm" onClick={handleClearPassword}>
-									Clear
+									{t("servers.clear")}
 								</Button>
 							</>
 						)}
 						<Input
 							className="w-[200px]"
 							type="password"
-							placeholder={hasPassword ? "Enter new password" : "Optional"}
+							placeholder={
+								hasPassword ? t("servers.newPassword") : t("servers.optional")
+							}
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
 						/>
@@ -428,16 +489,16 @@ function LocalServerSettings() {
 				</SettingsRow>
 
 				<SettingsRow
-					label="mDNS Discovery"
-					description="Advertise this server on the local network so other devices can discover it."
+					label={t("servers.mdns")}
+					description={t("servers.mdnsDescription")}
 				>
 					<Switch checked={mdns} onCheckedChange={setMdns} />
 				</SettingsRow>
 
 				{mdns && (
 					<SettingsRow
-						label="mDNS Domain"
-						description='Custom domain name for mDNS (default: "opencode.local").'
+						label={t("servers.mdnsDomain")}
+						description={t("servers.mdnsDomainDescription")}
 					>
 						<Input
 							className="w-[200px]"
@@ -453,18 +514,23 @@ function LocalServerSettings() {
 						{saved && (
 							<span className="flex items-center gap-1 text-sm text-green-600">
 								<CheckCircle2Icon aria-hidden="true" className="size-3.5" />
-								Saved and restarted
+								{t("servers.savedRestarted")}
 							</span>
 						)}
 					</div>
 					<Button size="sm" disabled={!isDirty || saving} onClick={handleSave}>
-						{saving && <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />}
-						Save & Restart Server
+						{saving && (
+							<Loader2Icon
+								aria-hidden="true"
+								className="size-3.5 animate-spin"
+							/>
+						)}
+						{t("servers.saveRestart")}
 					</Button>
 				</div>
 			</SettingsSection>
 		</>
-	)
+	);
 }
 
 // ============================================================
@@ -472,16 +538,17 @@ function LocalServerSettings() {
 // ============================================================
 
 function AddServerDialog() {
-	const [open, setOpen] = useState(false)
+	const { t } = useTranslation("settings");
+	const [open, setOpen] = useState(false);
 
 	return (
 		<ServerFormDialog mode="add" open={open} onOpenChange={setOpen}>
 			<Button variant="outline" size="sm">
 				<PlusIcon aria-hidden="true" className="size-4" />
-				Add Server
+				{t("servers.addServer")}
 			</Button>
 		</ServerFormDialog>
-	)
+	);
 }
 
 // ============================================================
@@ -489,65 +556,78 @@ function AddServerDialog() {
 // ============================================================
 
 interface ServerFormDialogProps {
-	mode: "add" | "edit"
-	server?: RemoteServerConfig
-	open: boolean
-	onOpenChange: (open: boolean) => void
-	children?: React.ReactNode
+	mode: "add" | "edit";
+	server?: RemoteServerConfig;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	children?: React.ReactNode;
 }
 
-function ServerFormDialog({ mode, server, open, onOpenChange, children }: ServerFormDialogProps) {
-	const { addServer, updateServer, testConnection } = useServerActions()
+function ServerFormDialog({
+	mode,
+	server,
+	open,
+	onOpenChange,
+	children,
+}: ServerFormDialogProps) {
+	const { t } = useTranslation("settings");
+	const { addServer, updateServer, testConnection } = useServerActions();
 
-	const [name, setName] = useState(server?.name ?? "")
-	const [url, setUrl] = useState(server?.url ?? "")
-	const [username, setUsername] = useState(server?.username ?? "")
-	const [password, setPassword] = useState("")
-	const [testing, setTesting] = useState(false)
-	const [testResult, setTestResult] = useState<string | null | undefined>(undefined)
-	const [saving, setSaving] = useState(false)
-	const [showSshTip, setShowSshTip] = useState(false)
+	const [name, setName] = useState(server?.name ?? "");
+	const [url, setUrl] = useState(server?.url ?? "");
+	const [username, setUsername] = useState(server?.username ?? "");
+	const [password, setPassword] = useState("");
+	const [testing, setTesting] = useState(false);
+	const [testResult, setTestResult] = useState<string | null | undefined>(
+		undefined,
+	);
+	const [saving, setSaving] = useState(false);
+	const [showSshTip, setShowSshTip] = useState(false);
 
 	// Reset form when dialog opens
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
 			if (nextOpen) {
-				setName(server?.name ?? "")
-				setUrl(server?.url ?? "")
-				setUsername(server?.username ?? "")
-				setPassword("")
-				setTestResult(undefined)
-				setTesting(false)
-				setSaving(false)
-				setShowSshTip(false)
+				setName(server?.name ?? "");
+				setUrl(server?.url ?? "");
+				setUsername(server?.username ?? "");
+				setPassword("");
+				setTestResult(undefined);
+				setTesting(false);
+				setSaving(false);
+				setShowSshTip(false);
 			}
-			onOpenChange(nextOpen)
+			onOpenChange(nextOpen);
 		},
 		[server, onOpenChange],
-	)
+	);
 
 	const handleTest = useCallback(async () => {
-		setTesting(true)
-		setTestResult(undefined)
-		const result = await testConnection(url, username || undefined, password || undefined)
-		setTestResult(result)
-		setTesting(false)
-	}, [url, username, password, testConnection])
+		setTesting(true);
+		setTestResult(undefined);
+		const result = await testConnection(
+			url,
+			username || undefined,
+			password || undefined,
+		);
+		setTestResult(result);
+		setTesting(false);
+	}, [url, username, password, testConnection]);
 
 	const handleSave = useCallback(async () => {
-		setSaving(true)
+		setSaving(true);
 		try {
 			if (mode === "add") {
-				const id = `remote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+				const id = `remote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 				const newServer: RemoteServerConfig = {
 					id,
-					name: name.trim() || "Remote Server",
+					name: name.trim() || t("servers.remoteServer"),
 					type: "remote",
 					url: url.trim(),
 					username: username.trim() || undefined,
 					hasPassword: !!password,
-				}
-				await addServer(newServer, password || undefined)
+				};
+				await addServer(newServer, password || undefined);
 			} else if (server) {
 				await updateServer(
 					server.id,
@@ -557,34 +637,47 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 						username: username.trim() || undefined,
 					},
 					password || undefined,
-				)
+				);
 			}
-			onOpenChange(false)
+			onOpenChange(false);
 		} finally {
-			setSaving(false)
+			setSaving(false);
 		}
-	}, [mode, server, name, url, username, password, addServer, updateServer, onOpenChange])
+	}, [
+		mode,
+		server,
+		name,
+		url,
+		username,
+		password,
+		addServer,
+		updateServer,
+		onOpenChange,
+		t,
+	]);
 
-	const isValid = url.trim().length > 0
+	const isValid = url.trim().length > 0;
 
 	const dialogContent = (
 		<DialogContent className="sm:max-w-md">
 			<DialogHeader>
-				<DialogTitle>{mode === "add" ? "Add Remote Server" : "Edit Server"}</DialogTitle>
+				<DialogTitle>
+					{mode === "add" ? t("servers.addRemote") : t("servers.editServer")}
+				</DialogTitle>
 				<DialogDescription>
 					{mode === "add"
-						? "Connect to a remote OpenCode server"
-						: `Edit connection settings for ${server?.name}`}
+						? t("servers.connectRemote")
+						: t("servers.editDescription", { server: server?.name })}
 				</DialogDescription>
 			</DialogHeader>
 
 			<div className="space-y-4 py-4">
 				{/* Name */}
 				<div className="space-y-2">
-					<Label htmlFor="server-name">Name</Label>
+					<Label htmlFor="server-name">{t("servers.name")}</Label>
 					<Input
 						id="server-name"
-						placeholder="My Server"
+						placeholder={t("servers.namePlaceholder")}
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 					/>
@@ -599,15 +692,17 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 						value={url}
 						onChange={(e) => setUrl(e.target.value)}
 					/>
-					<p className="text-xs text-muted-foreground">Full base URL of the OpenCode server</p>
+					<p className="text-xs text-muted-foreground">
+						{t("servers.urlDescription")}
+					</p>
 				</div>
 
 				{/* Username */}
 				<div className="space-y-2">
-					<Label htmlFor="server-username">Username</Label>
+					<Label htmlFor="server-username">{t("servers.username")}</Label>
 					<Input
 						id="server-username"
-						placeholder="opencode (default)"
+						placeholder={t("servers.usernamePlaceholder")}
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
 					/>
@@ -615,29 +710,43 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 
 				{/* Password */}
 				<div className="space-y-2">
-					<Label htmlFor="server-password">Password</Label>
+					<Label htmlFor="server-password">{t("servers.password")}</Label>
 					<Input
 						id="server-password"
 						type="password"
 						placeholder={
-							mode === "edit" && server?.hasPassword ? "Leave empty to keep current" : "Optional"
+							mode === "edit" && server?.hasPassword
+								? t("servers.keepPassword")
+								: t("servers.optional")
 						}
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 					/>
-					<p className="text-xs text-muted-foreground">Stored securely in your system keychain</p>
+					<p className="text-xs text-muted-foreground">
+						{t("servers.secureStorage")}
+					</p>
 				</div>
 
 				{/* Test connection */}
 				<div className="flex items-center gap-2">
-					<Button variant="outline" size="sm" disabled={!isValid || testing} onClick={handleTest}>
-						{testing && <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />}
-						Test Connection
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={!isValid || testing}
+						onClick={handleTest}
+					>
+						{testing && (
+							<Loader2Icon
+								aria-hidden="true"
+								className="size-3.5 animate-spin"
+							/>
+						)}
+						{t("servers.testConnection")}
 					</Button>
 					{testResult === null && (
 						<span className="flex items-center gap-1 text-sm text-green-600">
 							<CheckCircle2Icon aria-hidden="true" className="size-3.5" />
-							Connected
+							{t("common:states.connected")}
 						</span>
 					)}
 					{testResult !== null && testResult !== undefined && (
@@ -660,36 +769,33 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 							className={`size-3 transition-transform ${showSshTip ? "rotate-90" : ""}`}
 						/>
 						<TerminalIcon aria-hidden="true" className="size-3" />
-						Connecting to a server behind SSH?
+						{t("servers.sshQuestion")}
 					</button>
 					{showSshTip && (
 						<div className="mt-2 space-y-2 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-							<p>Forward the remote port to your machine first:</p>
+							<p>{t("servers.sshForward")}</p>
 							<pre className="overflow-x-auto rounded bg-zinc-950 px-2.5 py-1.5 font-mono text-[11px] text-zinc-300">
 								ssh -L 4096:localhost:4096 user@remote-host
 							</pre>
-							<p>
-								Then use{" "}
-								<code className="rounded bg-zinc-950 px-1 py-0.5 font-mono text-[11px] text-zinc-300">
-									http://localhost:4096
-								</code>{" "}
-								as the server URL above. The tunnel stays open as long as the SSH session is
-								running.
-							</p>
+							<p>{t("servers.sshUseUrl")}</p>
 						</div>
 					)}
 				</div>
 			</div>
 
 			<DialogFooter>
-				<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+				<DialogClose render={<Button variant="outline" />}>
+					{t("common:actions.cancel")}
+				</DialogClose>
 				<Button disabled={!isValid || saving} onClick={handleSave}>
-					{saving && <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />}
-					{mode === "add" ? "Add Server" : "Save Changes"}
+					{saving && (
+						<Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
+					)}
+					{mode === "add" ? t("servers.addServer") : t("servers.saveChanges")}
 				</Button>
 			</DialogFooter>
 		</DialogContent>
-	)
+	);
 
 	// When used as a trigger (add mode), wrap with DialogTrigger
 	if (children) {
@@ -698,7 +804,7 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 				<DialogTrigger render={children as React.ReactElement} />
 				{dialogContent}
 			</Dialog>
-		)
+		);
 	}
 
 	// Edit mode: controlled dialog without trigger
@@ -706,5 +812,5 @@ function ServerFormDialog({ mode, server, open, onOpenChange, children }: Server
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			{dialogContent}
 		</Dialog>
-	)
+	);
 }

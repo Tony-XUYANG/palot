@@ -3,7 +3,7 @@
  * We use a string-based type here to avoid requiring shiki as a direct dependency
  * in the desktop app — the actual Shiki types are consumed inside the UI package.
  */
-type Lang = string
+type Lang = string;
 
 /**
  * Maps file extensions to Shiki BundledLanguage identifiers.
@@ -107,7 +107,7 @@ const EXTENSION_MAP: Record<string, Lang> = {
 	cmake: "cmake",
 	// Biome / Prettier
 	biome: "jsonc",
-}
+};
 
 /**
  * Special filenames that map to a specific language regardless of extension.
@@ -130,27 +130,29 @@ const FILENAME_MAP: Record<string, Lang> = {
 	"tsconfig.json": "jsonc",
 	"biome.json": "jsonc",
 	"biome.jsonc": "jsonc",
-}
+};
 
 /**
  * Detect a Shiki language from a file path.
  * Returns undefined if the language cannot be determined.
  */
 export function detectLanguage(filePath: string | undefined): Lang | undefined {
-	if (!filePath) return undefined
+	if (!filePath) return undefined;
 
 	// Check filename-based matches first
-	const fileName = filePath.split("/").pop() ?? filePath
-	const filenameMatch = FILENAME_MAP[fileName]
-	if (filenameMatch) return filenameMatch
+	const fileName = filePath.split("/").pop() ?? filePath;
+	const filenameMatch = FILENAME_MAP[fileName];
+	if (filenameMatch) return filenameMatch;
 
 	// Check by extension
-	const ext = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : undefined
+	const ext = fileName.includes(".")
+		? fileName.split(".").pop()?.toLowerCase()
+		: undefined;
 	if (ext) {
-		return EXTENSION_MAP[ext]
+		return EXTENSION_MAP[ext];
 	}
 
-	return undefined
+	return undefined;
 }
 
 /**
@@ -159,24 +161,28 @@ export function detectLanguage(filePath: string | undefined): Lang | undefined {
  * Otherwise return undefined.
  */
 export function detectContentLanguage(content: string): Lang | undefined {
-	const trimmed = content.trimStart()
+	const trimmed = content.trimStart();
 
 	// JSON detection: starts with { or [
 	if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
 		try {
-			JSON.parse(content)
-			return "json"
+			JSON.parse(content);
+			return "json";
 		} catch {
 			// Not valid JSON, could be JS object — don't highlight
 		}
 	}
 
 	// Diff / patch detection
-	if (trimmed.startsWith("---") || trimmed.startsWith("diff --git") || trimmed.startsWith("@@")) {
-		return "diff"
+	if (
+		trimmed.startsWith("---") ||
+		trimmed.startsWith("diff --git") ||
+		trimmed.startsWith("@@")
+	) {
+		return "diff";
 	}
 
-	return undefined
+	return undefined;
 }
 
 /**
@@ -184,12 +190,12 @@ export function detectContentLanguage(content: string): Lang | undefined {
  * Returns the original string unchanged if it's not valid JSON.
  */
 export function prettyPrintJson(content: string): string {
-	const trimmed = content.trimStart()
-	if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return content
+	const trimmed = content.trimStart();
+	if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return content;
 	try {
-		const parsed = JSON.parse(content)
-		return JSON.stringify(parsed, null, 2)
+		const parsed = JSON.parse(content);
+		return JSON.stringify(parsed, null, 2);
 	} catch {
-		return content
+		return content;
 	}
 }

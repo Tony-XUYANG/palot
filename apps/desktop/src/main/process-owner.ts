@@ -7,18 +7,18 @@
  * from a previous login session).
  */
 
-import { execFile } from "node:child_process"
-import { createLogger } from "./logger"
+import { execFile } from "node:child_process";
+import { createLogger } from "./logger";
 
-const log = createLogger("process-owner")
+const log = createLogger("process-owner");
 
 // ============================================================
 // Types
 // ============================================================
 
 export interface ProcessInfo {
-	pid: number
-	uid: number
+	pid: number;
+	uid: number;
 }
 
 // ============================================================
@@ -32,9 +32,11 @@ export interface ProcessInfo {
  * On Windows, always returns null (cross-user login switching is not a
  * concern there).
  */
-export async function getListeningProcessOwner(port: number): Promise<ProcessInfo | null> {
+export async function getListeningProcessOwner(
+	port: number,
+): Promise<ProcessInfo | null> {
 	if (process.platform === "win32") {
-		return null
+		return null;
 	}
 
 	try {
@@ -52,12 +54,15 @@ export async function getListeningProcessOwner(port: number): Promise<ProcessInf
 			"-Fu",
 			"-n",
 			"-P",
-		])
+		]);
 
-		return parseLsofOutput(output)
+		return parseLsofOutput(output);
 	} catch (err) {
-		log.debug("Failed to determine process owner", { port, reason: String(err) })
-		return null
+		log.debug("Failed to determine process owner", {
+			port,
+			reason: String(err),
+		});
+		return null;
 	}
 }
 
@@ -66,9 +71,9 @@ export async function getListeningProcessOwner(port: number): Promise<ProcessInf
  */
 export function isCurrentUser(uid: number): boolean {
 	// process.getuid() is available on POSIX platforms only
-	const getuid = (process as NodeJS.Process & { getuid?: () => number }).getuid
-	if (!getuid) return true // Can't determine -- assume same user (Windows)
-	return getuid() === uid
+	const getuid = (process as NodeJS.Process & { getuid?: () => number }).getuid;
+	if (!getuid) return true; // Can't determine -- assume same user (Windows)
+	return getuid() === uid;
 }
 
 /**
@@ -77,14 +82,14 @@ export function isCurrentUser(uid: number): boolean {
  */
 export function isProcessAlive(pid: number): boolean {
 	try {
-		process.kill(pid, 0)
-		return true
+		process.kill(pid, 0);
+		return true;
 	} catch (err) {
 		// ESRCH = no such process, EPERM = process exists but we can't signal it
 		if ((err as NodeJS.ErrnoException).code === "EPERM") {
-			return true // Process exists but owned by different user
+			return true; // Process exists but owned by different user
 		}
-		return false
+		return false;
 	}
 }
 
@@ -96,12 +101,12 @@ function execFileAsync(cmd: string, args: string[]): Promise<string> {
 	return new Promise((resolve, reject) => {
 		execFile(cmd, args, { timeout: 5000 }, (err, stdout) => {
 			if (err) {
-				reject(err)
-				return
+				reject(err);
+				return;
 			}
-			resolve(stdout)
-		})
-	})
+			resolve(stdout);
+		});
+	});
 }
 
 /**
@@ -116,25 +121,27 @@ function execFileAsync(cmd: string, args: string[]): Promise<string> {
  * We want the first p (PID) and u (UID) lines.
  */
 function parseLsofOutput(output: string): ProcessInfo | null {
-	let pid: number | null = null
-	let uid: number | null = null
+	let pid: number | null = null;
+	let uid: number | null = null;
 
 	for (const line of output.split("\n")) {
 		if (line.startsWith("p") && pid === null) {
-			const parsed = Number.parseInt(line.slice(1), 10)
-			if (!Number.isNaN(parsed)) pid = parsed
+			const parsed = Number.parseInt(line.slice(1), 10);
+			if (!Number.isNaN(parsed)) pid = parsed;
 		}
 		if (line.startsWith("u") && uid === null) {
-			const parsed = Number.parseInt(line.slice(1), 10)
-			if (!Number.isNaN(parsed)) uid = parsed
+			const parsed = Number.parseInt(line.slice(1), 10);
+			if (!Number.isNaN(parsed)) uid = parsed;
 		}
-		if (pid !== null && uid !== null) break
+		if (pid !== null && uid !== null) break;
 	}
 
 	if (pid === null || uid === null) {
-		log.debug("Could not parse PID/UID from lsof output", { output: output.trim() })
-		return null
+		log.debug("Could not parse PID/UID from lsof output", {
+			output: output.trim(),
+		});
+		return null;
 	}
 
-	return { pid, uid }
+	return { pid, uid };
 }

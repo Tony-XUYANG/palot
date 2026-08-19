@@ -8,13 +8,25 @@
  * Context window usage is displayed separately in the StatusBar below
  * the chat input (see prompt-toolbar.tsx).
  */
-import { Popover, PopoverContent, PopoverTrigger } from "@palot/ui/components/popover"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { useAtomValue } from "jotai"
-import { BarChart3Icon, CoinsIcon, TimerIcon } from "lucide-react"
-import { Fragment, memo, useEffect, useState } from "react"
-import { type SessionMetricsValue, sessionMetricsFamily } from "../atoms/derived/session-metrics"
-import { formatTokens, formatWorkDuration } from "../lib/session-metrics"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@palot/ui/components/popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { useAtomValue } from "jotai";
+import { BarChart3Icon, CoinsIcon, TimerIcon } from "lucide-react";
+import { Fragment, memo, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+	type SessionMetricsValue,
+	sessionMetricsFamily,
+} from "../atoms/derived/session-metrics";
+import { formatTokens, formatWorkDuration } from "../lib/session-metrics";
 
 // ============================================================
 // Tool category display labels
@@ -29,14 +41,14 @@ const TOOL_CATEGORY_LABELS: Record<string, string> = {
 	ask: "Ask",
 	fetch: "Fetch",
 	other: "Other",
-}
+};
 
 // ============================================================
 // SessionMetricsBar
 // ============================================================
 
 interface SessionMetricsBarProps {
-	sessionId: string
+	sessionId: string;
 }
 
 /**
@@ -48,9 +60,11 @@ interface SessionMetricsBarProps {
 export const SessionMetricsBar = memo(function SessionMetricsBar({
 	sessionId,
 }: SessionMetricsBarProps) {
-	const metrics = useAtomValue(sessionMetricsFamily(sessionId))
+	const { t } = useTranslation();
+	const metrics = useAtomValue(sessionMetricsFamily(sessionId));
 
-	if (metrics.exchangeCount === 0 && metrics.assistantMessageCount === 0) return null
+	if (metrics.exchangeCount === 0 && metrics.assistantMessageCount === 0)
+		return null;
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -73,8 +87,10 @@ export const SessionMetricsBar = memo(function SessionMetricsBar({
 				</TooltipTrigger>
 				<TooltipContent side="bottom" align="end">
 					<div className="space-y-1 text-xs">
-						<p className="font-medium">Work Time</p>
-						<p className="text-background/60">Avg per exchange: {metrics.avgExchangeTime}</p>
+						<p className="font-medium">{t("metrics.workTime")}</p>
+						<p className="text-background/60">
+							{t("metrics.averageTime")}: {metrics.avgExchangeTime}
+						</p>
 					</div>
 				</TooltipContent>
 			</Tooltip>
@@ -95,14 +111,16 @@ export const SessionMetricsBar = memo(function SessionMetricsBar({
 						<TooltipContent side="bottom" align="end">
 							<div className="space-y-1 text-xs">
 								<p className="font-medium">Cost</p>
-								<p className="text-background/60">Avg per exchange: {metrics.avgExchangeCost}</p>
+								<p className="text-background/60">
+									{t("metrics.averageCost")}: {metrics.avgExchangeCost}
+								</p>
 							</div>
 						</TooltipContent>
 					</Tooltip>
 				</>
 			)}
 
-		{/* Details popover -- full stats breakdown */}
+			{/* Details popover -- full stats breakdown */}
 			{(metrics.tokensRaw > 0 || metrics.toolCallCount > 0) && (
 				<>
 					<Separator />
@@ -110,15 +128,16 @@ export const SessionMetricsBar = memo(function SessionMetricsBar({
 				</>
 			)}
 		</div>
-	)
-})
+	);
+});
 
 // ============================================================
 // Metrics detail popover
 // ============================================================
 
 function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
-	const { raw } = metrics
+	const { t } = useTranslation();
+	const { raw } = metrics;
 
 	return (
 		<Popover>
@@ -132,39 +151,53 @@ function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
 			>
 				<BarChart3Icon className="size-3" aria-hidden="true" />
 			</PopoverTrigger>
-			<PopoverContent side="bottom" align="end" sideOffset={8} className="w-64 gap-0 p-0">
+			<PopoverContent
+				side="bottom"
+				align="end"
+				sideOffset={8}
+				className="w-64 gap-0 p-0"
+			>
 				<div className="space-y-3 p-3 text-xs">
 					{/* Summary row */}
 					<div className="grid grid-cols-3 gap-2">
-						<MetricCell label="Time" value={metrics.workTime} />
-						<MetricCell label="Cost" value={metrics.cost} />
-						<MetricCell label="Tokens" value={metrics.tokens} />
+						<MetricCell
+							label={t("metrics.workTime")}
+							value={metrics.workTime}
+						/>
+						<MetricCell label={t("metrics.cost")} value={metrics.cost} />
+						<MetricCell label={t("metrics.tokens")} value={metrics.tokens} />
 					</div>
 
 					{/* Token breakdown */}
 					{metrics.tokensRaw > 0 && (
 						<div>
-							<p className="mb-1.5 font-medium text-foreground/80">Token Breakdown</p>
+							<p className="mb-1.5 font-medium text-foreground/80">
+								{t("metrics.tokenBreakdown")}
+							</p>
 							<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
-								<span>Input</span>
-								<span className="text-right tabular-nums">{formatTokens(raw.tokens.input)}</span>
-								<span>Output</span>
-								<span className="text-right tabular-nums">{formatTokens(raw.tokens.output)}</span>
+								<span>{t("metrics.input")}</span>
+								<span className="text-right tabular-nums">
+									{formatTokens(raw.tokens.input)}
+								</span>
+								<span>{t("metrics.output")}</span>
+								<span className="text-right tabular-nums">
+									{formatTokens(raw.tokens.output)}
+								</span>
 								{raw.tokens.reasoning > 0 && (
 									<>
-										<span>Reasoning</span>
+										<span>{t("metrics.reasoning")}</span>
 										<span className="text-right tabular-nums">
 											{formatTokens(raw.tokens.reasoning)}
 										</span>
 									</>
 								)}
-								<span>Cache read</span>
+								<span>{t("metrics.cacheRead")}</span>
 								<span className="text-right tabular-nums">
 									{formatTokens(raw.tokens.cacheRead)}
 								</span>
 								{raw.tokens.cacheWrite > 0 && (
 									<>
-										<span>Cache write</span>
+										<span>{t("metrics.cacheWrite")}</span>
 										<span className="text-right tabular-nums">
 											{formatTokens(raw.tokens.cacheWrite)}
 										</span>
@@ -173,7 +206,8 @@ function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
 							</div>
 							{metrics.cacheEfficiency > 0 && (
 								<p className="mt-1 text-muted-foreground">
-									Cache hit rate: {metrics.cacheEfficiencyFormatted}
+									{t("metrics.cacheHitRate")}:{" "}
+									{metrics.cacheEfficiencyFormatted}
 								</p>
 							)}
 						</div>
@@ -181,16 +215,24 @@ function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
 
 					{/* Exchanges + model distribution */}
 					<div>
-						<p className="mb-1.5 font-medium text-foreground/80">Exchanges</p>
+						<p className="mb-1.5 font-medium text-foreground/80">
+							{t("metrics.exchanges")}
+						</p>
 						<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
-							<span>User messages</span>
-							<span className="text-right tabular-nums">{metrics.userMessageCount}</span>
-							<span>Agent responses</span>
-							<span className="text-right tabular-nums">{metrics.assistantMessageCount}</span>
+							<span>{t("metrics.userMessages")}</span>
+							<span className="text-right tabular-nums">
+								{metrics.userMessageCount}
+							</span>
+							<span>{t("metrics.agentResponses")}</span>
+							<span className="text-right tabular-nums">
+								{metrics.assistantMessageCount}
+							</span>
 						</div>
 						{metrics.modelDistributionDisplay.length > 0 && (
 							<div className="mt-1.5 border-t border-border/50 pt-1.5">
-								<p className="mb-0.5 font-medium text-foreground/80">Models</p>
+								<p className="mb-0.5 font-medium text-foreground/80">
+									{t("metrics.models")}
+								</p>
 								<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
 									{metrics.modelDistributionDisplay.map(({ name, count }) => (
 										<Fragment key={name}>
@@ -207,7 +249,7 @@ function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
 					{metrics.toolCallCount > 0 && (
 						<div>
 							<p className="mb-1.5 font-medium text-foreground/80">
-								Tool Calls ({metrics.toolCallCount})
+								{t("metrics.toolCalls", { count: metrics.toolCallCount })}
 							</p>
 							<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
 								{Object.entries(metrics.toolBreakdown)
@@ -225,16 +267,20 @@ function MetricsPopover({ metrics }: { metrics: SessionMetricsValue }) {
 					{/* Averages */}
 					<div className="border-t border-border/50 pt-2">
 						<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-muted-foreground">
-							<span>Avg cost / exchange</span>
-							<span className="text-right tabular-nums">{metrics.avgExchangeCost}</span>
-							<span>Avg time / exchange</span>
-							<span className="text-right tabular-nums">{metrics.avgExchangeTime}</span>
+							<span>{t("metrics.averageCost")}</span>
+							<span className="text-right tabular-nums">
+								{metrics.avgExchangeCost}
+							</span>
+							<span>{t("metrics.averageTime")}</span>
+							<span className="text-right tabular-nums">
+								{metrics.avgExchangeTime}
+							</span>
 						</div>
 					</div>
 				</div>
 			</PopoverContent>
 		</Popover>
-	)
+	);
 }
 
 // ============================================================
@@ -247,7 +293,7 @@ function MetricCell({ label, value }: { label: string; value: string }) {
 			<span className="text-[10px] text-muted-foreground">{label}</span>
 			<span className="tabular-nums text-foreground">{value}</span>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -263,21 +309,24 @@ function LiveWorkTime({
 	completedMs,
 	activeStartMs,
 }: {
-	completedMs: number
-	activeStartMs: number
+	completedMs: number;
+	activeStartMs: number;
 }) {
 	const [display, setDisplay] = useState(() =>
 		formatWorkDuration(completedMs + (Date.now() - activeStartMs)),
-	)
+	);
 
 	useEffect(() => {
-		const tick = () => setDisplay(formatWorkDuration(completedMs + (Date.now() - activeStartMs)))
-		tick()
-		const id = setInterval(tick, 1_000)
-		return () => clearInterval(id)
-	}, [completedMs, activeStartMs])
+		const tick = () =>
+			setDisplay(
+				formatWorkDuration(completedMs + (Date.now() - activeStartMs)),
+			);
+		tick();
+		const id = setInterval(tick, 1_000);
+		return () => clearInterval(id);
+	}, [completedMs, activeStartMs]);
 
-	return <>{display}</>
+	return <>{display}</>;
 }
 
 // ============================================================
@@ -289,5 +338,5 @@ function Separator() {
 		<span className="text-muted-foreground/20" aria-hidden="true">
 			·
 		</span>
-	)
+	);
 }

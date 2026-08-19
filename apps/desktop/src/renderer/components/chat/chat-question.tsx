@@ -1,4 +1,4 @@
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	ArrowRightIcon,
 	Loader2Icon,
@@ -6,9 +6,14 @@ import {
 	SendIcon,
 	SkipForwardIcon,
 	ZapIcon,
-} from "lucide-react"
-import { memo, useCallback, useEffect, useRef, useState } from "react"
-import type { QuestionAnswer, QuestionInfo, QuestionRequest } from "../../lib/types"
+} from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type {
+	QuestionAnswer,
+	QuestionInfo,
+	QuestionRequest,
+} from "../../lib/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,12 +21,12 @@ import type { QuestionAnswer, QuestionInfo, QuestionRequest } from "../../lib/ty
 
 interface ChatQuestionFlowProps {
 	/** All pending question requests for this agent */
-	questions: QuestionRequest[]
-	onReply: (requestId: string, answers: QuestionAnswer[]) => Promise<void>
-	onReject: (requestId: string) => Promise<void>
-	disabled?: boolean
+	questions: QuestionRequest[];
+	onReply: (requestId: string, answers: QuestionAnswer[]) => Promise<void>;
+	onReject: (requestId: string) => Promise<void>;
+	disabled?: boolean;
 	/** When true, the question originated from a sub-agent session */
-	isFromSubAgent?: boolean
+	isFromSubAgent?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -35,11 +40,11 @@ function buildAnswers(
 	customTexts: Map<number, string>,
 ): QuestionAnswer[] {
 	return questions.map((_, idx) => {
-		const selected = Array.from(selections.get(idx) ?? [])
-		const custom = (customTexts.get(idx) ?? "").trim()
-		if (custom) selected.push(custom)
-		return selected
-	})
+		const selected = Array.from(selections.get(idx) ?? []);
+		const custom = (customTexts.get(idx) ?? "").trim();
+		if (custom) selected.push(custom);
+		return selected;
+	});
 }
 
 /** Check that a single question index has at least one answer selected or typed. */
@@ -48,9 +53,9 @@ function isQuestionAnswered(
 	selections: Map<number, Set<string>>,
 	customTexts: Map<number, string>,
 ): boolean {
-	const selected = selections.get(index)
-	const custom = (customTexts.get(index) ?? "").trim()
-	return (selected && selected.size > 0) || custom.length > 0
+	const selected = selections.get(index);
+	const custom = (customTexts.get(index) ?? "").trim();
+	return (selected && selected.size > 0) || custom.length > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,14 +63,14 @@ function isQuestionAnswered(
 // ---------------------------------------------------------------------------
 
 interface QuestionSectionProps {
-	info: QuestionInfo
-	index: number
-	selected: Set<string>
-	customText: string
-	onToggle: (index: number, label: string) => void
-	onCustomChange: (index: number, value: string) => void
-	onSubmitCustom?: () => void
-	disabled: boolean
+	info: QuestionInfo;
+	index: number;
+	selected: Set<string>;
+	customText: string;
+	onToggle: (index: number, label: string) => void;
+	onCustomChange: (index: number, value: string) => void;
+	onSubmitCustom?: () => void;
+	disabled: boolean;
 }
 
 function QuestionSection({
@@ -78,15 +83,15 @@ function QuestionSection({
 	onSubmitCustom,
 	disabled,
 }: QuestionSectionProps) {
-	const isMultiple = info.multiple === true
-	const allowCustom = info.custom !== false
+	const isMultiple = info.multiple === true;
+	const allowCustom = info.custom !== false;
 
 	return (
 		<fieldset aria-label={info.header} className="border-none p-0 m-0">
 			{/* Options */}
 			<div className="space-y-0.5 px-3 pt-2 pb-1">
 				{info.options.map((option: { label: string; description: string }) => {
-					const isSelected = selected.has(option.label)
+					const isSelected = selected.has(option.label);
 
 					return (
 						<button
@@ -138,7 +143,7 @@ function QuestionSection({
 								)}
 							</span>
 						</button>
-					)
+					);
 				})}
 			</div>
 
@@ -152,18 +157,18 @@ function QuestionSection({
 						onChange={(e) => onCustomChange(index, e.target.value)}
 						onKeyDown={(e) => {
 							if (e.key === "Enter" && !e.shiftKey) {
-								e.preventDefault()
-								onSubmitCustom?.()
+								e.preventDefault();
+								onSubmitCustom?.();
 							}
 						}}
-						placeholder="Type a custom answer..."
+						placeholder={useTranslation().t("chat.question.customAnswer")}
 						disabled={disabled}
 						className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 transition-colors focus:border-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					/>
 				</div>
 			)}
 		</fieldset>
-	)
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -175,12 +180,12 @@ function StepDots({
 	current,
 	answered,
 }: {
-	total: number
-	current: number
-	answered: Set<number>
+	total: number;
+	current: number;
+	answered: Set<number>;
 }) {
-	if (total <= 1) return null
-	const dots = []
+	if (total <= 1) return null;
+	const dots = [];
 	for (let i = 0; i < total; i++) {
 		dots.push(
 			<span
@@ -194,13 +199,13 @@ function StepDots({
 				}`}
 				aria-hidden="true"
 			/>,
-		)
+		);
 	}
 	return (
 		<span className="flex items-center gap-1" aria-hidden="true">
 			{dots}
 		</span>
-	)
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -215,8 +220,8 @@ export const ChatQuestionFlow = memo(function ChatQuestionFlow({
 	isFromSubAgent = false,
 }: ChatQuestionFlowProps) {
 	// Current question request being worked on (first in the queue)
-	const currentRequest = questions[0]
-	if (!currentRequest) return null
+	const currentRequest = questions[0];
+	if (!currentRequest) return null;
 
 	return (
 		<QuestionRequestStepper
@@ -228,20 +233,20 @@ export const ChatQuestionFlow = memo(function ChatQuestionFlow({
 			disabled={disabled}
 			isFromSubAgent={isFromSubAgent}
 		/>
-	)
-})
+	);
+});
 
 // ---------------------------------------------------------------------------
 // Inner component: handles stepping through QuestionInfos in one request
 // ---------------------------------------------------------------------------
 
 interface QuestionRequestStepperProps {
-	request: QuestionRequest
-	totalRequests: number
-	onReply: (requestId: string, answers: QuestionAnswer[]) => Promise<void>
-	onReject: (requestId: string) => Promise<void>
-	disabled: boolean
-	isFromSubAgent?: boolean
+	request: QuestionRequest;
+	totalRequests: number;
+	onReply: (requestId: string, answers: QuestionAnswer[]) => Promise<void>;
+	onReject: (requestId: string) => Promise<void>;
+	disabled: boolean;
+	isFromSubAgent?: boolean;
 }
 
 const QuestionRequestStepper = memo(function QuestionRequestStepper({
@@ -252,24 +257,33 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 	disabled,
 	isFromSubAgent = false,
 }: QuestionRequestStepperProps) {
-	const questions = request.questions
-	const totalSteps = questions.length
+	const { t } = useTranslation();
+	const questions = request.questions;
+	const totalSteps = questions.length;
 
-	const [currentStep, setCurrentStep] = useState(0)
-	const [selections, setSelections] = useState<Map<number, Set<string>>>(() => new Map())
-	const [customTexts, setCustomTexts] = useState<Map<number, string>>(() => new Map())
-	const [submitting, setSubmitting] = useState(false)
-	const cardRef = useRef<HTMLElement>(null)
+	const [currentStep, setCurrentStep] = useState(0);
+	const [selections, setSelections] = useState<Map<number, Set<string>>>(
+		() => new Map(),
+	);
+	const [customTexts, setCustomTexts] = useState<Map<number, string>>(
+		() => new Map(),
+	);
+	const [submitting, setSubmitting] = useState(false);
+	const cardRef = useRef<HTMLElement>(null);
 
-	const currentQuestion = questions[currentStep]
-	const isLastStep = currentStep === totalSteps - 1
-	const currentAnswered = isQuestionAnswered(currentStep, selections, customTexts)
+	const currentQuestion = questions[currentStep];
+	const isLastStep = currentStep === totalSteps - 1;
+	const currentAnswered = isQuestionAnswered(
+		currentStep,
+		selections,
+		customTexts,
+	);
 
 	// Track which steps have been answered
-	const answeredSteps = new Set<number>()
+	const answeredSteps = new Set<number>();
 	for (let i = 0; i < totalSteps; i++) {
 		if (isQuestionAnswered(i, selections, customTexts)) {
-			answeredSteps.add(i)
+			answeredSteps.add(i);
 		}
 	}
 
@@ -277,55 +291,58 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 	const handleToggle = useCallback(
 		(questionIndex: number, label: string) => {
 			setSelections((prev) => {
-				const next = new Map(prev)
-				const current = new Set(next.get(questionIndex) ?? [])
-				const info = questions[questionIndex]
-				const isMultiple = info?.multiple === true
+				const next = new Map(prev);
+				const current = new Set(next.get(questionIndex) ?? []);
+				const info = questions[questionIndex];
+				const isMultiple = info?.multiple === true;
 
 				if (current.has(label)) {
-					current.delete(label)
+					current.delete(label);
 				} else {
 					if (!isMultiple) {
-						current.clear()
+						current.clear();
 					}
-					current.add(label)
+					current.add(label);
 				}
 
-				next.set(questionIndex, current)
-				return next
-			})
+				next.set(questionIndex, current);
+				return next;
+			});
 		},
 		[questions],
-	)
+	);
 
 	// --- Custom text change ---
-	const handleCustomChange = useCallback((questionIndex: number, value: string) => {
-		setCustomTexts((prev) => {
-			const next = new Map(prev)
-			next.set(questionIndex, value)
-			return next
-		})
-	}, [])
+	const handleCustomChange = useCallback(
+		(questionIndex: number, value: string) => {
+			setCustomTexts((prev) => {
+				const next = new Map(prev);
+				next.set(questionIndex, value);
+				return next;
+			});
+		},
+		[],
+	);
 
 	// --- Advance to next step or submit ---
 	const handleNext = useCallback(() => {
-		if (!currentAnswered || disabled || submitting) return
+		if (!currentAnswered || disabled || submitting) return;
 		if (!isLastStep) {
-			setCurrentStep((s) => s + 1)
+			setCurrentStep((s) => s + 1);
 		}
-	}, [currentAnswered, disabled, submitting, isLastStep])
+	}, [currentAnswered, disabled, submitting, isLastStep]);
 
 	// --- Submit all answers ---
 	const handleSubmit = useCallback(async () => {
-		if (disabled || submitting) return
+		if (disabled || submitting) return;
 		// If on last step, current must be answered. Otherwise all must be answered.
-		if (isLastStep && !currentAnswered) return
-		setSubmitting(true)
+		if (isLastStep && !currentAnswered) return;
+		setSubmitting(true);
 		try {
-			const answers = buildAnswers(questions, selections, customTexts)
-			await onReply(request.id, answers)
+			const answers = buildAnswers(questions, selections, customTexts);
+			await onReply(request.id, answers);
 		} finally {
-			setSubmitting(false)
+			setSubmitting(false);
 		}
 	}, [
 		disabled,
@@ -337,53 +354,56 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 		customTexts,
 		onReply,
 		request.id,
-	])
+	]);
 
 	// Combined handler: next or submit
 	const handleAdvance = useCallback(() => {
 		if (isLastStep) {
-			handleSubmit()
+			handleSubmit();
 		} else {
-			handleNext()
+			handleNext();
 		}
-	}, [isLastStep, handleSubmit, handleNext])
+	}, [isLastStep, handleSubmit, handleNext]);
 
 	// --- Skip entire request ---
 	const handleSkip = useCallback(async () => {
-		if (disabled || submitting) return
-		setSubmitting(true)
+		if (disabled || submitting) return;
+		setSubmitting(true);
 		try {
-			await onReject(request.id)
+			await onReject(request.id);
 		} finally {
-			setSubmitting(false)
+			setSubmitting(false);
 		}
-	}, [disabled, submitting, onReject, request.id])
+	}, [disabled, submitting, onReject, request.id]);
 
 	// --- Go back ---
 	const handleBack = useCallback(() => {
-		if (currentStep > 0) setCurrentStep((s) => s - 1)
-	}, [currentStep])
+		if (currentStep > 0) setCurrentStep((s) => s - 1);
+	}, [currentStep]);
 
 	// --- Keyboard shortcuts ---
 	useEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
 			// Allow Enter from custom input to advance
-			if (e.target instanceof HTMLInputElement && e.target.id?.startsWith("question-custom-")) {
-				return // handled by onSubmitCustom prop
+			if (
+				e.target instanceof HTMLInputElement &&
+				e.target.id?.startsWith("question-custom-")
+			) {
+				return; // handled by onSubmitCustom prop
 			}
 
 			if (e.key === "Enter" && !e.shiftKey && currentAnswered) {
-				e.preventDefault()
-				handleAdvance()
+				e.preventDefault();
+				handleAdvance();
 			} else if (e.key === "Escape") {
-				e.preventDefault()
-				handleSkip()
+				e.preventDefault();
+				handleSkip();
 			}
 		}
 
-		document.addEventListener("keydown", handleKeyDown)
-		return () => document.removeEventListener("keydown", handleKeyDown)
-	}, [currentAnswered, handleAdvance, handleSkip])
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [currentAnswered, handleAdvance, handleSkip]);
 
 	// --- Auto-focus the card on mount and step change ---
 	useEffect(() => {
@@ -391,30 +411,30 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 		const timer = requestAnimationFrame(() => {
 			const customInput = document.getElementById(
 				`question-custom-${currentStep}`,
-			) as HTMLInputElement | null
+			) as HTMLInputElement | null;
 			if (customInput) {
-				customInput.focus()
+				customInput.focus();
 			} else {
-				cardRef.current?.focus()
+				cardRef.current?.focus();
 			}
-		})
-		return () => cancelAnimationFrame(timer)
-	}, [currentStep])
+		});
+		return () => cancelAnimationFrame(timer);
+	}, [currentStep]);
 
-	if (!currentQuestion) return null
+	if (!currentQuestion) return null;
 
 	return (
 		<section
 			ref={cardRef}
 			tabIndex={-1}
-			aria-label="Agent question"
+			aria-label={t("chat.permission.question")}
 			className="animate-in fade-in slide-in-from-bottom-2 rounded-xl border border-border bg-card outline-none duration-300"
 		>
 			{/* Sub-agent indicator */}
 			{isFromSubAgent && (
 				<div className="flex items-center gap-1 px-3 pt-2 text-[11px] text-muted-foreground/70">
 					<ZapIcon className="size-3 shrink-0" aria-hidden="true" />
-					<span>Sub-agent asking a question</span>
+					<span>{t("chat.question.subAgentAsking")}</span>
 				</div>
 			)}
 			{/* Header */}
@@ -423,7 +443,9 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 					className="size-4 shrink-0 text-muted-foreground"
 					aria-hidden="true"
 				/>
-				<span className="flex-1 text-foreground">{currentQuestion.question}</span>
+				<span className="flex-1 text-foreground">
+					{currentQuestion.question}
+				</span>
 				{totalRequests > 1 && (
 					<span className="shrink-0 text-[11px] text-muted-foreground">
 						+{totalRequests - 1} more
@@ -456,10 +478,14 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 							disabled={disabled || submitting}
 							className="text-xs text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							Back
+							{t("common.actions.back")}
 						</button>
 					)}
-					<StepDots total={totalSteps} current={currentStep} answered={answeredSteps} />
+					<StepDots
+						total={totalSteps}
+						current={currentStep}
+						answered={answeredSteps}
+					/>
 				</div>
 
 				{/* Right side: skip + action button */}
@@ -468,10 +494,10 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 					onClick={handleSkip}
 					disabled={disabled || submitting}
 					className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-					aria-label="Skip question"
+					aria-label={t("chat.question.skip")}
 				>
 					<SkipForwardIcon className="size-3" aria-hidden="true" />
-					Skip
+					{t("common.actions.skip")}
 				</button>
 				{isLastStep ? (
 					<Button
@@ -479,14 +505,14 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 						onClick={handleSubmit}
 						disabled={!currentAnswered || disabled || submitting}
 						className="h-7 gap-1 text-xs"
-						aria-label="Send answer"
+						aria-label={t("chat.question.sendAnswer")}
 					>
 						{submitting ? (
 							<Loader2Icon className="size-3 animate-spin" aria-hidden="true" />
 						) : (
 							<SendIcon className="size-3" aria-hidden="true" />
 						)}
-						Send
+						{t("chat.question.send")}
 					</Button>
 				) : (
 					<Button
@@ -495,13 +521,13 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 						onClick={handleNext}
 						disabled={!currentAnswered || disabled || submitting}
 						className="h-7 gap-1 text-xs"
-						aria-label="Next question"
+						aria-label={t("chat.question.next")}
 					>
-						Next
+						{t("chat.question.next")}
 						<ArrowRightIcon className="size-3" aria-hidden="true" />
 					</Button>
 				)}
 			</div>
 		</section>
-	)
-})
+	);
+});

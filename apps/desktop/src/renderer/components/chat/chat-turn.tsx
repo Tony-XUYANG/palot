@@ -4,15 +4,20 @@ import {
 	MessageActions,
 	MessageContent,
 	MessageResponse,
-} from "@palot/ui/components/ai-elements/message"
+} from "@palot/ui/components/ai-elements/message";
 import {
 	Reasoning,
 	ReasoningContent,
 	ReasoningText,
 	ReasoningTrigger,
-} from "@palot/ui/components/ai-elements/reasoning"
-import { Shimmer } from "@palot/ui/components/ai-elements/shimmer"
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@palot/ui/components/dialog"
+} from "@palot/ui/components/ai-elements/reasoning";
+import { Shimmer } from "@palot/ui/components/ai-elements/shimmer";
+import {
+	Dialog,
+	DialogContent,
+	DialogTitle,
+	DialogTrigger,
+} from "@palot/ui/components/dialog";
 
 import {
 	ArrowUpToLineIcon,
@@ -27,21 +32,41 @@ import {
 	SendIcon,
 	Undo2Icon,
 	XIcon,
-} from "lucide-react"
-import { memo, useCallback, useDeferredValue, useMemo, useRef, useState } from "react"
-import { useDisplayMode } from "../../hooks/use-agents"
-import type { ChatMessageEntry, ChatTurn as ChatTurnType } from "../../hooks/use-session-chat"
-import { formatModelError } from "../../lib/model-errors"
+} from "lucide-react";
+import {
+	memo,
+	useCallback,
+	useDeferredValue,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useDisplayMode } from "../../hooks/use-agents";
+import type {
+	ChatMessageEntry,
+	ChatTurn as ChatTurnType,
+} from "../../hooks/use-session-chat";
+import { formatModelError } from "../../lib/model-errors";
 import {
 	computeTurnCost,
 	computeTurnWorkTime,
 	formatCost,
 	formatWorkDuration,
 	shortModelName,
-} from "../../lib/session-metrics"
-import type { FilePart, Part, ReasoningPart, TextPart, ToolPart } from "../../lib/types"
-import { ChatToolCall, getToolInfo, getToolSubtitle } from "./chat-tool-call"
-import { getToolCategory, TOOL_CATEGORY_COLORS, type ToolCategory } from "./tool-card"
+} from "../../lib/session-metrics";
+import type {
+	FilePart,
+	Part,
+	ReasoningPart,
+	TextPart,
+	ToolPart,
+} from "../../lib/types";
+import { ChatToolCall, getToolInfo, getToolSubtitle } from "./chat-tool-call";
+import {
+	getToolCategory,
+	TOOL_CATEGORY_COLORS,
+	type ToolCategory,
+} from "./tool-card";
 
 // ============================================================
 // Utility functions
@@ -51,8 +76,8 @@ import { getToolCategory, TOOL_CATEGORY_COLORS, type ToolCategory } from "./tool
  * Formats a timestamp (milliseconds) to relative or absolute time.
  */
 export function formatTimestamp(ms: number): string {
-	const date = new Date(ms)
-	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+	const date = new Date(ms);
+	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 // ============================================================
@@ -65,42 +90,43 @@ export function formatTimestamp(ms: number): string {
  */
 function computeStatus(parts: Part[]): string {
 	for (let i = parts.length - 1; i >= 0; i--) {
-		const part = parts[i]
+		const part = parts[i];
 		if (part.type === "tool") {
 			switch (part.tool) {
 				case "task": {
 					// Show what the sub-agent is actually doing
-					const desc = part.state.input?.description as string | undefined
-					const shortDesc = desc && desc.length > 30 ? `${desc.slice(0, 27)}...` : desc
-					return shortDesc ? `Agent: ${shortDesc}` : "Delegating..."
+					const desc = part.state.input?.description as string | undefined;
+					const shortDesc =
+						desc && desc.length > 30 ? `${desc.slice(0, 27)}...` : desc;
+					return shortDesc ? `Agent: ${shortDesc}` : "Delegating...";
 				}
 				case "todowrite":
 				case "todoread":
-					return "Planning..."
+					return "Planning...";
 				case "read":
-					return "Reading files..."
+					return "Reading files...";
 				case "list":
 				case "grep":
 				case "glob":
-					return "Searching codebase..."
+					return "Searching codebase...";
 				case "webfetch":
-					return "Fetching web content..."
+					return "Fetching web content...";
 				case "edit":
 				case "write":
 				case "apply_patch":
-					return "Making edits..."
+					return "Making edits...";
 				case "bash":
-					return "Running command..."
+					return "Running command...";
 				case "question":
-					return "Asking a question..."
+					return "Asking a question...";
 				default:
-					return `Running ${part.tool}...`
+					return `Running ${part.tool}...`;
 			}
 		}
-		if (part.type === "reasoning") return "Thinking..."
-		if (part.type === "text") return "Composing response..."
+		if (part.type === "reasoning") return "Thinking...";
+		if (part.type === "text") return "Composing response...";
 	}
-	return "Working..."
+	return "Working...";
 }
 
 // ============================================================
@@ -108,19 +134,20 @@ function computeStatus(parts: Part[]): string {
 // ============================================================
 
 function isSyntheticMessage(entry: ChatMessageEntry): boolean {
-	const textParts = entry.parts.filter((p): p is TextPart => p.type === "text")
+	const textParts = entry.parts.filter((p): p is TextPart => p.type === "text");
 	// All text parts are synthetic (e.g. compaction continuation, shell execution)
-	if (textParts.length > 0 && textParts.every((p) => p.synthetic === true)) return true
+	if (textParts.length > 0 && textParts.every((p) => p.synthetic === true))
+		return true;
 	// No text parts at all — e.g. a user message with only a compaction part
-	if (textParts.length === 0 && entry.parts.length > 0) return true
-	return false
+	if (textParts.length === 0 && entry.parts.length > 0) return true;
+	return false;
 }
 
 function getUserText(entry: ChatMessageEntry): string {
 	return entry.parts
 		.filter((p): p is TextPart => p.type === "text" && !p.synthetic)
 		.map((p) => p.text)
-		.join("\n")
+		.join("\n");
 }
 
 function getSyntheticLabel(entry: ChatMessageEntry): string {
@@ -128,24 +155,29 @@ function getSyntheticLabel(entry: ChatMessageEntry): string {
 		.filter((p): p is TextPart => p.type === "text")
 		.map((p) => p.text)
 		.join("\n")
-		.toLowerCase()
+		.toLowerCase();
 
-	if (text.includes("continue if you have next steps")) return "Auto-continued after compaction"
-	if (text.includes("summarize the task tool output")) return "Auto-continued after task"
-	if (text.includes("tool was executed by the user")) return "Shell command executed"
-	if (text.includes("plan has been approved")) return "Plan approved"
-	if (text.includes("enter plan mode")) return "Entered plan mode"
-	if (text.includes("switch") && text.includes("plan")) return "Mode switched"
+	if (text.includes("continue if you have next steps"))
+		return "Auto-continued after compaction";
+	if (text.includes("summarize the task tool output"))
+		return "Auto-continued after task";
+	if (text.includes("tool was executed by the user"))
+		return "Shell command executed";
+	if (text.includes("plan has been approved")) return "Plan approved";
+	if (text.includes("enter plan mode")) return "Entered plan mode";
+	if (text.includes("switch") && text.includes("plan")) return "Mode switched";
 	// No text parts — check for compaction part (user message that triggers compaction)
-	if (entry.parts.some((p) => p.type === "compaction")) return "Compacting conversation"
-	return "Auto-continued"
+	if (entry.parts.some((p) => p.type === "compaction"))
+		return "Compacting conversation";
+	return "Auto-continued";
 }
 
 function getFileParts(entry: ChatMessageEntry): FilePart[] {
 	return entry.parts.filter(
 		(p): p is FilePart =>
-			p.type === "file" && (p.mime.startsWith("image/") || p.mime === "application/pdf"),
-	)
+			p.type === "file" &&
+			(p.mime.startsWith("image/") || p.mime === "application/pdf"),
+	);
 }
 
 // ============================================================
@@ -155,37 +187,43 @@ function getFileParts(entry: ChatMessageEntry): FilePart[] {
 const AttachmentGrid = memo(function AttachmentGrid({
 	files,
 	onDelete,
-}: { files: FilePart[]; onDelete?: (file: FilePart) => void }) {
-	if (files.length === 0) return null
+}: {
+	files: FilePart[];
+	onDelete?: (file: FilePart) => void;
+}) {
+	if (files.length === 0) return null;
 	return (
 		<div className="flex flex-wrap gap-2">
 			{files.map((file) => (
 				<AttachmentThumbnail key={file.id} file={file} onDelete={onDelete} />
 			))}
 		</div>
-	)
-})
+	);
+});
 
 function AttachmentThumbnail({
 	file,
 	onDelete,
-}: { file: FilePart; onDelete?: (file: FilePart) => void }) {
-	const isImage = file.mime.startsWith("image/")
-	const [deleting, setDeleting] = useState(false)
+}: {
+	file: FilePart;
+	onDelete?: (file: FilePart) => void;
+}) {
+	const isImage = file.mime.startsWith("image/");
+	const [deleting, setDeleting] = useState(false);
 
 	const handleDelete = useCallback(
 		async (e: React.MouseEvent) => {
-			e.stopPropagation()
-			if (!onDelete || deleting) return
-			setDeleting(true)
+			e.stopPropagation();
+			if (!onDelete || deleting) return;
+			setDeleting(true);
 			try {
-				await onDelete(file)
+				await onDelete(file);
 			} finally {
-				setDeleting(false)
+				setDeleting(false);
 			}
 		},
 		[onDelete, file, deleting],
-	)
+	);
 
 	return (
 		<Dialog>
@@ -228,7 +266,9 @@ function AttachmentThumbnail({
 				</DialogTrigger>
 			</div>
 			<DialogContent className="max-h-[90vh] max-w-4xl overflow-auto p-0">
-				<DialogTitle className="sr-only">{file.filename ?? "Attachment preview"}</DialogTitle>
+				<DialogTitle className="sr-only">
+					{file.filename ?? "Attachment preview"}
+				</DialogTitle>
 				{isImage ? (
 					<img
 						src={file.url}
@@ -238,12 +278,14 @@ function AttachmentThumbnail({
 				) : (
 					<div className="flex flex-col items-center justify-center gap-2 p-8">
 						<FileIcon className="size-12 text-muted-foreground" />
-						<p className="text-sm text-muted-foreground">{file.filename ?? "PDF attachment"}</p>
+						<p className="text-sm text-muted-foreground">
+							{file.filename ?? "PDF attachment"}
+						</p>
 					</div>
 				)}
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }
 
 // ============================================================
@@ -254,7 +296,7 @@ function AttachmentThumbnail({
 type RenderablePart =
 	| { kind: "tool"; part: ToolPart }
 	| { kind: "text"; id: string; text: string }
-	| { kind: "reasoning"; part: ReasoningPart }
+	| { kind: "reasoning"; part: ReasoningPart };
 
 /**
  * Flattens all assistant parts into an ordered list of renderable items
@@ -264,50 +306,53 @@ type RenderablePart =
  * Strips OpenRouter [REDACTED] chunks from reasoning and skips empty reasoning.
  */
 function getPartsAndTools(assistantMessages: ChatMessageEntry[]): {
-	ordered: RenderablePart[]
-	tools: ToolPart[]
+	ordered: RenderablePart[];
+	tools: ToolPart[];
 } {
-	const ordered: RenderablePart[] = []
-	const tools: ToolPart[] = []
+	const ordered: RenderablePart[] = [];
+	const tools: ToolPart[] = [];
 	for (const msg of assistantMessages) {
 		for (const part of msg.parts) {
 			if (part.type === "tool") {
-				tools.push(part)
-				if (part.tool === "todoread" && part.state.status !== "completed") continue
-				ordered.push({ kind: "tool", part })
+				tools.push(part);
+				if (part.tool === "todoread" && part.state.status !== "completed")
+					continue;
+				ordered.push({ kind: "tool", part });
 			} else if (part.type === "text" && !part.synthetic && part.text.trim()) {
-				ordered.push({ kind: "text", id: part.id, text: part.text })
+				ordered.push({ kind: "text", id: part.id, text: part.text });
 			} else if (part.type === "reasoning") {
 				// Strip OpenRouter's encrypted [REDACTED] chunks
-				const cleaned = part.text.replace("[REDACTED]", "").trim()
+				const cleaned = part.text.replace("[REDACTED]", "").trim();
 				if (cleaned) {
-					ordered.push({ kind: "reasoning", part })
+					ordered.push({ kind: "reasoning", part });
 				}
 			}
 		}
 	}
-	return { ordered, tools }
+	return { ordered, tools };
 }
 
 /**
  * Gets the last text part's content — used for the final streaming response
  * and the copy action. Returns undefined if no text parts exist.
  */
-function getLastResponseText(orderedParts: RenderablePart[]): string | undefined {
+function getLastResponseText(
+	orderedParts: RenderablePart[],
+): string | undefined {
 	for (let i = orderedParts.length - 1; i >= 0; i--) {
-		const item = orderedParts[i]
-		if (item.kind === "text") return item.text
+		const item = orderedParts[i];
+		if (item.kind === "text") return item.text;
 	}
-	return undefined
+	return undefined;
 }
 
 function getError(assistantMessages: ChatMessageEntry[]): string | undefined {
 	for (const msg of assistantMessages) {
 		if (msg.info.role === "assistant" && msg.info.error) {
-			return formatModelError(msg.info.error)
+			return formatModelError(msg.info.error);
 		}
 	}
-	return undefined
+	return undefined;
 }
 
 // ============================================================
@@ -320,41 +365,45 @@ function getError(assistantMessages: ChatMessageEntry[]): string | undefined {
  * but kept local to avoid coupling.
  */
 function messageEntryFingerprint(entry: ChatMessageEntry): string {
-	const lastPart = entry.parts.at(-1)
-	const completed = entry.info.role === "assistant" ? (entry.info.time.completed ?? 0) : 0
-	let textLen = 0
-	const toolSegments: string[] = []
+	const lastPart = entry.parts.at(-1);
+	const completed =
+		entry.info.role === "assistant" ? (entry.info.time.completed ?? 0) : 0;
+	let textLen = 0;
+	const toolSegments: string[] = [];
 	for (const part of entry.parts) {
 		if (part.type === "text" || part.type === "reasoning") {
-			textLen += part.text.length
+			textLen += part.text.length;
 		} else if (part.type === "tool") {
 			const outLen =
 				part.state.status === "completed"
 					? part.state.output.length
 					: part.state.status === "error"
 						? part.state.error.length
-						: 0
-			toolSegments.push(`${part.id}:${part.state.status}:${outLen}`)
+						: 0;
+			toolSegments.push(`${part.id}:${part.state.status}:${outLen}`);
 		}
 	}
-	return `${entry.info.id}:${completed}:${entry.parts.length}:${lastPart?.id ?? ""}:${textLen}:${toolSegments.join(",")}`
+	return `${entry.info.id}:${completed}:${entry.parts.length}:${lastPart?.id ?? ""}:${textLen}:${toolSegments.join(",")}`;
 }
 
 /** Compare two turns by content fingerprint rather than reference equality */
 function areTurnsEqual(a: ChatTurnType, b: ChatTurnType): boolean {
-	if (a === b) return true
-	if (a.id !== b.id) return false
-	if (messageEntryFingerprint(a.userMessage) !== messageEntryFingerprint(b.userMessage))
-		return false
-	if (a.assistantMessages.length !== b.assistantMessages.length) return false
+	if (a === b) return true;
+	if (a.id !== b.id) return false;
+	if (
+		messageEntryFingerprint(a.userMessage) !==
+		messageEntryFingerprint(b.userMessage)
+	)
+		return false;
+	if (a.assistantMessages.length !== b.assistantMessages.length) return false;
 	for (let i = 0; i < a.assistantMessages.length; i++) {
 		if (
 			messageEntryFingerprint(a.assistantMessages[i]) !==
 			messageEntryFingerprint(b.assistantMessages[i])
 		)
-			return false
+			return false;
 	}
-	return true
+	return true;
 }
 
 // ============================================================
@@ -374,52 +423,56 @@ function areTurnsEqual(a: ChatTurnType, b: ChatTurnType): boolean {
  */
 type StreamItem =
 	| { kind: "text"; id: string; text: string }
-	| { kind: "reasoning-process"; items: (RenderablePart & { kind: "reasoning" | "tool" })[] }
-	| { kind: "tool-group"; category: ToolCategory; tools: ToolPart[] }
+	| {
+			kind: "reasoning-process";
+			items: (RenderablePart & { kind: "reasoning" | "tool" })[];
+	  }
+	| { kind: "tool-group"; category: ToolCategory; tools: ToolPart[] };
 
 function groupPartsForStream(ordered: RenderablePart[]): StreamItem[] {
-	const items: StreamItem[] = []
-	let currentGroup: { category: ToolCategory; tools: ToolPart[] } | null = null
-	let currentProcessGroup: (RenderablePart & { kind: "reasoning" | "tool" })[] = []
+	const items: StreamItem[] = [];
+	let currentGroup: { category: ToolCategory; tools: ToolPart[] } | null = null;
+	let currentProcessGroup: (RenderablePart & { kind: "reasoning" | "tool" })[] =
+		[];
 
-	const hasReasoning = ordered.some((p) => p.kind === "reasoning")
+	const hasReasoning = ordered.some((p) => p.kind === "reasoning");
 
 	const flushGroup = () => {
 		if (currentGroup) {
-			items.push({ kind: "tool-group", ...currentGroup })
-			currentGroup = null
+			items.push({ kind: "tool-group", ...currentGroup });
+			currentGroup = null;
 		}
-	}
+	};
 
 	const flushProcessGroup = () => {
 		if (currentProcessGroup.length > 0) {
-			items.push({ kind: "reasoning-process", items: currentProcessGroup })
-			currentProcessGroup = []
+			items.push({ kind: "reasoning-process", items: currentProcessGroup });
+			currentProcessGroup = [];
 		}
-	}
+	};
 
 	for (const part of ordered) {
 		if (hasReasoning && (part.kind === "reasoning" || part.kind === "tool")) {
-			currentProcessGroup.push(part)
+			currentProcessGroup.push(part);
 		} else if (!hasReasoning && part.kind === "tool") {
-			const category = getToolCategory(part.part.tool)
+			const category = getToolCategory(part.part.tool);
 			if (currentGroup && currentGroup.category === category) {
-				currentGroup.tools.push(part.part)
+				currentGroup.tools.push(part.part);
 			} else {
-				flushGroup()
-				currentGroup = { category, tools: [part.part] }
+				flushGroup();
+				currentGroup = { category, tools: [part.part] };
 			}
 		} else {
-			flushGroup()
-			flushProcessGroup()
+			flushGroup();
+			flushProcessGroup();
 			if (part.kind === "text") {
-				items.push({ kind: "text", id: part.id, text: part.text })
+				items.push({ kind: "text", id: part.id, text: part.text });
 			}
 		}
 	}
-	flushGroup()
-	flushProcessGroup()
-	return items
+	flushGroup();
+	flushProcessGroup();
+	return items;
 }
 
 /**
@@ -427,7 +480,7 @@ function groupPartsForStream(ordered: RenderablePart[]): StreamItem[] {
  * Returns text like "Read 3 files", "Edited foo.tsx, bar.tsx", "Ran 2 commands".
  */
 function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
-	const count = tools.length
+	const count = tools.length;
 
 	// For small groups, list specific targets
 	if (count <= 3) {
@@ -436,30 +489,36 @@ function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
 			.filter(Boolean)
 			.map((s) => {
 				// Shorten file paths to just the filename
-				const parts = s!.split("/")
-				return parts.length > 1 ? parts[parts.length - 1] : s
-			})
+				const parts = s!.split("/");
+				return parts.length > 1 ? parts[parts.length - 1] : s;
+			});
 
 		if (details.length > 0) {
 			switch (category) {
 				case "explore":
-					return count === 1 ? `Read ${details[0]}` : `Read ${details.join(", ")}`
-				case "edit":
-					return count === 1 ? `Edited ${details[0]}` : `Edited ${details.join(", ")}`
-				case "run":
 					return count === 1
-						? `Ran ${details[0]}`
-						: `Ran ${count} commands`
+						? `Read ${details[0]}`
+						: `Read ${details.join(", ")}`;
+				case "edit":
+					return count === 1
+						? `Edited ${details[0]}`
+						: `Edited ${details.join(", ")}`;
+				case "run":
+					return count === 1 ? `Ran ${details[0]}` : `Ran ${count} commands`;
 				case "delegate":
-					return count === 1 ? `Delegated: ${details[0]}` : `Delegated ${count} tasks`
+					return count === 1
+						? `Delegated: ${details[0]}`
+						: `Delegated ${count} tasks`;
 				case "fetch":
-					return count === 1 ? `Fetched ${details[0]}` : `Fetched ${count} URLs`
+					return count === 1
+						? `Fetched ${details[0]}`
+						: `Fetched ${count} URLs`;
 				case "ask":
-					return "Asked a question"
+					return "Asked a question";
 				case "plan":
-					return "Updated plan"
+					return "Updated plan";
 				default:
-					return `Ran ${details.join(", ")}`
+					return `Ran ${details.join(", ")}`;
 			}
 		}
 	}
@@ -467,21 +526,21 @@ function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
 	// For larger groups, use count-based summaries
 	switch (category) {
 		case "explore":
-			return `Explored ${count} files`
+			return `Explored ${count} files`;
 		case "edit":
-			return `Edited ${count} files`
+			return `Edited ${count} files`;
 		case "run":
-			return `Ran ${count} commands`
+			return `Ran ${count} commands`;
 		case "delegate":
-			return `Delegated ${count} tasks`
+			return `Delegated ${count} tasks`;
 		case "fetch":
-			return `Fetched ${count} URLs`
+			return `Fetched ${count} URLs`;
 		case "ask":
-			return `Asked ${count} questions`
+			return `Asked ${count} questions`;
 		case "plan":
-			return "Updated plan"
+			return "Updated plan";
 		default:
-			return `Ran ${count} tools`
+			return `Ran ${count} tools`;
 	}
 }
 
@@ -489,14 +548,16 @@ function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
  * Returns true if any tool in the group is still running/pending.
  */
 function isGroupRunning(tools: ToolPart[]): boolean {
-	return tools.some((t) => t.state.status === "running" || t.state.status === "pending")
+	return tools.some(
+		(t) => t.state.status === "running" || t.state.status === "pending",
+	);
 }
 
 /**
  * Returns true if any tool in the group has an error.
  */
 function isGroupError(tools: ToolPart[]): boolean {
-	return tools.some((t) => t.state.status === "error")
+	return tools.some((t) => t.state.status === "error");
 }
 
 /** Renders a single tool group summary as a collapsible disclosure row */
@@ -505,16 +566,16 @@ const ToolGroupSummary = memo(function ToolGroupSummary({
 	tools,
 	isActiveTurn,
 }: {
-	category: ToolCategory
-	tools: ToolPart[]
-	isActiveTurn: boolean
+	category: ToolCategory;
+	tools: ToolPart[];
+	isActiveTurn: boolean;
 }) {
-	const [expanded, setExpanded] = useState(false)
-	const description = describeToolGroup(category, tools)
-	const running = isGroupRunning(tools)
-	const hasError = isGroupError(tools)
-	const { icon: GroupIcon } = getToolInfo(tools[0].tool)
-	const borderColor = TOOL_CATEGORY_COLORS[category]
+	const [expanded, setExpanded] = useState(false);
+	const description = describeToolGroup(category, tools);
+	const running = isGroupRunning(tools);
+	const hasError = isGroupError(tools);
+	const { icon: GroupIcon } = getToolInfo(tools[0].tool);
+	const borderColor = TOOL_CATEGORY_COLORS[category];
 
 	return (
 		<div className="space-y-2">
@@ -532,7 +593,9 @@ const ToolGroupSummary = memo(function ToolGroupSummary({
 								: "text-muted-foreground/50"
 					}`}
 				/>
-				<span className={`flex-1 text-left ${hasError ? "text-red-400" : "text-muted-foreground/70"}`}>
+				<span
+					className={`flex-1 text-left ${hasError ? "text-red-400" : "text-muted-foreground/70"}`}
+				>
 					{description}
 				</span>
 				{running && !expanded && (
@@ -545,30 +608,38 @@ const ToolGroupSummary = memo(function ToolGroupSummary({
 			{expanded && (
 				<div className="space-y-2 pl-3">
 					{tools.map((tool) => (
-						<ChatToolCall key={tool.id} part={tool} isActiveTurn={isActiveTurn} />
+						<ChatToolCall
+							key={tool.id}
+							part={tool}
+							isActiveTurn={isActiveTurn}
+						/>
 					))}
 				</div>
 			)}
 		</div>
-	)
-})
+	);
+});
 
 // ============================================================
 // ChatTurnComponent
 // ============================================================
 
 interface ChatTurnProps {
-	turn: ChatTurnType
-	isLast: boolean
-	isWorking: boolean
+	turn: ChatTurnType;
+	isLast: boolean;
+	isWorking: boolean;
 	/** Revert to this turn's user message (for per-turn undo) */
-	onRevertToMessage?: (messageId: string) => Promise<void>
+	onRevertToMessage?: (messageId: string) => Promise<void>;
 	/** Interrupt the current work and send this queued message immediately */
-	onSendNow?: (turn: ChatTurnType) => Promise<void>
+	onSendNow?: (turn: ChatTurnType) => Promise<void>;
 	/** Fork the conversation from this turn boundary */
-	onForkFromTurn?: () => Promise<void>
+	onForkFromTurn?: () => Promise<void>;
 	/** Delete a specific part from a message (for error recovery) */
-	onDeletePart?: (sessionId: string, messageId: string, partId: string) => Promise<void>
+	onDeletePart?: (
+		sessionId: string,
+		messageId: string,
+		partId: string,
+	) => Promise<void>;
 }
 
 /**
@@ -596,138 +667,158 @@ export const ChatTurnComponent = memo(
 		onForkFromTurn,
 		onDeletePart,
 	}: ChatTurnProps) {
-		const [stepsExpanded, setStepsExpanded] = useState(false)
-		const [copied, setCopied] = useState(false)
-		const displayMode = useDisplayMode()
-		const turnRef = useRef<HTMLDivElement>(null)
+		const [stepsExpanded, setStepsExpanded] = useState(false);
+		const [copied, setCopied] = useState(false);
+		const displayMode = useDisplayMode();
+		const turnRef = useRef<HTMLDivElement>(null);
 
-		const isSynthetic = useMemo(() => isSyntheticMessage(turn.userMessage), [turn.userMessage])
-		const userText = useMemo(() => getUserText(turn.userMessage), [turn.userMessage])
+		const isSynthetic = useMemo(
+			() => isSyntheticMessage(turn.userMessage),
+			[turn.userMessage],
+		);
+		const userText = useMemo(
+			() => getUserText(turn.userMessage),
+			[turn.userMessage],
+		);
 		const syntheticLabel = useMemo(
 			() => (isSynthetic ? getSyntheticLabel(turn.userMessage) : ""),
 			[isSynthetic, turn.userMessage],
-		)
-		const userFiles = useMemo(() => getFileParts(turn.userMessage), [turn.userMessage])
+		);
+		const userFiles = useMemo(
+			() => getFileParts(turn.userMessage),
+			[turn.userMessage],
+		);
 
 		// Ordered parts + tool-only subset in a single pass (avoids double iteration)
 		const { ordered: orderedParts, tools: toolParts } = useMemo(
 			() => getPartsAndTools(turn.assistantMessages),
 			[turn.assistantMessages],
-		)
+		);
 
 		// The last text for streaming display and copy action
-		const rawResponseText = useMemo(() => getLastResponseText(orderedParts), [orderedParts])
-		const responseText = useDeferredValue(rawResponseText)
+		const rawResponseText = useMemo(
+			() => getLastResponseText(orderedParts),
+			[orderedParts],
+		);
+		const responseText = useDeferredValue(rawResponseText);
 
-		const errorText = useMemo(() => getError(turn.assistantMessages), [turn.assistantMessages])
+		const errorText = useMemo(
+			() => getError(turn.assistantMessages),
+			[turn.assistantMessages],
+		);
 
 		// Compute status by walking the last message's parts in reverse — no
 		// need to flatMap all messages into a temporary array.
 		const statusText = useMemo(() => {
 			for (let m = turn.assistantMessages.length - 1; m >= 0; m--) {
-				const status = computeStatus(turn.assistantMessages[m].parts)
-				if (status !== "Working...") return status
+				const status = computeStatus(turn.assistantMessages[m].parts);
+				if (status !== "Working...") return status;
 			}
-			return "Working..."
-		}, [turn.assistantMessages])
+			return "Working...";
+		}, [turn.assistantMessages]);
 
-		const working = isLast && isWorking
-		const isQueued = isWorking && turn.assistantMessages.length === 0 && !isLast
-		const isQueuedLast = isWorking && turn.assistantMessages.length === 0 && isLast
-		const hasSteps = toolParts.length > 0
-		const hasReasoning = orderedParts.some((p) => p.kind === "reasoning")
+		const working = isLast && isWorking;
+		const isQueued =
+			isWorking && turn.assistantMessages.length === 0 && !isLast;
+		const isQueuedLast =
+			isWorking && turn.assistantMessages.length === 0 && isLast;
+		const hasSteps = toolParts.length > 0;
+		const hasReasoning = orderedParts.some((p) => p.kind === "reasoning");
 
-		const duration = useMemo(() => formatWorkDuration(computeTurnWorkTime(turn)), [turn])
+		const duration = useMemo(
+			() => formatWorkDuration(computeTurnWorkTime(turn)),
+			[turn],
+		);
 		const turnCostStr = useMemo(() => {
-			const cost = computeTurnCost(turn)
-			return cost > 0 ? formatCost(cost) : ""
-		}, [turn])
+			const cost = computeTurnCost(turn);
+			return cost > 0 ? formatCost(cost) : "";
+		}, [turn]);
 		const turnModel = useMemo(() => {
 			for (let i = turn.assistantMessages.length - 1; i >= 0; i--) {
-				const info = turn.assistantMessages[i].info
+				const info = turn.assistantMessages[i].info;
 				if (info.role === "assistant" && info.modelID) {
-					return shortModelName(info.modelID)
+					return shortModelName(info.modelID);
 				}
 			}
-			return ""
-		}, [turn.assistantMessages])
+			return "";
+		}, [turn.assistantMessages]);
 
 		// Determine if tools should be shown individually (active turn behavior)
-		const isActiveTurn = working
-		const isVerbose = displayMode === "verbose"
+		const isActiveTurn = working;
+		const isVerbose = displayMode === "verbose";
 
 		// In default mode, we render a "stream" of grouped tool summaries + text.
 		// In verbose mode, we render full tool cards.
 		// stepsExpanded forces verbose rendering on a per-turn basis.
-		const showVerboseTools = isVerbose || stepsExpanded
+		const showVerboseTools = isVerbose || stepsExpanded;
 
 		// Grouped stream items for the default (non-verbose) rendering path
 		const streamItems = useMemo(
 			() => (showVerboseTools ? [] : groupPartsForStream(orderedParts)),
 			[showVerboseTools, orderedParts],
-		)
+		);
 
 		// In default mode, the text is always rendered inline within the stream.
 		// In verbose mode, the text is inline within the expanded ordered parts.
 		// The standalone "final response" block only appears when no tools/reasoning
 		// section is visible (pure text-only turn).
-		const toolsSectionVisible = working || hasSteps || hasReasoning
+		const toolsSectionVisible = working || hasSteps || hasReasoning;
 		const textAlreadyInline =
-			toolsSectionVisible && orderedParts.some((p) => p.kind === "text")
+			toolsSectionVisible && orderedParts.some((p) => p.kind === "text");
 
 		const handleCopyResponse = useCallback(async () => {
-			if (!responseText) return
-			await navigator.clipboard.writeText(responseText)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 2000)
-		}, [responseText])
+			if (!responseText) return;
+			await navigator.clipboard.writeText(responseText);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		}, [responseText]);
 
 		const handleRevertHere = useCallback(async () => {
-			if (!onRevertToMessage) return
-			await onRevertToMessage(turn.userMessage.info.id)
-		}, [onRevertToMessage, turn.userMessage.info.id])
+			if (!onRevertToMessage) return;
+			await onRevertToMessage(turn.userMessage.info.id);
+		}, [onRevertToMessage, turn.userMessage.info.id]);
 
 		const handleScrollToTop = useCallback(() => {
-			turnRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-		}, [])
+			turnRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+		}, []);
 
-		const [forking, setForking] = useState(false)
+		const [forking, setForking] = useState(false);
 		const handleFork = useCallback(async () => {
-			if (!onForkFromTurn || forking) return
-			setForking(true)
+			if (!onForkFromTurn || forking) return;
+			setForking(true);
 			try {
-				await onForkFromTurn()
+				await onForkFromTurn();
 			} finally {
-				setForking(false)
+				setForking(false);
 			}
-		}, [onForkFromTurn, forking])
+		}, [onForkFromTurn, forking]);
 
-		const [sendingNow, setSendingNow] = useState(false)
+		const [sendingNow, setSendingNow] = useState(false);
 		const handleSendNow = useCallback(async () => {
-			if (!onSendNow || sendingNow) return
-			setSendingNow(true)
+			if (!onSendNow || sendingNow) return;
+			setSendingNow(true);
 			try {
-				await onSendNow(turn)
+				await onSendNow(turn);
 			} finally {
-				setSendingNow(false)
+				setSendingNow(false);
 			}
-		}, [onSendNow, sendingNow, turn])
+		}, [onSendNow, sendingNow, turn]);
 
 		const handleDeleteFile = useCallback(
 			async (file: FilePart) => {
-				if (!onDeletePart) return
-				await onDeletePart(file.sessionID, file.messageID, file.id)
+				if (!onDeletePart) return;
+				await onDeletePart(file.sessionID, file.messageID, file.id);
 			},
 			[onDeletePart],
-		)
+		);
 
 		const handleDeleteToolPart = useCallback(
 			async (toolPart: ToolPart) => {
-				if (!onDeletePart) return
-				await onDeletePart(toolPart.sessionID, toolPart.messageID, toolPart.id)
+				if (!onDeletePart) return;
+				await onDeletePart(toolPart.sessionID, toolPart.messageID, toolPart.id);
 			},
 			[onDeletePart],
-		)
+		);
 
 		return (
 			<div ref={turnRef} className="group/turn space-y-4">
@@ -792,16 +883,26 @@ export const ChatTurnComponent = memo(
 													</MessageContent>
 												</Message>
 											</div>
-										)
+										);
 									}
 									if (item.kind === "reasoning-process") {
-										const firstReasoning = item.items.find((p) => p.kind === "reasoning") as { kind: "reasoning", part: ReasoningPart } | undefined
-										const lastItem = item.items[item.items.length - 1]
-										
+										const firstReasoning = item.items.find(
+											(p) => p.kind === "reasoning",
+										) as { kind: "reasoning"; part: ReasoningPart } | undefined;
+										const lastItem = item.items[item.items.length - 1];
+
 										const durationSec = firstReasoning?.part.time.end
-											? Math.ceil((firstReasoning.part.time.end - firstReasoning.part.time.start) / 1000)
-											: undefined
-										const isStreaming = working && (!lastItem || (lastItem.kind === "reasoning" && !lastItem.part.time.end))
+											? Math.ceil(
+													(firstReasoning.part.time.end -
+														firstReasoning.part.time.start) /
+														1000,
+												)
+											: undefined;
+										const isStreaming =
+											working &&
+											(!lastItem ||
+												(lastItem.kind === "reasoning" &&
+													!lastItem.part.time.end));
 
 										return (
 											<Reasoning
@@ -815,29 +916,45 @@ export const ChatTurnComponent = memo(
 													<div className="flex flex-col gap-4">
 														{item.items.map((processItem, i) => {
 															if (processItem.kind === "reasoning") {
-																const text = processItem.part.text.replace("[REDACTED]", "").trim()
-																if (!text) return null
+																const text = processItem.part.text
+																	.replace("[REDACTED]", "")
+																	.trim();
+																if (!text) return null;
 																return (
-																	<div key={processItem.part.id} className="whitespace-pre-wrap">
-																		<ReasoningText animated={isStreaming && i === item.items.length - 1}>
+																	<div
+																		key={processItem.part.id}
+																		className="whitespace-pre-wrap"
+																	>
+																		<ReasoningText
+																			animated={
+																				isStreaming &&
+																				i === item.items.length - 1
+																			}
+																		>
 																			{text}
 																		</ReasoningText>
 																	</div>
-																)
+																);
 															}
 															if (processItem.kind === "tool") {
 																return (
-																	<div key={processItem.part.id} className="border-l-2 border-muted/30 pl-3">
-																		<ChatToolCall part={processItem.part} isActiveTurn={isActiveTurn} />
+																	<div
+																		key={processItem.part.id}
+																		className="border-l-2 border-muted/30 pl-3"
+																	>
+																		<ChatToolCall
+																			part={processItem.part}
+																			isActiveTurn={isActiveTurn}
+																		/>
 																	</div>
-																)
+																);
 															}
-															return null
+															return null;
 														})}
 													</div>
 												</ReasoningContent>
 											</Reasoning>
-										)
+										);
 									}
 									if (item.kind === "tool-group") {
 										if (item.tools.length === 1) {
@@ -847,7 +964,7 @@ export const ChatTurnComponent = memo(
 													part={item.tools[0]}
 													isActiveTurn={isActiveTurn}
 												/>
-											)
+											);
 										}
 										return (
 											<ToolGroupSummary
@@ -856,9 +973,9 @@ export const ChatTurnComponent = memo(
 												tools={item.tools}
 												isActiveTurn={isActiveTurn}
 											/>
-										)
+										);
 									}
-									return null
+									return null;
 								})}
 								{/* Live status while the agent is still working */}
 								{working && hasSteps && (
@@ -879,7 +996,8 @@ export const ChatTurnComponent = memo(
 							>
 								<ChevronDownIcon className="size-3 -rotate-90" />
 								<span>
-									Show {toolParts.length} {toolParts.length === 1 ? "step" : "steps"}
+									Show {toolParts.length}{" "}
+									{toolParts.length === 1 ? "step" : "steps"}
 								</span>
 								<span>
 									{turnModel && `· ${turnModel} `}
@@ -900,7 +1018,8 @@ export const ChatTurnComponent = memo(
 							>
 								<ChevronDownIcon className="size-3" />
 								<span>
-									Hide {toolParts.length} {toolParts.length === 1 ? "step" : "steps"}
+									Hide {toolParts.length}{" "}
+									{toolParts.length === 1 ? "step" : "steps"}
 								</span>
 								<span>
 									{turnModel && `· ${turnModel} `}
@@ -920,17 +1039,23 @@ export const ChatTurnComponent = memo(
 												part={item.part}
 												isActiveTurn={isActiveTurn}
 												turnHasError={!!errorText}
-												onDelete={onDeletePart ? handleDeleteToolPart : undefined}
+												onDelete={
+													onDeletePart ? handleDeleteToolPart : undefined
+												}
 											/>
-										)
+										);
 									}
 									if (item.kind === "reasoning") {
-										const reasoningText = item.part.text.replace("[REDACTED]", "").trim()
-										if (!reasoningText) return null
+										const reasoningText = item.part.text
+											.replace("[REDACTED]", "")
+											.trim();
+										if (!reasoningText) return null;
 										const durationSec = item.part.time.end
-											? Math.ceil((item.part.time.end - item.part.time.start) / 1000)
-											: undefined
-										const isReasoningStreaming = !item.part.time.end && working
+											? Math.ceil(
+													(item.part.time.end - item.part.time.start) / 1000,
+												)
+											: undefined;
+										const isReasoningStreaming = !item.part.time.end && working;
 										return (
 											<Reasoning
 												key={item.part.id}
@@ -945,7 +1070,7 @@ export const ChatTurnComponent = memo(
 													</ReasoningText>
 												</ReasoningContent>
 											</Reasoning>
-										)
+										);
 									}
 									return (
 										<div key={item.id} className="py-0.5">
@@ -955,7 +1080,7 @@ export const ChatTurnComponent = memo(
 												</MessageContent>
 											</Message>
 										</div>
-									)
+									);
 								})}
 							</div>
 						)}
@@ -965,7 +1090,9 @@ export const ChatTurnComponent = memo(
 				{/* Error */}
 				{errorText && (
 					<div className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-400">
-						{errorText.length > 300 ? `${errorText.slice(0, 300)}...` : errorText}
+						{errorText.length > 300
+							? `${errorText.slice(0, 300)}...`
+							: errorText}
 					</div>
 				)}
 
@@ -1012,33 +1139,40 @@ export const ChatTurnComponent = memo(
 							tooltip={copied ? "Copied" : "Copy response"}
 							onClick={handleCopyResponse}
 						>
-							{copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+							{copied ? (
+								<CheckIcon className="size-3" />
+							) : (
+								<CopyIcon className="size-3" />
+							)}
 						</MessageAction>
-					{onForkFromTurn && !working && (
-						<MessageAction
-							tooltip={forking ? "Forking..." : "Fork from here"}
-							onClick={handleFork}
-							disabled={forking}
-						>
-							<GitForkIcon className="size-3" />
-						</MessageAction>
-					)}
-					{onRevertToMessage && !working && (
-						<MessageAction tooltip="Undo from here" onClick={handleRevertHere}>
-							<Undo2Icon className="size-3" />
-						</MessageAction>
-					)}
+						{onForkFromTurn && !working && (
+							<MessageAction
+								tooltip={forking ? "Forking..." : "Fork from here"}
+								onClick={handleFork}
+								disabled={forking}
+							>
+								<GitForkIcon className="size-3" />
+							</MessageAction>
+						)}
+						{onRevertToMessage && !working && (
+							<MessageAction
+								tooltip="Undo from here"
+								onClick={handleRevertHere}
+							>
+								<Undo2Icon className="size-3" />
+							</MessageAction>
+						)}
 					</MessageActions>
 				)}
 			</div>
-		)
+		);
 	},
 	(prev, next) => {
-		if (!areTurnsEqual(prev.turn, next.turn)) return false
-		if (prev.isLast !== next.isLast) return false
-		if (prev.isWorking !== next.isWorking) return false
+		if (!areTurnsEqual(prev.turn, next.turn)) return false;
+		if (prev.isLast !== next.isLast) return false;
+		if (prev.isWorking !== next.isWorking) return false;
 		// Skip reference comparison for callbacks - they close over stable values
 		// and their identity changes don't affect rendered output
-		return true
+		return true;
 	},
-)
+);

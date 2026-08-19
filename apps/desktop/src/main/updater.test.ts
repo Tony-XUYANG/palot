@@ -1,6 +1,6 @@
-import { describe, expect, it, mock } from "bun:test"
+import { describe, expect, it, mock } from "bun:test";
 
-const quitAndInstall = mock(() => {})
+const quitAndInstall = mock(() => {});
 
 mock.module("electron", () => ({
 	app: {
@@ -13,7 +13,7 @@ mock.module("electron", () => ({
 	shell: {
 		openExternal: async () => {},
 	},
-}))
+}));
 
 mock.module("electron-updater", () => ({
 	default: {
@@ -21,12 +21,12 @@ mock.module("electron-updater", () => ({
 			quitAndInstall,
 		},
 	},
-}))
+}));
 
 describe("auto updater", () => {
 	it("installs Windows updates silently and restarts Palot", async () => {
-		const { installUpdate } = await import("./updater")
-		await installUpdate()
-		expect(quitAndInstall).toHaveBeenCalledWith(true, true)
-	})
-})
+		const { installUpdate } = await import("./updater");
+		await installUpdate();
+		expect(quitAndInstall).toHaveBeenCalledWith(true, true);
+	});
+});

@@ -16,7 +16,7 @@
  *  - "dark" / "light" — explicit
  *  - "system" — follows prefers-color-scheme
  */
-export type ColorScheme = "dark" | "light" | "system"
+export type ColorScheme = "dark" | "light" | "system";
 
 /**
  * A theme definition. Every field except `id`, `name`, and
@@ -24,27 +24,27 @@ export type ColorScheme = "dark" | "light" | "system"
  */
 export interface ThemeDefinition {
 	/** Unique identifier, used as CSS class: `theme-<id>` */
-	id: string
+	id: string;
 	/** Human-readable label shown in the command palette */
-	name: string
+	name: string;
 	/** Optional description */
-	description?: string
+	description?: string;
 
 	/**
 	 * Restrict this theme to specific platforms.
 	 * If omitted, the theme is available everywhere.
 	 * Uses Node.js platform strings: "darwin", "win32", "linux".
 	 */
-	platforms?: NodeJS.Platform[]
+	platforms?: NodeJS.Platform[];
 
 	/**
 	 * CSS custom property overrides.  Only properties that differ
 	 * from the default theme need to be listed.
 	 */
 	cssVars: {
-		light: Record<string, string>
-		dark: Record<string, string>
-	}
+		light: Record<string, string>;
+		dark: Record<string, string>;
+	};
 
 	/**
 	 * Font stack overrides.  Applied via
@@ -52,26 +52,26 @@ export interface ThemeDefinition {
 	 * If omitted the default theme fonts remain.
 	 */
 	fonts?: {
-		sans?: string
-		mono?: string
-	}
+		sans?: string;
+		mono?: string;
+	};
 
 	/**
 	 * Base border-radius override.  Applied as `--radius`.
 	 * Other radius tokens (sm/md/lg/xl) are derived from this.
 	 */
-	radius?: string
+	radius?: string;
 
 	/**
 	 * Text size / density overrides. Applied as --text-xs, --text-sm etc.
 	 * Themes like Cortex use a tighter 13px base.
 	 */
 	density?: {
-		"--text-xs"?: string
-		"--text-xs--line-height"?: string
-		"--text-sm"?: string
-		"--text-sm--line-height"?: string
-	}
+		"--text-xs"?: string;
+		"--text-xs--line-height"?: string;
+		"--text-sm"?: string;
+		"--text-sm--line-height"?: string;
+	};
 
 	/**
 	 * Glass transparency tuning. Only takes effect when the window has
@@ -83,22 +83,22 @@ export interface ThemeDefinition {
 	 */
 	glass?: {
 		/** Body background opacity (0–100). Default: 50 */
-		bodyOpacity?: number
+		bodyOpacity?: number;
 		/** Sidebar panel opacity (0–100). Default: 70 */
-		sidebarOpacity?: number
+		sidebarOpacity?: number;
 		/** App bar / divider surface opacity (0–100). Default: 80 */
-		surfaceOpacity?: number
+		surfaceOpacity?: number;
 		/** Floating panel opacity: popovers, dialogs, command palette (0–100). Default: 85 */
-		elevatedOpacity?: number
+		elevatedOpacity?: number;
 		/** Card / inline panel opacity (0–100). Default: 92 */
-		cardOpacity?: number
+		cardOpacity?: number;
 		/** Main content area opacity (0–100). Default: 80 */
-		contentOpacity?: number
+		contentOpacity?: number;
 		/** Blur multiplier (1.0 = default, 0.5 = half, 2.0 = double). Default: 1.0 */
-		blurScale?: number
+		blurScale?: number;
 		/** Disable glass for this theme entirely, forcing opaque even on macOS. Default: false */
-		disabled?: boolean
-	}
+		disabled?: boolean;
+	};
 }
 
 // ============================================================
@@ -136,7 +136,7 @@ export const cortexTheme: ThemeDefinition = {
 		elevatedOpacity: 55,
 		cardOpacity: 88,
 	},
-}
+};
 
 // ============================================================
 // Liquid Glass theme — macOS only, maximally transparent
@@ -200,7 +200,7 @@ export const liquidGlassTheme: ThemeDefinition = {
 		contentOpacity: 15,
 		blurScale: 2.0,
 	},
-}
+};
 
 // ============================================================
 // System theme — uses the OS accent color
@@ -240,26 +240,32 @@ export const systemTheme: ThemeDefinition = {
 		elevatedOpacity: 55,
 		cardOpacity: 88,
 	},
-}
+};
 
 // ============================================================
 // Theme registry — add new themes here
 // ============================================================
 
-export const themes: ThemeDefinition[] = [systemTheme, cortexTheme, liquidGlassTheme]
+export const themes: ThemeDefinition[] = [
+	systemTheme,
+	cortexTheme,
+	liquidGlassTheme,
+];
 
 /**
  * Return only themes available on the given platform.
  * Themes without a `platforms` restriction are always included.
  */
-export function getAvailableThemes(platform?: NodeJS.Platform): ThemeDefinition[] {
-	if (!platform) return themes
-	return themes.filter((t) => !t.platforms || t.platforms.includes(platform))
+export function getAvailableThemes(
+	platform?: NodeJS.Platform,
+): ThemeDefinition[] {
+	if (!platform) return themes;
+	return themes.filter((t) => !t.platforms || t.platforms.includes(platform));
 }
 
 /**
  * Look up a theme by id.  Falls back to default if not found.
  */
 export function getTheme(id: string): ThemeDefinition {
-	return themes.find((t) => t.id === id) ?? systemTheme
+	return themes.find((t) => t.id === id) ?? systemTheme;
 }

@@ -5,19 +5,24 @@ import {
 	CodeBlockCopyButton,
 	CodeBlockHeader,
 	CodeBlockTitle,
-} from "@palot/ui/components/ai-elements/code-block"
-import { Diff, DiffContent } from "@palot/ui/components/ai-elements/diff"
+} from "@palot/ui/components/ai-elements/code-block";
+import { Diff, DiffContent } from "@palot/ui/components/ai-elements/diff";
 import {
 	Terminal,
 	TerminalContent,
 	TerminalCopyButton,
 	TerminalHeader,
 	TerminalTitle,
-} from "@palot/ui/components/ai-elements/terminal"
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@palot/ui/components/dialog"
-import { cn } from "@palot/ui/lib/utils"
+} from "@palot/ui/components/ai-elements/terminal";
+import {
+	Dialog,
+	DialogContent,
+	DialogTitle,
+	DialogTrigger,
+} from "@palot/ui/components/dialog";
+import { cn } from "@palot/ui/lib/utils";
 
-import { useSetAtom } from "jotai"
+import { useSetAtom } from "jotai";
 import {
 	AlertTriangleIcon,
 	BookOpenIcon,
@@ -37,29 +42,33 @@ import {
 	WrenchIcon,
 	XIcon,
 	ZapIcon,
-} from "lucide-react"
-import type { ReactNode } from "react"
-import { memo, useCallback, useMemo } from "react"
-import { useToolElapsedTime } from "../../hooks/use-elapsed-time"
-import type { BundledLanguage } from "shiki"
-import { getPartFirstSeenAt } from "../../atoms/parts"
-import { viewFileInDiffPanelAtom } from "../../atoms/ui"
-import { detectContentLanguage, detectLanguage, prettyPrintJson } from "../../lib/language"
-import type { FilePart, ToolPart, ToolStateCompleted } from "../../lib/types"
-import { SubAgentCard } from "./sub-agent-card"
-import { getToolCategory, ToolCard } from "./tool-card"
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { memo, useCallback, useMemo } from "react";
+import type { BundledLanguage } from "shiki";
+import { getPartFirstSeenAt } from "../../atoms/parts";
+import { viewFileInDiffPanelAtom } from "../../atoms/ui";
+import { useToolElapsedTime } from "../../hooks/use-elapsed-time";
+import {
+	detectContentLanguage,
+	detectLanguage,
+	prettyPrintJson,
+} from "../../lib/language";
+import type { FilePart, ToolPart, ToolStateCompleted } from "../../lib/types";
+import { SubAgentCard } from "./sub-agent-card";
+import { getToolCategory, ToolCard } from "./tool-card";
 
 // ============================================================
 // Constants
 // ============================================================
 
 /** Max characters to display in tool output before truncating */
-const MAX_OUTPUT_LENGTH = 5000
+const MAX_OUTPUT_LENGTH = 5000;
 
 /** Truncate output for display, preserving useful content */
 function truncateOutput(output: string, max = MAX_OUTPUT_LENGTH): string {
-	if (output.length <= max) return output
-	return `${output.slice(0, max)}\n... (truncated)`
+	if (output.length <= max) return output;
+	return `${output.slice(0, max)}\n... (truncated)`;
 }
 
 // ============================================================
@@ -67,7 +76,7 @@ function truncateOutput(output: string, max = MAX_OUTPUT_LENGTH): string {
 // ============================================================
 
 /** Pre-compiled regex for line-number formats (hoisted to avoid re-creation per call) */
-const LINE_NUM_REGEX = /^\s*(\d+)[|:\t]\s?(.*)$/
+const LINE_NUM_REGEX = /^\s*(\d+)[|:\t]\s?(.*)$/;
 
 /**
  * Parses output from various read tools.
@@ -79,53 +88,53 @@ const LINE_NUM_REGEX = /^\s*(\d+)[|:\t]\s?(.*)$/
  * prefixes, and returns the clean content + the starting line number.
  */
 function parseReadOutput(raw: string): { content: string; startLine: number } {
-	let text = raw
+	let text = raw;
 
 	// 1. Strip OpenCode XML-style tags
-	text = text.replace(/<path>[\s\S]*?<\/path>\s*\n?/g, "")
-	text = text.replace(/<type>[\s\S]*?<\/type>\s*\n?/g, "")
+	text = text.replace(/<path>[\s\S]*?<\/path>\s*\n?/g, "");
+	text = text.replace(/<type>[\s\S]*?<\/type>\s*\n?/g, "");
 
 	// Extract content from <content> or <entries> if present
-	const contentMatch = text.match(/<content>([\s\S]*?)<\/content>/)
-	const entriesMatch = text.match(/<entries>([\s\S]*?)<\/entries>/)
+	const contentMatch = text.match(/<content>([\s\S]*?)<\/content>/);
+	const entriesMatch = text.match(/<entries>([\s\S]*?)<\/entries>/);
 
 	if (contentMatch) {
-		text = contentMatch[1]
+		text = contentMatch[1];
 	} else if (entriesMatch) {
-		text = entriesMatch[1]
+		text = entriesMatch[1];
 	} else {
 		// 2. Fallback: Strip <file> / </file> wrapper lines (Claude Code)
-		text = text.replace(/^\s*<file>\s*\n?/, "")
-		text = text.replace(/\n?\s*<\/file>\s*$/, "")
+		text = text.replace(/^\s*<file>\s*\n?/, "");
+		text = text.replace(/\n?\s*<\/file>\s*$/, "");
 	}
 
 	// 3. Clean up trailing metadata lines
-	text = text.replace(/\n?\s*\(End of file[^)]*\)\s*$/, "")
-	text = text.replace(/\n?\s*\(File has more lines[^)]*\)\s*$/, "")
-	text = text.replace(/\n?\s*\(Output truncated[^)]*\)\s*$/, "")
+	text = text.replace(/\n?\s*\(End of file[^)]*\)\s*$/, "");
+	text = text.replace(/\n?\s*\(File has more lines[^)]*\)\s*$/, "");
+	text = text.replace(/\n?\s*\(Output truncated[^)]*\)\s*$/, "");
 
-	const lines = text.split("\n")
+	const lines = text.split("\n");
 	// If first line has a line number, use it as startLine
-	const firstMatch = lines[0]?.match(LINE_NUM_REGEX)
+	const firstMatch = lines[0]?.match(LINE_NUM_REGEX);
 
 	if (!firstMatch) {
-		return { content: text, startLine: 1 }
+		return { content: text, startLine: 1 };
 	}
 
-	const startLine = Number.parseInt(firstMatch[1], 10)
-	const stripped: string[] = []
+	const startLine = Number.parseInt(firstMatch[1], 10);
+	const stripped: string[] = [];
 
 	for (const line of lines) {
-		const match = line.match(LINE_NUM_REGEX)
+		const match = line.match(LINE_NUM_REGEX);
 		if (match) {
-			stripped.push(match[2])
+			stripped.push(match[2]);
 		} else {
 			// Lines without prefix (e.g. blank lines) — keep as-is
-			stripped.push(line)
+			stripped.push(line);
 		}
 	}
 
-	return { content: stripped.join("\n"), startLine }
+	return { content: stripped.join("\n"), startLine };
 }
 
 // ============================================================
@@ -139,22 +148,22 @@ function computeDiffStats(
 	oldStr: string,
 	newStr: string,
 ): { additions: number; deletions: number } {
-	const oldLines = oldStr.split("\n")
-	const newLines = newStr.split("\n")
-	const oldSet = new Set(oldLines)
-	const newSet = new Set(newLines)
+	const oldLines = oldStr.split("\n");
+	const newLines = newStr.split("\n");
+	const oldSet = new Set(oldLines);
+	const newSet = new Set(newLines);
 
-	let additions = 0
-	let deletions = 0
+	let additions = 0;
+	let deletions = 0;
 
 	for (const line of newLines) {
-		if (!oldSet.has(line)) additions++
+		if (!oldSet.has(line)) additions++;
 	}
 	for (const line of oldLines) {
-		if (!newSet.has(line)) deletions++
+		if (!newSet.has(line)) deletions++;
 	}
 
-	return { additions, deletions }
+	return { additions, deletions };
 }
 
 // ============================================================
@@ -162,38 +171,38 @@ function computeDiffStats(
 // ============================================================
 
 export function getToolInfo(tool: string): {
-	icon: typeof WrenchIcon
-	title: string
+	icon: typeof WrenchIcon;
+	title: string;
 } {
 	switch (tool) {
 		case "read":
-			return { icon: EyeIcon, title: "Read" }
+			return { icon: EyeIcon, title: "Read" };
 		case "glob":
-			return { icon: SearchIcon, title: "Glob" }
+			return { icon: SearchIcon, title: "Glob" };
 		case "grep":
-			return { icon: SearchIcon, title: "Grep" }
+			return { icon: SearchIcon, title: "Grep" };
 		case "list":
-			return { icon: SearchIcon, title: "List" }
+			return { icon: SearchIcon, title: "List" };
 		case "webfetch":
-			return { icon: GlobeIcon, title: "Fetch" }
+			return { icon: GlobeIcon, title: "Fetch" };
 		case "bash":
-			return { icon: TerminalIcon, title: "Shell" }
+			return { icon: TerminalIcon, title: "Shell" };
 		case "edit":
-			return { icon: EditIcon, title: "Edit" }
+			return { icon: EditIcon, title: "Edit" };
 		case "write":
-			return { icon: FileCodeIcon, title: "Write" }
+			return { icon: FileCodeIcon, title: "Write" };
 		case "apply_patch":
-			return { icon: CodeIcon, title: "Patch" }
+			return { icon: CodeIcon, title: "Patch" };
 		case "task":
-			return { icon: ZapIcon, title: "Agent" }
+			return { icon: ZapIcon, title: "Agent" };
 		case "todowrite":
-			return { icon: SquareCheckIcon, title: "Todos" }
+			return { icon: SquareCheckIcon, title: "Todos" };
 		case "todoread":
-			return { icon: SquareCheckIcon, title: "Todos" }
+			return { icon: SquareCheckIcon, title: "Todos" };
 		case "question":
-			return { icon: BookOpenIcon, title: "Question" }
+			return { icon: BookOpenIcon, title: "Question" };
 		default:
-			return { icon: WrenchIcon, title: tool }
+			return { icon: WrenchIcon, title: tool };
 	}
 }
 
@@ -205,16 +214,20 @@ export function getToolInfo(tool: string): {
  * fields like `command` or `description` even before the server has finished
  * parsing the full input.
  */
-function extractFromRaw(state: ToolPart["state"], ...fields: string[]): string | undefined {
-	if (!("raw" in state) || typeof state.raw !== "string" || !state.raw) return undefined
-	const raw = state.raw
+function extractFromRaw(
+	state: ToolPart["state"],
+	...fields: string[]
+): string | undefined {
+	if (!("raw" in state) || typeof state.raw !== "string" || !state.raw)
+		return undefined;
+	const raw = state.raw;
 	for (const field of fields) {
 		// Match "field": "value" — handles escaped quotes in the value
-		const pattern = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`)
-		const match = raw.match(pattern)
-		if (match?.[1]) return match[1]
+		const pattern = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`);
+		const match = raw.match(pattern);
+		if (match?.[1]) return match[1];
 	}
-	return undefined
+	return undefined;
 }
 
 /**
@@ -225,21 +238,21 @@ function extractFromRaw(state: ToolPart["state"], ...fields: string[]): string |
 function getPendingLabel(tool: string): string {
 	switch (tool) {
 		case "write":
-			return "Preparing write..."
+			return "Preparing write...";
 		case "edit":
-			return "Preparing edit..."
+			return "Preparing edit...";
 		case "apply_patch":
-			return "Preparing patch..."
+			return "Preparing patch...";
 		case "bash":
-			return "Preparing command..."
+			return "Preparing command...";
 		case "read":
-			return "Preparing read..."
+			return "Preparing read...";
 		case "task":
-			return "Preparing agent..."
+			return "Preparing agent...";
 		case "webfetch":
-			return "Preparing fetch..."
+			return "Preparing fetch...";
 		default:
-			return `Preparing ${tool}...`
+			return `Preparing ${tool}...`;
 	}
 }
 
@@ -249,81 +262,84 @@ function getPendingLabel(tool: string): string {
  * and no input fields have been parsed yet (the model is still streaming arguments).
  */
 export function getToolSubtitle(part: ToolPart): string | undefined {
-	const state = part.state
-	const input = state.input
-	const title = "title" in state ? state.title : undefined
+	const state = part.state;
+	const input = state.input;
+	const title = "title" in state ? state.title : undefined;
 
-	let subtitle: string | undefined
+	let subtitle: string | undefined;
 
 	switch (part.tool) {
 		case "read":
 			subtitle =
 				shortenPath((input.filePath as string) ?? (input.path as string)) ??
-				shortenPath(extractFromRaw(state, "filePath", "path"))
-			break
+				shortenPath(extractFromRaw(state, "filePath", "path"));
+			break;
 		case "glob":
 			subtitle =
 				(input.pattern as string) ??
 				(input.path as string) ??
-				extractFromRaw(state, "pattern", "path")
-			break
+				extractFromRaw(state, "pattern", "path");
+			break;
 		case "grep":
 			subtitle =
 				(input.pattern as string) ??
 				(input.path as string) ??
-				extractFromRaw(state, "pattern", "path")
-			break
+				extractFromRaw(state, "pattern", "path");
+			break;
 		case "bash":
 			subtitle =
 				title ??
 				(input.description as string) ??
 				(input.command as string) ??
-				extractFromRaw(state, "command", "description")
-			break
+				extractFromRaw(state, "command", "description");
+			break;
 		case "edit":
 			subtitle =
 				shortenPath((input.filePath as string) ?? (input.path as string)) ??
-				shortenPath(extractFromRaw(state, "filePath", "path"))
-			break
+				shortenPath(extractFromRaw(state, "filePath", "path"));
+			break;
 		case "write":
 			subtitle =
 				shortenPath((input.filePath as string) ?? (input.path as string)) ??
-				shortenPath(extractFromRaw(state, "filePath", "path"))
-			break
+				shortenPath(extractFromRaw(state, "filePath", "path"));
+			break;
 		case "apply_patch":
-			subtitle = title
-			break
+			subtitle = title;
+			break;
 		case "webfetch":
-			subtitle = (input.url as string) ?? extractFromRaw(state, "url")
-			break
+			subtitle = (input.url as string) ?? extractFromRaw(state, "url");
+			break;
 		case "task":
-			subtitle = (input.description as string) ?? title ?? extractFromRaw(state, "description")
-			break
+			subtitle =
+				(input.description as string) ??
+				title ??
+				extractFromRaw(state, "description");
+			break;
 		case "todowrite":
 		case "todoread": {
-			const todos = input?.todos as Array<{ status: string }> | undefined
+			const todos = input?.todos as Array<{ status: string }> | undefined;
 			if (todos && todos.length > 0) {
-				const completed = todos.filter((t) => t.status === "completed").length
-				subtitle = `${completed}/${todos.length} completed`
+				const completed = todos.filter((t) => t.status === "completed").length;
+				subtitle = `${completed}/${todos.length} completed`;
 			} else {
-				subtitle = title
+				subtitle = title;
 			}
-			break
+			break;
 		}
 		default:
 			// Unknown / MCP tools: always show compact input params like [key=value, key=value]
 			// Input params are more useful than the SDK-generated title for MCP tools
-			subtitle = formatInputParams(input) ?? title
-			break
+			subtitle = formatInputParams(input) ?? title;
+			break;
 	}
 
 	// When pending with no resolved subtitle, show a "Preparing ..." label so
 	// the user sees activity instead of a blank card (matches OpenCode TUI behaviour).
 	if (!subtitle && state.status === "pending") {
-		return getPendingLabel(part.tool)
+		return getPendingLabel(part.tool);
 	}
 
-	return subtitle
+	return subtitle;
 }
 
 /**
@@ -331,28 +347,28 @@ export function getToolSubtitle(part: ToolPart): string | undefined {
  * e.g. { url: "https://...", format: "md" } → [url=https://..., format=md]
  */
 function formatInputParams(input: Record<string, unknown>): string | undefined {
-	const entries = Object.entries(input)
-	if (entries.length === 0) return undefined
+	const entries = Object.entries(input);
+	if (entries.length === 0) return undefined;
 
-	const parts: string[] = []
+	const parts: string[] = [];
 	for (const [key, value] of entries) {
-		if (value == null) continue
-		const strVal = typeof value === "string" ? value : JSON.stringify(value)
+		if (value == null) continue;
+		const strVal = typeof value === "string" ? value : JSON.stringify(value);
 		// Truncate long values
-		const truncated = strVal.length > 60 ? `${strVal.slice(0, 57)}...` : strVal
-		parts.push(`${key}=${truncated}`)
+		const truncated = strVal.length > 60 ? `${strVal.slice(0, 57)}...` : strVal;
+		parts.push(`${key}=${truncated}`);
 	}
 
-	if (parts.length === 0) return undefined
-	return `[${parts.join(", ")}]`
+	if (parts.length === 0) return undefined;
+	return `[${parts.join(", ")}]`;
 }
 
 /** Shorten a file path to just filename or last 2 segments */
 function shortenPath(path: string | undefined): string | undefined {
-	if (!path) return undefined
-	const parts = path.split("/")
-	if (parts.length <= 2) return path
-	return parts.slice(-2).join("/")
+	if (!path) return undefined;
+	const parts = path.split("/");
+	if (parts.length <= 2) return path;
+	return parts.slice(-2).join("/");
 }
 
 /**
@@ -367,19 +383,19 @@ function shortenPath(path: string | undefined): string | undefined {
  * reconnect) where no client-side timestamp is available.
  */
 export function getToolDuration(part: ToolPart): string | undefined {
-	const state = part.state
+	const state = part.state;
 	if (state.status === "completed" || state.status === "error") {
-		const firstSeen = getPartFirstSeenAt(part.id)
-		const start = firstSeen ?? state.time.start
-		const ms = state.time.end - start
-		if (ms < 1000) return `${ms}ms`
-		const seconds = Math.floor(ms / 1000)
-		if (seconds < 60) return `${seconds}s`
-		const minutes = Math.floor(seconds / 60)
-		const remainingSeconds = seconds % 60
-		return `${minutes}m ${remainingSeconds}s`
+		const firstSeen = getPartFirstSeenAt(part.id);
+		const start = firstSeen ?? state.time.start;
+		const ms = state.time.end - start;
+		if (ms < 1000) return `${ms}ms`;
+		const seconds = Math.floor(ms / 1000);
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSeconds = seconds % 60;
+		return `${minutes}m ${remainingSeconds}s`;
 	}
-	return undefined
+	return undefined;
 }
 
 // ============================================================
@@ -395,32 +411,36 @@ export function getToolDuration(part: ToolPart): string | undefined {
  * behaviour of the OpenCode TUI and web UI.
  */
 function BashContent({ part }: { part: ToolPart }) {
-	const command = part.state.input?.command as string | undefined
+	const command = part.state.input?.command as string | undefined;
 
 	// During "running", live output arrives in state.metadata.output.
 	// After completion it moves to state.output.
 	const streamingOutput =
 		part.state.status === "running"
 			? (part.state.metadata?.output as string | undefined)
-			: undefined
-	const output = part.state.status === "completed" ? part.state.output : streamingOutput
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
-	const isStreaming = part.state.status === "running"
+			: undefined;
+	const output =
+		part.state.status === "completed" ? part.state.output : streamingOutput;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
+	const isStreaming = part.state.status === "running";
 
 	const displayOutput = useMemo(() => {
-		if (error) return error
-		if (!output) return ""
-		let cleaned = output
+		if (error) return error;
+		if (!output) return "";
+		let cleaned = output;
 		// The SDK output often echoes the command as the first line (e.g. "$ command\n...").
 		// Since we already render the command in a separate CodeBlock above, strip the duplicate.
 		if (command) {
-			const prefix = `$ ${command}`
+			const prefix = `$ ${command}`;
 			if (cleaned.startsWith(prefix)) {
-				cleaned = cleaned.slice(prefix.length).replace(/^\r?\n/, "")
+				cleaned = cleaned.slice(prefix.length).replace(/^\r?\n/, "");
 			}
 		}
-		return truncateOutput(cleaned)
-	}, [output, error, command])
+		return truncateOutput(cleaned);
+	}, [output, error, command]);
 
 	// If there's meaningful output, show a terminal view with ANSI support
 	if (displayOutput || isStreaming) {
@@ -450,7 +470,7 @@ function BashContent({ part }: { part: ToolPart }) {
 					<TerminalContent className="max-h-48 p-3 text-[11px] leading-relaxed" />
 				</Terminal>
 			</div>
-		)
+		);
 	}
 
 	// Command only (no output yet)
@@ -463,10 +483,10 @@ function BashContent({ part }: { part: ToolPart }) {
 			>
 				<CodeBlockContent code={`$ ${command}`} language="bash" />
 			</CodeBlock>
-		)
+		);
 	}
 
-	return null
+	return null;
 }
 
 /**
@@ -474,16 +494,21 @@ function BashContent({ part }: { part: ToolPart }) {
  * No inner headers — diff stats are shown in the ToolCard trailing area.
  */
 function EditDiffContent({ part }: { part: ToolPart }) {
-	const filePath = (part.state.input?.filePath as string) ?? (part.state.input?.path as string)
-	const oldString = part.state.input?.oldString as string | undefined
-	const newString = part.state.input?.newString as string | undefined
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const filePath =
+		(part.state.input?.filePath as string) ??
+		(part.state.input?.path as string);
+	const oldString = part.state.input?.oldString as string | undefined;
+	const newString = part.state.input?.newString as string | undefined;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 
-	if (error) return <ErrorContent error={error} />
+	if (error) return <ErrorContent error={error} />;
 
 	// If we have both old and new strings, show a proper diff
 	if (oldString != null && newString != null) {
-		const fileName = filePath?.split("/").pop() ?? "file"
+		const fileName = filePath?.split("/").pop() ?? "file";
 		return (
 			<Diff
 				mode="files"
@@ -493,20 +518,21 @@ function EditDiffContent({ part }: { part: ToolPart }) {
 			>
 				<DiffContent maxHeight={384} showLineNumbers hideFileHeader />
 			</Diff>
-		)
+		);
 	}
 
 	// Fallback: just show the output text
-	const output = part.state.status === "completed" ? part.state.output : undefined
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
 	if (output) {
 		return (
 			<pre className="max-h-48 overflow-auto px-3.5 py-2.5 font-mono text-[11px] text-muted-foreground">
 				<code>{truncateOutput(output)}</code>
 			</pre>
-		)
+		);
 	}
 
-	return null
+	return null;
 }
 
 /**
@@ -514,16 +540,21 @@ function EditDiffContent({ part }: { part: ToolPart }) {
  * No inner header — the ToolCard header already shows the filename.
  */
 function WriteContent({ part }: { part: ToolPart }) {
-	const filePath = (part.state.input?.filePath as string) ?? (part.state.input?.path as string)
-	const content = part.state.input?.content as string | undefined
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const filePath =
+		(part.state.input?.filePath as string) ??
+		(part.state.input?.path as string);
+	const content = part.state.input?.content as string | undefined;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 
-	if (error) return <ErrorContent error={error} />
+	if (error) return <ErrorContent error={error} />;
 
-	const language = (detectLanguage(filePath) ?? "text") as BundledLanguage
+	const language = (detectLanguage(filePath) ?? "text") as BundledLanguage;
 
 	if (content) {
-		const displayContent = truncateOutput(content)
+		const displayContent = truncateOutput(content);
 		return (
 			<CodeBlock
 				code={displayContent}
@@ -531,22 +562,27 @@ function WriteContent({ part }: { part: ToolPart }) {
 				showLineNumbers
 				className="max-h-96 border-0 shadow-none rounded-none text-[11px]"
 			>
-				<CodeBlockContent code={displayContent} language={language} showLineNumbers />
+				<CodeBlockContent
+					code={displayContent}
+					language={language}
+					showLineNumbers
+				/>
 			</CodeBlock>
-		)
+		);
 	}
 
 	// Fallback to output
-	const output = part.state.status === "completed" ? part.state.output : undefined
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
 	if (output) {
 		return (
 			<pre className="max-h-48 overflow-auto px-3.5 py-2.5 font-mono text-[11px] text-muted-foreground">
 				<code>{truncateOutput(output)}</code>
 			</pre>
-		)
+		);
 	}
 
-	return null
+	return null;
 }
 
 /**
@@ -554,16 +590,22 @@ function WriteContent({ part }: { part: ToolPart }) {
  * No inner header — the ToolCard header identifies this as a patch.
  */
 function PatchContent({ part }: { part: ToolPart }) {
-	const output = part.state.status === "completed" ? part.state.output : undefined
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 
-	if (error) return <ErrorContent error={error} />
+	if (error) return <ErrorContent error={error} />;
 
 	// Try to detect if output is a patch/diff
 	if (output) {
-		const trimmed = output.trimStart()
+		const trimmed = output.trimStart();
 		const isPatch =
-			trimmed.startsWith("---") || trimmed.startsWith("diff --git") || trimmed.startsWith("@@")
+			trimmed.startsWith("---") ||
+			trimmed.startsWith("diff --git") ||
+			trimmed.startsWith("@@");
 
 		if (isPatch) {
 			return (
@@ -574,7 +616,7 @@ function PatchContent({ part }: { part: ToolPart }) {
 				>
 					<DiffContent maxHeight={384} showLineNumbers hideFileHeader />
 				</Diff>
-			)
+			);
 		}
 
 		// Not a patch format — show as plain diff-highlighted text
@@ -586,10 +628,10 @@ function PatchContent({ part }: { part: ToolPart }) {
 			>
 				<CodeBlockContent code={truncateOutput(output)} language="diff" />
 			</CodeBlock>
-		)
+		);
 	}
 
-	return null
+	return null;
 }
 
 /**
@@ -597,18 +639,24 @@ function PatchContent({ part }: { part: ToolPart }) {
  * Strips cat -n prefixes and <file> tags, preserves original line numbers.
  */
 function ReadContent({ part }: { part: ToolPart }) {
-	const filePath = (part.state.input?.filePath as string) ?? (part.state.input?.path as string)
-	const output = part.state.status === "completed" ? part.state.output : undefined
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const filePath =
+		(part.state.input?.filePath as string) ??
+		(part.state.input?.path as string);
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 
-	if (error) return <ErrorContent error={error} />
-	if (!output) return null
+	if (error) return <ErrorContent error={error} />;
+	if (!output) return null;
 
-	const language = (detectLanguage(filePath) ?? "text") as BundledLanguage
+	const language = (detectLanguage(filePath) ?? "text") as BundledLanguage;
 
 	// Parse out cat -n line numbers and <file> wrapper
-	const { content: cleanContent, startLine } = parseReadOutput(output)
-	const displayContent = truncateOutput(cleanContent)
+	const { content: cleanContent, startLine } = parseReadOutput(output);
+	const displayContent = truncateOutput(cleanContent);
 
 	// No inner header — the ToolCard header already shows the filename.
 	// Just the code block with correct line number offset.
@@ -626,32 +674,38 @@ function ReadContent({ part }: { part: ToolPart }) {
 				startLine={startLine}
 			/>
 		</CodeBlock>
-	)
+	);
 }
 
 /** Search tools (glob/grep/list): shows pattern + results */
 function SearchContent({ part }: { part: ToolPart }) {
-	const pattern = (part.state.input?.pattern as string) ?? undefined
-	const include = (part.state.input?.include as string) ?? undefined
-	const path = (part.state.input?.path as string) ?? undefined
-	const output = part.state.status === "completed" ? part.state.output : undefined
+	const pattern = (part.state.input?.pattern as string) ?? undefined;
+	const include = (part.state.input?.include as string) ?? undefined;
+	const path = (part.state.input?.path as string) ?? undefined;
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
 
 	return (
 		<div className="space-y-1.5 px-3.5 py-2.5">
 			<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground/70">
 				{pattern && (
 					<span>
-						pattern: <span className="font-mono text-foreground/60">{pattern}</span>
+						pattern:{" "}
+						<span className="font-mono text-foreground/60">{pattern}</span>
 					</span>
 				)}
 				{include && (
 					<span>
-						include: <span className="font-mono text-foreground/60">{include}</span>
+						include:{" "}
+						<span className="font-mono text-foreground/60">{include}</span>
 					</span>
 				)}
 				{path && (
 					<span>
-						in: <span className="font-mono text-foreground/60">{shortenPath(path)}</span>
+						in:{" "}
+						<span className="font-mono text-foreground/60">
+							{shortenPath(path)}
+						</span>
 					</span>
 				)}
 			</div>
@@ -661,27 +715,28 @@ function SearchContent({ part }: { part: ToolPart }) {
 				</pre>
 			)}
 		</div>
-	)
+	);
 }
 
 /** WebFetch tool: shows URL + fetched content with optional markdown/json highlighting */
 function WebFetchContent({ part }: { part: ToolPart }) {
-	const url = part.state.input?.url as string | undefined
-	const format = part.state.input?.format as string | undefined
-	const output = part.state.status === "completed" ? part.state.output : undefined
+	const url = part.state.input?.url as string | undefined;
+	const format = part.state.input?.format as string | undefined;
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
 
 	const language = useMemo(() => {
-		if (format === "html") return "html"
-		if (format === "json") return "json"
-		if (output) return detectContentLanguage(output)
-		return undefined
-	}, [format, output]) as BundledLanguage | undefined
+		if (format === "html") return "html";
+		if (format === "json") return "json";
+		if (output) return detectContentLanguage(output);
+		return undefined;
+	}, [format, output]) as BundledLanguage | undefined;
 
 	const displayOutput = useMemo(() => {
-		if (!output) return undefined
-		if (language === "json") return prettyPrintJson(output)
-		return output
-	}, [output, language])
+		if (!output) return undefined;
+		if (language === "json") return prettyPrintJson(output);
+		return output;
+	}, [output, language]);
 
 	return (
 		<div className="space-y-1.5">
@@ -696,7 +751,10 @@ function WebFetchContent({ part }: { part: ToolPart }) {
 					language={language}
 					className="max-h-96 border-0 shadow-none rounded-none text-[11px]"
 				>
-					<CodeBlockContent code={truncateOutput(displayOutput)} language={language} />
+					<CodeBlockContent
+						code={truncateOutput(displayOutput)}
+						language={language}
+					/>
 				</CodeBlock>
 			) : output ? (
 				<pre className="max-h-48 overflow-auto px-3.5 py-2.5 font-mono text-[11px] text-muted-foreground">
@@ -704,15 +762,17 @@ function WebFetchContent({ part }: { part: ToolPart }) {
 				</pre>
 			) : null}
 		</div>
-	)
+	);
 }
 
 /** TodoWrite tool: shows checklist items */
 function TodoContent({ part }: { part: ToolPart }) {
 	const todos =
-		(part.state.input?.todos as Array<{ content: string; status: string }> | undefined) ?? []
+		(part.state.input?.todos as
+			| Array<{ content: string; status: string }>
+			| undefined) ?? [];
 
-	if (todos.length === 0) return null
+	if (todos.length === 0) return null;
 
 	return (
 		<div className="space-y-1 px-3.5 py-2.5">
@@ -748,19 +808,22 @@ function TodoContent({ part }: { part: ToolPart }) {
 				</div>
 			))}
 		</div>
-	)
+	);
 }
 
 /** Error content for any tool */
 function ErrorContent({ error }: { error: string }) {
 	return (
 		<div className="flex items-start gap-2 rounded bg-red-500/5 mx-3.5 my-2.5 px-2 py-1.5 text-xs text-red-400">
-			<AlertTriangleIcon className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+			<AlertTriangleIcon
+				className="mt-0.5 size-3 shrink-0"
+				aria-hidden="true"
+			/>
 			<pre className="max-h-32 overflow-auto font-mono">
 				<code>{error.length > 500 ? `${error.slice(0, 500)}...` : error}</code>
 			</pre>
 		</div>
-	)
+	);
 }
 
 /**
@@ -768,19 +831,23 @@ function ErrorContent({ error }: { error: string }) {
  * for syntax highlighting, falls back to plain text.
  */
 function GenericContent({ part }: { part: ToolPart }) {
-	const output = part.state.status === "completed" ? part.state.output : undefined
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const output =
+		part.state.status === "completed" ? part.state.output : undefined;
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 
 	const language = useMemo(() => {
-		if (!output) return undefined
-		return detectContentLanguage(output) as BundledLanguage | undefined
-	}, [output])
+		if (!output) return undefined;
+		return detectContentLanguage(output) as BundledLanguage | undefined;
+	}, [output]);
 
 	const displayOutput = useMemo(() => {
-		if (!output) return undefined
-		if (language === "json") return prettyPrintJson(output)
-		return output
-	}, [output, language])
+		if (!output) return undefined;
+		if (language === "json") return prettyPrintJson(output);
+		return output;
+	}, [output, language]);
 
 	return (
 		<div>
@@ -792,13 +859,18 @@ function GenericContent({ part }: { part: ToolPart }) {
 				>
 					<CodeBlockHeader className="px-3 py-1.5">
 						<CodeBlockTitle className="text-[11px]">
-							<span className="uppercase text-muted-foreground">{language}</span>
+							<span className="uppercase text-muted-foreground">
+								{language}
+							</span>
 						</CodeBlockTitle>
 						<CodeBlockActions>
 							<CodeBlockCopyButton className="size-6" />
 						</CodeBlockActions>
 					</CodeBlockHeader>
-					<CodeBlockContent code={truncateOutput(displayOutput)} language={language} />
+					<CodeBlockContent
+						code={truncateOutput(displayOutput)}
+						language={language}
+					/>
 				</CodeBlock>
 			) : output ? (
 				<pre className="max-h-48 overflow-auto px-3.5 py-2.5 font-mono text-[11px] text-muted-foreground">
@@ -807,7 +879,7 @@ function GenericContent({ part }: { part: ToolPart }) {
 			) : null}
 			{error && <ErrorContent error={error} />}
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -819,7 +891,7 @@ function GenericContent({ part }: { part: ToolPart }) {
  */
 export function shouldDefaultOpen(tool: string, status: string): boolean {
 	// Errors are always expanded
-	if (status === "error") return true
+	if (status === "error") return true;
 
 	switch (tool) {
 		// High-information tools: default open in active turn
@@ -830,14 +902,14 @@ export function shouldDefaultOpen(tool: string, status: string): boolean {
 		case "apply_patch":
 		case "task":
 		case "question":
-			return true
+			return true;
 		// Todos: always collapsed — the pinned SessionTaskList shows live state.
 		// Inline cards serve as timeline breadcrumbs for session review only.
 		case "todowrite":
 		case "todoread":
-			return false
+			return false;
 		default:
-			return false
+			return false;
 	}
 }
 
@@ -845,38 +917,43 @@ export function shouldDefaultOpen(tool: string, status: string): boolean {
  * Returns whether a tool has expandable content.
  */
 function hasExpandableContent(part: ToolPart): boolean {
-	const { tool, state } = part
+	const { tool, state } = part;
 	// Task uses SubAgentCard, not ToolCard
-	if (tool === "task") return false
+	if (tool === "task") return false;
 	// Todowrite has expandable todo items
 	if (tool === "todowrite" || tool === "todoread") {
-		const todos = state.input?.todos as Array<{ content: string; status: string }> | undefined
-		return (todos?.length ?? 0) > 0
+		const todos = state.input?.todos as
+			| Array<{ content: string; status: string }>
+			| undefined;
+		return (todos?.length ?? 0) > 0;
 	}
 	// Edit tool has content if we have old/new strings
 	if (tool === "edit") {
-		const oldString = state.input?.oldString as string | undefined
-		const newString = state.input?.newString as string | undefined
-		if (oldString != null && newString != null) return true
+		const oldString = state.input?.oldString as string | undefined;
+		const newString = state.input?.newString as string | undefined;
+		if (oldString != null && newString != null) return true;
 	}
 	// Write tool has content if we have the file content
 	if (tool === "write") {
-		const content = state.input?.content as string | undefined
-		if (content) return true
+		const content = state.input?.content as string | undefined;
+		if (content) return true;
 	}
 	// If there's output or error, there's content
-	if (state.status === "completed" && state.output) return true
-	if (state.status === "error") return true
+	if (state.status === "completed" && state.output) return true;
+	if (state.status === "error") return true;
 	// Bash always has content (the command at least)
-	if (tool === "bash") return true
-	return false
+	if (tool === "bash") return true;
+	return false;
 }
 
 /**
  * Resolves the content renderer for a tool.
  */
 function getToolContent(part: ToolPart): ReactNode {
-	const error = part.state.status === "error" ? (part.state as { error: string }).error : undefined
+	const error =
+		part.state.status === "error"
+			? (part.state as { error: string }).error
+			: undefined;
 	if (
 		error &&
 		part.tool !== "bash" &&
@@ -885,31 +962,31 @@ function getToolContent(part: ToolPart): ReactNode {
 		part.tool !== "read" &&
 		part.tool !== "apply_patch"
 	) {
-		return <ErrorContent error={error} />
+		return <ErrorContent error={error} />;
 	}
 
 	switch (part.tool) {
 		case "bash":
-			return <BashContent part={part} />
+			return <BashContent part={part} />;
 		case "edit":
-			return <EditDiffContent part={part} />
+			return <EditDiffContent part={part} />;
 		case "write":
-			return <WriteContent part={part} />
+			return <WriteContent part={part} />;
 		case "apply_patch":
-			return <PatchContent part={part} />
+			return <PatchContent part={part} />;
 		case "read":
-			return <ReadContent part={part} />
+			return <ReadContent part={part} />;
 		case "glob":
 		case "grep":
 		case "list":
-			return <SearchContent part={part} />
+			return <SearchContent part={part} />;
 		case "webfetch":
-			return <WebFetchContent part={part} />
+			return <WebFetchContent part={part} />;
 		case "todowrite":
 		case "todoread":
-			return <TodoContent part={part} />
+			return <TodoContent part={part} />;
 		default:
-			return <GenericContent part={part} />
+			return <GenericContent part={part} />;
 	}
 }
 
@@ -918,17 +995,21 @@ function getToolContent(part: ToolPart): ReactNode {
 // ============================================================
 
 interface ChatToolCallProps {
-	part: ToolPart
+	part: ToolPart;
 	/** Whether this tool is in the active (last) turn */
-	isActiveTurn?: boolean
+	isActiveTurn?: boolean;
 	/** Whether the turn containing this tool has an error (enables delete action) */
-	turnHasError?: boolean
+	turnHasError?: boolean;
 	/** Delete this tool part (for error recovery) */
-	onDelete?: (part: ToolPart) => void
+	onDelete?: (part: ToolPart) => void;
 	/** Permission data to render inline */
-	permission?: { id: string; permission: string; metadata?: Record<string, unknown> }
-	onApprove?: (permissionId: string, response: "once" | "always") => void
-	onDeny?: (permissionId: string) => void
+	permission?: {
+		id: string;
+		permission: string;
+		metadata?: Record<string, unknown>;
+	};
+	onApprove?: (permissionId: string, response: "once" | "always") => void;
+	onDeny?: (permissionId: string) => void;
 }
 
 /**
@@ -936,31 +1017,31 @@ interface ChatToolCallProps {
  * Avoids re-renders when a new object reference has the same content.
  */
 function areToolPartsEqual(a: ToolPart, b: ToolPart): boolean {
-	if (a === b) return true
-	if (a.id !== b.id) return false
-	if (a.state.status !== b.state.status) return false
+	if (a === b) return true;
+	if (a.id !== b.id) return false;
+	if (a.state.status !== b.state.status) return false;
 	// During "pending", the server streams partial tool-call arguments into
 	// state.raw. Compare raw length so the subtitle updates as arguments arrive.
 	if (a.state.status === "pending" && b.state.status === "pending") {
-		if (a.state.raw.length !== b.state.raw.length) return false
+		if (a.state.raw.length !== b.state.raw.length) return false;
 	}
 	// During "running", the server streams incremental output via
 	// state.metadata.output. Compare the accumulated output length so
 	// React re-renders the terminal on every new chunk.
 	if (a.state.status === "running" && b.state.status === "running") {
-		const aMeta = a.state.metadata?.output as string | undefined
-		const bMeta = b.state.metadata?.output as string | undefined
-		if ((aMeta?.length ?? 0) !== (bMeta?.length ?? 0)) return false
+		const aMeta = a.state.metadata?.output as string | undefined;
+		const bMeta = b.state.metadata?.output as string | undefined;
+		if ((aMeta?.length ?? 0) !== (bMeta?.length ?? 0)) return false;
 	}
 	// Compare output/error lengths for completed/error states
 	if (a.state.status === "completed" && b.state.status === "completed") {
-		if (a.state.output.length !== b.state.output.length) return false
-		if (a.state.time.end !== b.state.time.end) return false
+		if (a.state.output.length !== b.state.output.length) return false;
+		if (a.state.time.end !== b.state.time.end) return false;
 	}
 	if (a.state.status === "error" && b.state.status === "error") {
-		if (a.state.error !== b.state.error) return false
+		if (a.state.error !== b.state.error) return false;
 	}
-	return true
+	return true;
 }
 
 /**
@@ -977,42 +1058,53 @@ export const ChatToolCall = memo(
 		onApprove,
 		onDeny,
 	}: ChatToolCallProps) {
-		const viewFileInDiff = useSetAtom(viewFileInDiffPanelAtom)
+		const viewFileInDiff = useSetAtom(viewFileInDiffPanelAtom);
 
 		// Compute diff stats for edit tools (shown in trailing area)
 		// Must be called before early returns to satisfy hooks rules.
 		const diffStats = useMemo(() => {
-			if (part.tool !== "edit") return undefined
-			const oldString = part.state.input?.oldString as string | undefined
-			const newString = part.state.input?.newString as string | undefined
-			if (oldString == null || newString == null) return undefined
-			return computeDiffStats(oldString, newString)
-		}, [part.tool, part.state.input?.oldString, part.state.input?.newString])
+			if (part.tool !== "edit") return undefined;
+			const oldString = part.state.input?.oldString as string | undefined;
+			const newString = part.state.input?.newString as string | undefined;
+			if (oldString == null || newString == null) return undefined;
+			return computeDiffStats(oldString, newString);
+		}, [part.tool, part.state.input?.oldString, part.state.input?.newString]);
 
 		// Extract file path for edit-category tools (used for "View diff" button)
 		const editFilePath = useMemo(() => {
-			if (part.tool !== "edit" && part.tool !== "write" && part.tool !== "apply_patch") {
-				return undefined
+			if (
+				part.tool !== "edit" &&
+				part.tool !== "write" &&
+				part.tool !== "apply_patch"
+			) {
+				return undefined;
 			}
-			return (part.state.input?.filePath as string) ?? (part.state.input?.path as string)
-		}, [part.tool, part.state.input?.filePath, part.state.input?.path])
+			return (
+				(part.state.input?.filePath as string) ??
+				(part.state.input?.path as string)
+			);
+		}, [part.tool, part.state.input?.filePath, part.state.input?.path]);
 
 		const handleViewDiff = useCallback(
 			(e: React.MouseEvent) => {
-				e.stopPropagation()
-				if (editFilePath) viewFileInDiff(editFilePath)
+				e.stopPropagation();
+				if (editFilePath) viewFileInDiff(editFilePath);
 			},
 			[editFilePath, viewFileInDiff],
-		)
+		);
 
-		const duration = getToolDuration(part)
-		const elapsedTime = useToolElapsedTime(part)
-		const status = part.state.status as "running" | "error" | "completed" | "pending"
+		const duration = getToolDuration(part);
+		const elapsedTime = useToolElapsedTime(part);
+		const status = part.state.status as
+			| "running"
+			| "error"
+			| "completed"
+			| "pending";
 
 		// Build trailing element: diff stats + "view diff" button + duration/spinner
 		// Must be called before early returns to satisfy hooks rules.
 		const trailingElement = useMemo(() => {
-			const parts: ReactNode[] = []
+			const parts: ReactNode[] = [];
 
 			// Diff stats for edit tools
 			if (diffStats) {
@@ -1027,7 +1119,7 @@ export const ChatToolCall = memo(
 							{diffStats.deletions}
 						</span>
 					</span>,
-				)
+				);
 			}
 
 			// Duration, elapsed time + spinner, or just spinner
@@ -1036,7 +1128,7 @@ export const ChatToolCall = memo(
 					<span key="duration" className="text-[11px]">
 						{duration}
 					</span>,
-				)
+				);
 			} else if (status === "running" || status === "pending") {
 				parts.push(
 					<span key="running" className="flex items-center gap-1.5">
@@ -1047,17 +1139,17 @@ export const ChatToolCall = memo(
 						)}
 						<Loader2Icon className="size-3 animate-spin text-muted-foreground/40" />
 					</span>,
-				)
+				);
 			}
 
-			if (parts.length === 0) return undefined
-			if (parts.length === 1) return parts[0]
-			return <span className="flex items-center gap-2.5">{parts}</span>
-		}, [diffStats, duration, elapsedTime, status])
+			if (parts.length === 0) return undefined;
+			if (parts.length === 1) return parts[0];
+			return <span className="flex items-center gap-2.5">{parts}</span>;
+		}, [diffStats, duration, elapsedTime, status]);
 
 		// Combine trailing element with "View diff" button for edit-category tools
 		const combinedTrailing = useMemo(() => {
-			if (!editFilePath || status !== "completed") return trailingElement
+			if (!editFilePath || status !== "completed") return trailingElement;
 			const viewButton = (
 				<button
 					key="view-diff"
@@ -1068,28 +1160,28 @@ export const ChatToolCall = memo(
 				>
 					<DiffIcon className="size-3" aria-hidden="true" />
 				</button>
-			)
-			if (!trailingElement) return viewButton
+			);
+			if (!trailingElement) return viewButton;
 			return (
 				<span className="flex items-center gap-2">
 					{trailingElement}
 					{viewButton}
 				</span>
-			)
-		}, [editFilePath, status, trailingElement, handleViewDiff])
+			);
+		}, [editFilePath, status, trailingElement, handleViewDiff]);
 
 		// When the turn has an error, add a delete button so the user can
 		// surgically remove a problematic tool part and continue the conversation.
 		const handleDelete = useCallback(
 			(e: React.MouseEvent) => {
-				e.stopPropagation()
-				onDelete?.(part)
+				e.stopPropagation();
+				onDelete?.(part);
 			},
 			[onDelete, part],
-		)
+		);
 
 		const finalTrailing = useMemo(() => {
-			if (!turnHasError || !onDelete) return combinedTrailing
+			if (!turnHasError || !onDelete) return combinedTrailing;
 			const deleteButton = (
 				<button
 					key="delete-part"
@@ -1100,36 +1192,39 @@ export const ChatToolCall = memo(
 				>
 					<XIcon className="size-3" aria-hidden="true" />
 				</button>
-			)
-			if (!combinedTrailing) return deleteButton
+			);
+			if (!combinedTrailing) return deleteButton;
 			return (
 				<span className="flex items-center gap-2">
 					{combinedTrailing}
 					{deleteButton}
 				</span>
-			)
-		}, [turnHasError, onDelete, combinedTrailing, handleDelete])
+			);
+		}, [turnHasError, onDelete, combinedTrailing, handleDelete]);
 
 		// Skip rendering todoread parts without output
-		if (part.tool === "todoread" && part.state.status !== "completed") return null
+		if (part.tool === "todoread" && part.state.status !== "completed")
+			return null;
 
 		// --- Task tool: Sub-agent card ---
 		if (part.tool === "task") {
-			return <SubAgentCard part={part} />
+			return <SubAgentCard part={part} />;
 		}
 
 		// --- All other tools (including todos): ToolCard ---
-		const { icon: Icon, title } = getToolInfo(part.tool)
-		const subtitle = getToolSubtitle(part)
-		const category = getToolCategory(part.tool)
-		const hasContent = hasExpandableContent(part)
-		const defaultOpen = isActiveTurn ? shouldDefaultOpen(part.tool, status) : false
+		const { icon: Icon, title } = getToolInfo(part.tool);
+		const subtitle = getToolSubtitle(part);
+		const category = getToolCategory(part.tool);
+		const hasContent = hasExpandableContent(part);
+		const defaultOpen = isActiveTurn
+			? shouldDefaultOpen(part.tool, status)
+			: false;
 
 		// Extract attachments
 		const attachments: FilePart[] =
 			part.state.status === "completed"
 				? ((part.state as ToolStateCompleted).attachments ?? [])
-				: []
+				: [];
 
 		return (
 			<div className="space-y-1.5">
@@ -1142,7 +1237,8 @@ export const ChatToolCall = memo(
 					defaultOpen={defaultOpen}
 					forceOpen={
 						status === "error" ||
-						(permission != null && (status === "pending" || status === "running"))
+						(permission != null &&
+							(status === "pending" || status === "running"))
 					}
 					hasContent={hasContent || permission != null}
 					status={status}
@@ -1175,30 +1271,37 @@ export const ChatToolCall = memo(
 				</ToolCard>
 
 				{/* Tool attachments (images, etc.) */}
-				{attachments.length > 0 && <ToolAttachments attachments={attachments} />}
+				{attachments.length > 0 && (
+					<ToolAttachments attachments={attachments} />
+				)}
 			</div>
-		)
+		);
 	},
 	(prev, next) => {
-		if (!areToolPartsEqual(prev.part, next.part)) return false
-		if (prev.isActiveTurn !== next.isActiveTurn) return false
-		if (prev.turnHasError !== next.turnHasError) return false
-		if (prev.permission !== next.permission) return false
+		if (!areToolPartsEqual(prev.part, next.part)) return false;
+		if (prev.isActiveTurn !== next.isActiveTurn) return false;
+		if (prev.turnHasError !== next.turnHasError) return false;
+		if (prev.permission !== next.permission) return false;
 		// onApprove/onDeny/onDelete are callback refs - skip reference comparison to avoid
 		// re-renders from parent creating new closures
-		return true
+		return true;
 	},
-)
+);
 
 // ============================================================
 // ToolAttachments — inline thumbnails for tool output images
 // ============================================================
 
 function ToolAttachments({ attachments }: { attachments: FilePart[] }) {
-	const imageAttachments = attachments.filter((a) => a.mime.startsWith("image/"))
-	const otherAttachments = attachments.filter((a) => !a.mime.startsWith("image/"))
+	const imageAttachments = attachments.filter((a) =>
+		a.mime.startsWith("image/"),
+	);
+	const otherAttachments = attachments.filter(
+		(a) => !a.mime.startsWith("image/"),
+	);
 
-	if (imageAttachments.length === 0 && otherAttachments.length === 0) return null
+	if (imageAttachments.length === 0 && otherAttachments.length === 0)
+		return null;
 
 	return (
 		<div className="ml-6 flex flex-wrap gap-2">
@@ -1219,7 +1322,9 @@ function ToolAttachments({ attachments }: { attachments: FilePart[] }) {
 						/>
 					</DialogTrigger>
 					<DialogContent className="max-h-[90vh] max-w-4xl overflow-auto p-0">
-						<DialogTitle className="sr-only">{file.filename ?? "Tool output preview"}</DialogTitle>
+						<DialogTitle className="sr-only">
+							{file.filename ?? "Tool output preview"}
+						</DialogTitle>
 						<img
 							src={file.url}
 							alt={file.filename ?? "Tool output image"}
@@ -1234,9 +1339,11 @@ function ToolAttachments({ attachments }: { attachments: FilePart[] }) {
 					className="flex items-center gap-1 rounded border border-border bg-muted px-2 py-1 text-[11px] text-muted-foreground"
 				>
 					<FileIcon className="size-3" aria-hidden="true" />
-					<span className="max-w-[120px] truncate">{file.filename ?? file.mime}</span>
+					<span className="max-w-[120px] truncate">
+						{file.filename ?? file.mime}
+					</span>
 				</div>
 			))}
 		</div>
-	)
+	);
 }

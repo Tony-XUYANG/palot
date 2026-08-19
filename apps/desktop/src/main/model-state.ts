@@ -1,28 +1,28 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises"
-import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 // ============================================================
 // Types
 // ============================================================
 
 interface ModelRef {
-	providerID: string
-	modelID: string
+	providerID: string;
+	modelID: string;
 }
 
 interface ModelState {
-	recent: ModelRef[]
-	favorite: ModelRef[]
-	variant: Record<string, string | undefined>
+	recent: ModelRef[];
+	favorite: ModelRef[];
+	variant: Record<string, string | undefined>;
 }
 
 // ============================================================
 // Helpers
 // ============================================================
 
-const EMPTY_STATE: ModelState = { recent: [], favorite: [], variant: {} }
-const MAX_RECENT = 10
+const EMPTY_STATE: ModelState = { recent: [], favorite: [], variant: {} };
+const MAX_RECENT = 10;
 
 /**
  * Resolves the OpenCode state directory path.
@@ -32,15 +32,15 @@ async function resolveStatePath(): Promise<string> {
 	try {
 		const pathRes = await fetch("http://127.0.0.1:4101/path", {
 			signal: AbortSignal.timeout(2000),
-		})
+		});
 		if (pathRes.ok) {
-			const paths = (await pathRes.json()) as { state: string }
-			return paths.state
+			const paths = (await pathRes.json()) as { state: string };
+			return paths.state;
 		}
 	} catch {
 		// Server unreachable — fall through
 	}
-	return join(homedir(), ".local", "state", "opencode")
+	return join(homedir(), ".local", "state", "opencode");
 }
 
 // ============================================================
@@ -56,27 +56,30 @@ async function resolveStatePath(): Promise<string> {
  */
 export async function readModelState(): Promise<ModelState> {
 	try {
-		const statePath = await resolveStatePath()
-		const modelFile = join(statePath, "model.json")
+		const statePath = await resolveStatePath();
+		const modelFile = join(statePath, "model.json");
 
 		// Check if file exists
 		try {
-			await access(modelFile)
+			await access(modelFile);
 		} catch {
-			return EMPTY_STATE
+			return EMPTY_STATE;
 		}
 
-		const content = await readFile(modelFile, "utf-8")
-		const data = JSON.parse(content) as ModelState
+		const content = await readFile(modelFile, "utf-8");
+		const data = JSON.parse(content) as ModelState;
 
 		return {
 			recent: Array.isArray(data.recent) ? data.recent : [],
 			favorite: Array.isArray(data.favorite) ? data.favorite : [],
-			variant: typeof data.variant === "object" && data.variant !== null ? data.variant : {},
-		}
+			variant:
+				typeof data.variant === "object" && data.variant !== null
+					? data.variant
+					: {},
+		};
 	} catch (err) {
-		console.error("Failed to read model state:", err)
-		return EMPTY_STATE
+		console.error("Failed to read model state:", err);
+		return EMPTY_STATE;
 	}
 }
 
@@ -91,33 +94,36 @@ export async function readModelState(): Promise<ModelState> {
  */
 export async function updateModelRecent(model: ModelRef): Promise<ModelState> {
 	try {
-		const statePath = await resolveStatePath()
-		const modelFile = join(statePath, "model.json")
+		const statePath = await resolveStatePath();
+		const modelFile = join(statePath, "model.json");
 
 		// Read existing state
-		let existing: ModelState = { ...EMPTY_STATE }
+		let existing: ModelState = { ...EMPTY_STATE };
 		try {
-			await access(modelFile)
-			const content = await readFile(modelFile, "utf-8")
-			const data = JSON.parse(content) as ModelState
+			await access(modelFile);
+			const content = await readFile(modelFile, "utf-8");
+			const data = JSON.parse(content) as ModelState;
 			existing = {
 				recent: Array.isArray(data.recent) ? data.recent : [],
 				favorite: Array.isArray(data.favorite) ? data.favorite : [],
-				variant: typeof data.variant === "object" && data.variant !== null ? data.variant : {},
-			}
+				variant:
+					typeof data.variant === "object" && data.variant !== null
+						? data.variant
+						: {},
+			};
 		} catch {
 			// File doesn't exist or is invalid — start fresh
 		}
 
 		// Prepend model, deduplicate by providerID/modelID, cap at MAX_RECENT
-		const key = (m: ModelRef) => `${m.providerID}/${m.modelID}`
-		const seen = new Set<string>()
-		const updated: ModelRef[] = []
+		const key = (m: ModelRef) => `${m.providerID}/${m.modelID}`;
+		const seen = new Set<string>();
+		const updated: ModelRef[] = [];
 		for (const entry of [model, ...existing.recent]) {
-			const k = key(entry)
+			const k = key(entry);
 			if (!seen.has(k) && updated.length < MAX_RECENT) {
-				seen.add(k)
-				updated.push({ providerID: entry.providerID, modelID: entry.modelID })
+				seen.add(k);
+				updated.push({ providerID: entry.providerID, modelID: entry.modelID });
 			}
 		}
 
@@ -125,15 +131,15 @@ export async function updateModelRecent(model: ModelRef): Promise<ModelState> {
 			recent: updated,
 			favorite: existing.favorite,
 			variant: existing.variant,
-		}
+		};
 
 		// Ensure directory exists and write
-		await mkdir(dirname(modelFile), { recursive: true })
-		await writeFile(modelFile, JSON.stringify(newState), "utf-8")
+		await mkdir(dirname(modelFile), { recursive: true });
+		await writeFile(modelFile, JSON.stringify(newState), "utf-8");
 
-		return newState
+		return newState;
 	} catch (err) {
-		console.error("Failed to update model state:", err)
-		return EMPTY_STATE
+		console.error("Failed to update model state:", err);
+		return EMPTY_STATE;
 	}
 }

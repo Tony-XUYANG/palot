@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	agentFamily,
 	agentsAtom,
@@ -6,19 +6,19 @@ import {
 	formatRelativeTime,
 	projectListAtom,
 	sessionNameFamily,
-} from "../atoms/derived/agents"
-import { type DisplayMode, displayModeAtom } from "../atoms/preferences"
-import { commandPaletteOpenAtom } from "../atoms/ui"
-import type { Agent, SidebarProject } from "../lib/types"
+} from "../atoms/derived/agents";
+import { type DisplayMode, displayModeAtom } from "../atoms/preferences";
+import { commandPaletteOpenAtom } from "../atoms/ui";
+import type { Agent, SidebarProject } from "../lib/types";
 
 // Re-export helpers from derived atom module
-export { formatRelativeTime, formatElapsed }
+export { formatRelativeTime, formatElapsed };
 
 /**
  * Hook that returns agents derived from live server sessions + discovered sessions.
  */
 export function useAgents(): Agent[] {
-	return useAtomValue(agentsAtom)
+	return useAtomValue(agentsAtom);
 }
 
 /**
@@ -26,7 +26,7 @@ export function useAgents(): Agent[] {
  * Only subscribes to that session's data, not all sessions.
  */
 export function useAgent(sessionId: string): Agent | null {
-	return useAtomValue(agentFamily(sessionId))
+	return useAtomValue(agentFamily(sessionId));
 }
 
 /**
@@ -34,20 +34,21 @@ export function useAgent(sessionId: string): Agent | null {
  * Used for parent session name lookups without subscribing to all agents.
  */
 export function useSessionName(sessionId: string): string | undefined {
-	return useAtomValue(sessionNameFamily(sessionId))
+	return useAtomValue(sessionNameFamily(sessionId));
 }
 
 /**
  * Hook that returns the project list for the sidebar.
  */
 export function useProjectList(): SidebarProject[] {
-	return useAtomValue(projectListAtom)
+	return useAtomValue(projectListAtom);
 }
 
 /**
  * Individual UI selectors — thin wrappers around Jotai atoms.
  */
-export const useCommandPaletteOpen = () => useAtomValue(commandPaletteOpenAtom)
-export const useSetCommandPaletteOpen = () => useSetAtom(commandPaletteOpenAtom)
-export const useDisplayMode = (): DisplayMode => useAtomValue(displayModeAtom)
-export const useSetDisplayMode = () => useSetAtom(displayModeAtom)
+export const useCommandPaletteOpen = () => useAtomValue(commandPaletteOpenAtom);
+export const useSetCommandPaletteOpen = () =>
+	useSetAtom(commandPaletteOpenAtom);
+export const useDisplayMode = (): DisplayMode => useAtomValue(displayModeAtom);
+export const useSetDisplayMode = () => useSetAtom(displayModeAtom);

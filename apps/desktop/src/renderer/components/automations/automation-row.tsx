@@ -11,21 +11,26 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-} from "@palot/ui/components/context-menu"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { CircleIcon, PauseIcon, PencilIcon } from "lucide-react"
-import { memo, useState } from "react"
-import type { Automation } from "../../../preload/api"
-import { useCountdown } from "../../hooks/use-countdown"
+} from "@palot/ui/components/context-menu";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { CircleIcon, PauseIcon, PencilIcon } from "lucide-react";
+import { memo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { Automation } from "../../../preload/api";
+import { useCountdown } from "../../hooks/use-countdown";
 
 interface AutomationRowProps {
-	automation: Automation
-	isSelected: boolean
-	onClick: () => void
-	onEdit: (automation: Automation) => void
-	onRunNow: (automationId: string) => void
-	onTogglePause: (automation: Automation) => void
-	onDelete: (automationId: string) => void
+	automation: Automation;
+	isSelected: boolean;
+	onClick: () => void;
+	onEdit: (automation: Automation) => void;
+	onRunNow: (automationId: string) => void;
+	onTogglePause: (automation: Automation) => void;
+	onDelete: (automationId: string) => void;
 }
 
 export const AutomationRow = memo(function AutomationRow({
@@ -37,23 +42,28 @@ export const AutomationRow = memo(function AutomationRow({
 	onTogglePause,
 	onDelete,
 }: AutomationRowProps) {
-	const [hovered, setHovered] = useState(false)
+	const { t } = useTranslation();
+	const [hovered, setHovered] = useState(false);
 
 	const StatusIcon =
 		automation.status === "paused"
 			? PauseIcon
 			: automation.status === "active"
 				? CircleIcon
-				: CircleIcon
+				: CircleIcon;
 
-	const isPaused = automation.status === "paused"
-	const countdownLabel = useCountdown(automation.nextRunAt)
-	const countdownText = countdownLabel ? `Starts in ${countdownLabel}` : isPaused ? "Paused" : null
+	const isPaused = automation.status === "paused";
+	const countdownLabel = useCountdown(automation.nextRunAt);
+	const countdownText = countdownLabel
+		? `Starts in ${countdownLabel}`
+		: isPaused
+			? "Paused"
+			: null;
 
 	const projectLabel =
 		automation.workspaces.length > 0
 			? automation.workspaces.map((w) => w.split("/").pop()).join(", ")
-			: null
+			: null;
 
 	return (
 		<ContextMenu>
@@ -65,22 +75,30 @@ export const AutomationRow = memo(function AutomationRow({
 						onMouseEnter={() => setHovered(true)}
 						onMouseLeave={() => setHovered(false)}
 						className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-							isSelected ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+							isSelected
+								? "bg-accent text-accent-foreground"
+								: "hover:bg-accent/50"
 						} ${isPaused ? "opacity-60" : ""}`}
 					/>
 				}
 			>
 				<StatusIcon
 					className={`size-4 shrink-0 ${
-						automation.status === "active" ? "text-muted-foreground" : "text-muted-foreground/60"
+						automation.status === "active"
+							? "text-muted-foreground"
+							: "text-muted-foreground/60"
 					}`}
 				/>
 
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-1.5">
-						<span className="truncate font-medium text-sm">{automation.name}</span>
+						<span className="truncate font-medium text-sm">
+							{automation.name}
+						</span>
 						{projectLabel && (
-							<span className="truncate text-xs text-muted-foreground">{projectLabel}</span>
+							<span className="truncate text-xs text-muted-foreground">
+								{projectLabel}
+							</span>
 						)}
 					</div>
 				</div>
@@ -93,34 +111,43 @@ export const AutomationRow = memo(function AutomationRow({
 									type="button"
 									className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
 									onClick={(e) => {
-										e.stopPropagation()
-										onEdit(automation)
+										e.stopPropagation();
+										onEdit(automation);
 									}}
 								/>
 							}
 						>
 							<PencilIcon className="size-3.5" />
 						</TooltipTrigger>
-						<TooltipContent>Edit automation</TooltipContent>
+						<TooltipContent>{t("automations.edit")}</TooltipContent>
 					</Tooltip>
 				) : (
 					countdownText && (
-						<span className="shrink-0 text-xs text-muted-foreground">{countdownText}</span>
+						<span className="shrink-0 text-xs text-muted-foreground">
+							{countdownText}
+						</span>
 					)
 				)}
 			</ContextMenuTrigger>
 
 			<ContextMenuContent>
-				<ContextMenuItem onClick={() => onEdit(automation)}>Edit</ContextMenuItem>
-				<ContextMenuItem onClick={() => onRunNow(automation.id)}>Run now</ContextMenuItem>
+				<ContextMenuItem onClick={() => onEdit(automation)}>
+					{t("common.actions.edit")}
+				</ContextMenuItem>
+				<ContextMenuItem onClick={() => onRunNow(automation.id)}>
+					{t("automations.runNow")}
+				</ContextMenuItem>
 				<ContextMenuItem onClick={() => onTogglePause(automation)}>
-					{isPaused ? "Resume" : "Pause"}
+					{isPaused ? t("automations.resume") : t("automations.pause")}
 				</ContextMenuItem>
 				<ContextMenuSeparator />
-				<ContextMenuItem className="text-destructive" onClick={() => onDelete(automation.id)}>
-					Delete
+				<ContextMenuItem
+					className="text-destructive"
+					onClick={() => onDelete(automation.id)}
+				>
+					{t("common.actions.delete")}
 				</ContextMenuItem>
 			</ContextMenuContent>
 		</ContextMenu>
-	)
-})
+	);
+});

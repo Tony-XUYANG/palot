@@ -13,18 +13,18 @@
  * the CSS transition completes.
  */
 
-import { useAtomValue } from "jotai"
-import { useEffect, useRef, useState } from "react"
-import type { DiscoveryPhase } from "../atoms/discovery"
-import { discoveryPhaseAtom } from "../atoms/discovery"
-import { PalotWordmark } from "./palot-wordmark"
+import { useAtomValue } from "jotai";
+import { useEffect, useRef, useState } from "react";
+import type { DiscoveryPhase } from "../atoms/discovery";
+import { discoveryPhaseAtom } from "../atoms/discovery";
+import { PalotWordmark } from "./palot-wordmark";
 
 // ============================================================
 // Constants
 // ============================================================
 
 /** Duration of the fade-out transition (ms). Must match the CSS transition. */
-const FADE_DURATION_MS = 400
+const FADE_DURATION_MS = 400;
 
 /** Human-readable status messages for each discovery phase. */
 const PHASE_LABELS: Record<DiscoveryPhase, string> = {
@@ -35,60 +35,60 @@ const PHASE_LABELS: Record<DiscoveryPhase, string> = {
 	"loading-sessions": "Loading sessions...",
 	ready: "",
 	error: "Connection failed",
-}
+};
 
 // ============================================================
 // Component
 // ============================================================
 
 /** Overlay lifecycle: visible -> fading -> unmounted (or skipped entirely). */
-type OverlayState = "visible" | "fading" | "unmounted"
+type OverlayState = "visible" | "fading" | "unmounted";
 
 export function StartupOverlay() {
-	const phase = useAtomValue(discoveryPhaseAtom)
+	const phase = useAtomValue(discoveryPhaseAtom);
 
 	// If discovery is already complete on first render (e.g., eager server
 	// finished before React mounted, or Vite HMR reload while server is running),
 	// skip the overlay entirely.
-	const initialPhaseRef = useRef(phase)
+	const initialPhaseRef = useRef(phase);
 	const [state, setState] = useState<OverlayState>(
 		initialPhaseRef.current === "ready" ? "unmounted" : "visible",
-	)
+	);
 
 	// On mount, remove the HTML-level splash (seamless handoff).
 	// If skipping the overlay, fade the HTML splash out instead.
-	const skipOverlay = initialPhaseRef.current === "ready"
+	const skipOverlay = initialPhaseRef.current === "ready";
 	useEffect(() => {
-		const splash = document.getElementById("splash")
-		if (!splash) return
+		const splash = document.getElementById("splash");
+		if (!splash) return;
 
 		if (skipOverlay) {
 			// No React overlay will render, fade out the HTML splash
-			splash.classList.add("hiding")
-			setTimeout(() => splash.remove(), 300)
+			splash.classList.add("hiding");
+			setTimeout(() => splash.remove(), 300);
 		} else {
 			// React overlay is covering the screen, remove HTML splash instantly
-			splash.remove()
+			splash.remove();
 		}
-	}, [skipOverlay])
+	}, [skipOverlay]);
 
 	// When discovery reaches "ready", start the fade-out then unmount.
 	useEffect(() => {
-		if (phase !== "ready") return
-		setState("fading")
-	}, [phase])
+		if (phase !== "ready") return;
+		setState("fading");
+	}, [phase]);
 
 	// Once fading, wait for the CSS transition to finish then unmount.
 	useEffect(() => {
-		if (state !== "fading") return
-		const timer = setTimeout(() => setState("unmounted"), FADE_DURATION_MS)
-		return () => clearTimeout(timer)
-	}, [state])
+		if (state !== "fading") return;
+		const timer = setTimeout(() => setState("unmounted"), FADE_DURATION_MS);
+		return () => clearTimeout(timer);
+	}, [state]);
 
-	if (state === "unmounted") return null
+	if (state === "unmounted") return null;
 
-	const isVisible = state === "visible"
-	const statusText = PHASE_LABELS[phase] ?? ""
+	const isVisible = state === "visible";
+	const statusText = PHASE_LABELS[phase] ?? "";
 
 	return (
 		<div
@@ -133,5 +133,5 @@ export function StartupOverlay() {
 				)}
 			</div>
 		</div>
-	)
+	);
 }

@@ -1,7 +1,7 @@
-import { atom } from "jotai"
-import { atomFamily } from "jotai-family"
-import type { Part } from "../lib/types"
-import { appStore } from "./store"
+import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
+import type { Part } from "../lib/types";
+import { appStore } from "./store";
 
 // ============================================================
 // Streaming Buffer — module-scoped (NOT atoms)
@@ -11,10 +11,10 @@ import { appStore } from "./store"
 // ============================================================
 
 /** Throttle interval for React notifications — ~20 updates/sec */
-const FLUSH_THROTTLE_MS = 50
+const FLUSH_THROTTLE_MS = 50;
 
 /** Parts keyed by messageID -> Part object, only for actively-streaming parts */
-let buffer: Record<string, Record<string, Part>> = {}
+let buffer: Record<string, Record<string, Part>> = {};
 
 // ============================================================
 // Per-session notification
@@ -24,48 +24,53 @@ let buffer: Record<string, Record<string, Part>> = {}
  * Per-session version counter. Only the session that is actively streaming
  * will have its counter bumped, so components for other sessions stay idle.
  */
-export const streamingVersionFamily = atomFamily((_sessionId: string) => atom(0))
+export const streamingVersionFamily = atomFamily((_sessionId: string) =>
+	atom(0),
+);
 
 /**
  * @deprecated Use `streamingVersionFamily(sessionId)` instead.
  * Kept temporarily so any transient consumers still compile.
  */
-export const streamingVersionAtom = atom(0)
+export const streamingVersionAtom = atom(0);
 
 /** Per-session throttle state */
 const sessionThrottle = new Map<
 	string,
 	{ scheduled: ReturnType<typeof setTimeout> | undefined; lastFlush: number }
->()
+>();
 
 /** Set of session IDs that have been dirtied since the last per-session flush. */
-const dirtySessionIds = new Set<string>()
+const dirtySessionIds = new Set<string>();
 
 function getThrottle(sessionId: string) {
-	let t = sessionThrottle.get(sessionId)
+	let t = sessionThrottle.get(sessionId);
 	if (!t) {
-		t = { scheduled: undefined, lastFlush: 0 }
-		sessionThrottle.set(sessionId, t)
+		t = { scheduled: undefined, lastFlush: 0 };
+		sessionThrottle.set(sessionId, t);
 	}
-	return t
+	return t;
 }
 
 function notifySession(sessionId: string): void {
-	const t = getThrottle(sessionId)
-	t.scheduled = undefined
-	t.lastFlush = performance.now()
-	dirtySessionIds.delete(sessionId)
-	appStore.set(streamingVersionFamily(sessionId), (v) => v + 1)
+	const t = getThrottle(sessionId);
+	t.scheduled = undefined;
+	t.lastFlush = performance.now();
+	dirtySessionIds.delete(sessionId);
+	appStore.set(streamingVersionFamily(sessionId), (v) => v + 1);
 }
 
 function scheduleNotifySession(sessionId: string): void {
-	const t = getThrottle(sessionId)
-	if (t.scheduled) return
-	const elapsed = performance.now() - t.lastFlush
+	const t = getThrottle(sessionId);
+	if (t.scheduled) return;
+	const elapsed = performance.now() - t.lastFlush;
 	if (elapsed >= FLUSH_THROTTLE_MS) {
-		notifySession(sessionId)
+		notifySession(sessionId);
 	} else {
-		t.scheduled = setTimeout(() => notifySession(sessionId), FLUSH_THROTTLE_MS - elapsed)
+		t.scheduled = setTimeout(
+			() => notifySession(sessionId),
+			FLUSH_THROTTLE_MS - elapsed,
+		);
 	}
 }
 
@@ -77,11 +82,11 @@ function scheduleNotifySession(sessionId: string): void {
  * Lightweight map from messageID to sessionID. Populated when streaming
  * parts arrive (Part.sessionID is on every SDK Part variant).
  */
-const messageSessionMap = new Map<string, string>()
+const messageSessionMap = new Map<string, string>();
 
 /** Look up which session a message belongs to. */
 export function getSessionForMessage(messageId: string): string | undefined {
-	return messageSessionMap.get(messageId)
+	return messageSessionMap.get(messageId);
 }
 
 /**
@@ -91,13 +96,13 @@ export function getSessionForMessage(messageId: string): string | undefined {
 export function getStreamingPartsForSession(
 	sessionId: string,
 ): Record<string, Record<string, Part>> {
-	const result: Record<string, Record<string, Part>> = {}
+	const result: Record<string, Record<string, Part>> = {};
 	for (const messageId in buffer) {
 		if (messageSessionMap.get(messageId) === sessionId) {
-			result[messageId] = buffer[messageId]
+			result[messageId] = buffer[messageId];
 		}
 	}
-	return result
+	return result;
 }
 
 // ============================================================
@@ -109,15 +114,15 @@ export function getStreamingPartsForSession(
  * Called by connection-manager on every text/reasoning SSE event.
  */
 export function updateStreamingPart(part: Part): void {
-	const { messageID, sessionID } = part
+	const { messageID, sessionID } = part;
 	// Register the messageID -> sessionID mapping
-	messageSessionMap.set(messageID, sessionID)
+	messageSessionMap.set(messageID, sessionID);
 
-	if (!buffer[messageID]) buffer[messageID] = {}
-	buffer[messageID][part.id] = part
+	if (!buffer[messageID]) buffer[messageID] = {};
+	buffer[messageID][part.id] = part;
 
-	dirtySessionIds.add(sessionID)
-	scheduleNotifySession(sessionID)
+	dirtySessionIds.add(sessionID);
+	scheduleNotifySession(sessionID);
 }
 
 /**
@@ -132,63 +137,71 @@ export function applyStreamingDelta(
 	delta: string,
 	sessionId: string,
 ): boolean {
-	messageSessionMap.set(messageId, sessionId)
+	messageSessionMap.set(messageId, sessionId);
 
-	const msgParts = buffer[messageId]
-	if (!msgParts?.[partId]) return false
+	const msgParts = buffer[messageId];
+	if (!msgParts?.[partId]) return false;
 
-	const part = msgParts[partId]
+	const part = msgParts[partId];
 	// Part is a discriminated union; the server sends the field name as a plain string.
-	const record = part as Record<string, unknown>
-	const existing = record[field]
+	const record = part as Record<string, unknown>;
+	const existing = record[field];
 	// Create a shallow copy with the appended field value
-	msgParts[partId] = { ...part, [field]: (typeof existing === "string" ? existing : "") + delta }
+	msgParts[partId] = {
+		...part,
+		[field]: (typeof existing === "string" ? existing : "") + delta,
+	};
 
-	dirtySessionIds.add(sessionId)
-	scheduleNotifySession(sessionId)
-	return true
+	dirtySessionIds.add(sessionId);
+	scheduleNotifySession(sessionId);
+	return true;
 }
 
 /**
  * Check if a part type should go through streaming buffer.
  */
 export function isStreamingPartType(part: Part): boolean {
-	return part.type === "text" || part.type === "reasoning"
+	return part.type === "text" || part.type === "reasoning";
 }
 
 /**
  * Check if a field name corresponds to a streamable text field.
  */
 export function isStreamingField(field: string): boolean {
-	return field === "content" || field === "text" || field === "reasoning"
+	return field === "content" || field === "text" || field === "reasoning";
 }
 
 /**
  * Get streaming parts for a specific message (used in derived atoms).
  */
-export function getStreamingPartsForMessage(messageId: string): Record<string, Part> | undefined {
-	return buffer[messageId]
+export function getStreamingPartsForMessage(
+	messageId: string,
+): Record<string, Part> | undefined {
+	return buffer[messageId];
 }
 
 /**
  * Get all streaming parts.
  */
 export function getAllStreamingParts(): Record<string, Record<string, Part>> {
-	return buffer
+	return buffer;
 }
 
 /**
  * Check if there are any buffered streaming parts.
  */
 export function hasStreamingParts(): boolean {
-	return Object.keys(buffer).length > 0
+	return Object.keys(buffer).length > 0;
 }
 
 /**
  * Get the current streaming part for a given message + part ID.
  */
-export function getStreamingPart(messageId: string, partId: string): Part | undefined {
-	return buffer[messageId]?.[partId]
+export function getStreamingPart(
+	messageId: string,
+	partId: string,
+): Part | undefined {
+	return buffer[messageId]?.[partId];
 }
 
 /**
@@ -200,29 +213,29 @@ export function flushStreamingParts(): Part[] {
 	// Cancel all pending per-session timers
 	for (const [, t] of sessionThrottle) {
 		if (t.scheduled) {
-			clearTimeout(t.scheduled)
-			t.scheduled = undefined
+			clearTimeout(t.scheduled);
+			t.scheduled = undefined;
 		}
 	}
 
-	const allParts: Part[] = []
-	const affectedSessions = new Set<string>()
+	const allParts: Part[] = [];
+	const affectedSessions = new Set<string>();
 
 	for (const messageId in buffer) {
-		const sid = messageSessionMap.get(messageId)
-		if (sid) affectedSessions.add(sid)
+		const sid = messageSessionMap.get(messageId);
+		if (sid) affectedSessions.add(sid);
 		for (const partId in buffer[messageId]) {
-			allParts.push(buffer[messageId][partId])
+			allParts.push(buffer[messageId][partId]);
 		}
 	}
 
-	buffer = {}
-	dirtySessionIds.clear()
+	buffer = {};
+	dirtySessionIds.clear();
 
 	// Notify affected sessions that streaming data has been flushed
 	for (const sid of affectedSessions) {
-		appStore.set(streamingVersionFamily(sid), (v) => v + 1)
+		appStore.set(streamingVersionFamily(sid), (v) => v + 1);
 	}
 
-	return allParts
+	return allParts;
 }

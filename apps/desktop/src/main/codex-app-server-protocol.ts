@@ -5,73 +5,73 @@
 
 export interface CodexInitializeParams {
 	clientInfo: {
-		name: string
-		title: string
-		version: string
-	}
-	capabilities: null
+		name: string;
+		title: string;
+		version: string;
+	};
+	capabilities: null;
 }
 
 export interface CodexInitializeResponse {
-	codexHome: string
-	platformFamily: string
-	platformOs: string
-	userAgent: string
+	codexHome: string;
+	platformFamily: string;
+	platformOs: string;
+	userAgent: string;
 }
 
 export interface CodexAccountReadResponse {
 	account: null | {
-		type: "apiKey" | "chatgpt" | "amazonBedrock"
-		email?: string | null
-		planType?: string
-	}
-	requiresOpenaiAuth: boolean
+		type: "apiKey" | "chatgpt" | "amazonBedrock";
+		email?: string | null;
+		planType?: string;
+	};
+	requiresOpenaiAuth: boolean;
 }
 
 export interface CodexLoginResponse {
-	type: "chatgpt"
-	authUrl: string
-	loginId: string
+	type: "chatgpt";
+	authUrl: string;
+	loginId: string;
 }
 
 export interface CodexModelListResponse {
 	data: Array<{
-		id: string
-		model: string
-		displayName: string
-		description: string
-		hidden: boolean
-		isDefault: boolean
-	}>
-	nextCursor?: string | null
+		id: string;
+		model: string;
+		displayName: string;
+		description: string;
+		hidden: boolean;
+		isDefault: boolean;
+	}>;
+	nextCursor?: string | null;
 }
 
 export interface CodexThread {
-	id: string
-	cwd: string
-	createdAt: number
-	updatedAt: number
-	name?: string | null
+	id: string;
+	cwd: string;
+	createdAt: number;
+	updatedAt: number;
+	name?: string | null;
 }
 
 export interface CodexThreadStartResponse {
-	thread: CodexThread
+	thread: CodexThread;
 }
 
 export type CodexUserInput =
 	| { type: "text"; text: string; text_elements: [] }
 	| { type: "image"; url: string; detail: null }
-	| { type: "localImage"; path: string; detail: null }
+	| { type: "localImage"; path: string; detail: null };
 
 export interface CodexTurnStartResponse {
 	turn: {
-		id: string
-		status: "completed" | "interrupted" | "failed" | "inProgress"
-	}
+		id: string;
+		status: "completed" | "interrupted" | "failed" | "inProgress";
+	};
 }
 
 export interface CodexTurnDiffUpdatedNotification {
-	threadId: string
-	turnId: string
-	diff: string
+	threadId: string;
+	turnId: string;
+	diff: string;
 }

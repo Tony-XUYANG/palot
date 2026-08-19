@@ -2,12 +2,16 @@ import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@palot/ui/components/collapsible"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { cn } from "@palot/ui/lib/utils"
-import { ChevronRightIcon } from "lucide-react"
-import type { ReactNode } from "react"
-import { memo, useState } from "react"
+} from "@palot/ui/components/collapsible";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { cn } from "@palot/ui/lib/utils";
+import { ChevronRightIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { memo, useState } from "react";
 
 // ============================================================
 // Tool category colors — left-border accent for visual landmarks
@@ -21,7 +25,7 @@ export type ToolCategory =
 	| "plan"
 	| "ask"
 	| "fetch"
-	| "other"
+	| "other";
 
 export const TOOL_CATEGORY_COLORS: Record<ToolCategory, string> = {
 	explore: "border-l-muted-foreground/30",
@@ -32,7 +36,7 @@ export const TOOL_CATEGORY_COLORS: Record<ToolCategory, string> = {
 	ask: "border-l-cyan-500/60",
 	fetch: "border-l-sky-500/60",
 	other: "border-l-muted-foreground/20",
-}
+};
 
 export function getToolCategory(tool: string): ToolCategory {
 	switch (tool) {
@@ -40,24 +44,24 @@ export function getToolCategory(tool: string): ToolCategory {
 		case "glob":
 		case "grep":
 		case "list":
-			return "explore"
+			return "explore";
 		case "edit":
 		case "write":
 		case "apply_patch":
-			return "edit"
+			return "edit";
 		case "bash":
-			return "run"
+			return "run";
 		case "task":
-			return "delegate"
+			return "delegate";
 		case "todowrite":
 		case "todoread":
-			return "plan"
+			return "plan";
 		case "question":
-			return "ask"
+			return "ask";
 		case "webfetch":
-			return "fetch"
+			return "fetch";
 		default:
-			return "other"
+			return "other";
 	}
 }
 
@@ -66,23 +70,23 @@ export function getToolCategory(tool: string): ToolCategory {
 // ============================================================
 
 interface ToolCardProps {
-	icon: ReactNode
-	title: string
-	subtitle?: string
+	icon: ReactNode;
+	title: string;
+	subtitle?: string;
 	/** Right-aligned element in the header (duration, status, etc.) */
-	trailing?: ReactNode
+	trailing?: ReactNode;
 	/** Category for left-border color */
-	category?: ToolCategory
+	category?: ToolCategory;
 	/** Whether the card should be open by default */
-	defaultOpen?: boolean
+	defaultOpen?: boolean;
 	/** Force the card open (for errors, permissions) */
-	forceOpen?: boolean
+	forceOpen?: boolean;
 	/** Whether the card has expandable content */
-	hasContent?: boolean
+	hasContent?: boolean;
 	/** Status indicator */
-	status?: "running" | "error" | "completed" | "pending"
+	status?: "running" | "error" | "completed" | "pending";
 	/** Expandable content */
-	children?: ReactNode
+	children?: ReactNode;
 }
 
 export const ToolCard = memo(function ToolCard({
@@ -97,12 +101,12 @@ export const ToolCard = memo(function ToolCard({
 	status,
 	children,
 }: ToolCardProps) {
-	const [isOpen, setIsOpen] = useState(defaultOpen || forceOpen)
-	const showContent = hasContent && children != null
-	const borderColor = TOOL_CATEGORY_COLORS[category]
+	const [isOpen, setIsOpen] = useState(defaultOpen || forceOpen);
+	const showContent = hasContent && children != null;
+	const borderColor = TOOL_CATEGORY_COLORS[category];
 
-	const isError = status === "error"
-	const isRunning = status === "running" || status === "pending"
+	const isError = status === "error";
+	const isRunning = status === "running" || status === "pending";
 
 	if (!showContent) {
 		// Non-expandable: simple row
@@ -136,7 +140,11 @@ export const ToolCard = memo(function ToolCard({
 				</span>
 				{subtitle && (
 					<Tooltip>
-						<TooltipTrigger render={<span className="min-w-0 truncate text-muted-foreground/60" />}>
+						<TooltipTrigger
+							render={
+								<span className="min-w-0 truncate text-muted-foreground/60" />
+							}
+						>
 							{subtitle}
 						</TooltipTrigger>
 						<TooltipContent side="top" className="max-w-sm">
@@ -144,14 +152,21 @@ export const ToolCard = memo(function ToolCard({
 						</TooltipContent>
 					</Tooltip>
 				)}
-				{trailing && <span className="ml-auto shrink-0 text-muted-foreground/40">{trailing}</span>}
+				{trailing && (
+					<span className="ml-auto shrink-0 text-muted-foreground/40">
+						{trailing}
+					</span>
+				)}
 			</div>
-		)
+		);
 	}
 
 	// Expandable: collapsible card
 	return (
-		<Collapsible open={forceOpen || isOpen} onOpenChange={forceOpen ? undefined : setIsOpen}>
+		<Collapsible
+			open={forceOpen || isOpen}
+			onOpenChange={forceOpen ? undefined : setIsOpen}
+		>
 			<div
 				className={cn(
 					"overflow-hidden rounded-md border-l-2",
@@ -194,10 +209,14 @@ export const ToolCard = memo(function ToolCard({
 						{title}
 					</span>
 					{subtitle && (
-						<span className="min-w-0 truncate text-muted-foreground/60">{subtitle}</span>
+						<span className="min-w-0 truncate text-muted-foreground/60">
+							{subtitle}
+						</span>
 					)}
 					{trailing && (
-						<span className="ml-auto shrink-0 text-muted-foreground/40">{trailing}</span>
+						<span className="ml-auto shrink-0 text-muted-foreground/40">
+							{trailing}
+						</span>
 					)}
 				</CollapsibleTrigger>
 				<CollapsibleContent>
@@ -205,5 +224,5 @@ export const ToolCard = memo(function ToolCard({
 				</CollapsibleContent>
 			</div>
 		</Collapsible>
-	)
-})
+	);
+});

@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query"
+import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Single QueryClient instance shared between the React tree (via QueryClientProvider)
@@ -19,4 +19,4 @@ export const queryClient = new QueryClient({
 			retryDelay: 1000,
 		},
 	},
-})
+});

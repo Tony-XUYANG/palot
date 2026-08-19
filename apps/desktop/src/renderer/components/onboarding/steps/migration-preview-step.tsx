@@ -6,8 +6,8 @@
  * Supports all migration providers (Claude Code, Cursor, OpenCode).
  */
 
-import { Button } from "@palot/ui/components/button"
-import { Spinner } from "@palot/ui/components/spinner"
+import { Button } from "@palot/ui/components/button";
+import { Spinner } from "@palot/ui/components/spinner";
 import {
 	AlertTriangleIcon,
 	ArrowLeftIcon,
@@ -15,27 +15,28 @@ import {
 	FolderIcon,
 	FolderOpenIcon,
 	PlayIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
 	MigrationPreview,
 	MigrationProgress,
 	MigrationProvider,
 	MigrationResult,
-} from "../../../../preload/api"
+} from "../../../../preload/api";
 
 // ============================================================
 // Types
 // ============================================================
 
 interface MigrationPreviewStepProps {
-	provider: MigrationProvider
-	scanResult: unknown
-	categories: string[]
-	preview: MigrationPreview | null
-	onComplete: (result: MigrationResult) => void
-	onBack: () => void
-	onSkip: () => void
+	provider: MigrationProvider;
+	scanResult: unknown;
+	categories: string[];
+	preview: MigrationPreview | null;
+	onComplete: (result: MigrationResult) => void;
+	onBack: () => void;
+	onSkip: () => void;
 }
 
 // ============================================================
@@ -46,7 +47,7 @@ const PROVIDER_LABELS: Record<MigrationProvider, string> = {
 	"claude-code": "Claude Code",
 	cursor: "Cursor",
 	opencode: "OpenCode",
-}
+};
 
 // ============================================================
 // Component
@@ -61,62 +62,73 @@ export function MigrationPreviewStep({
 	onBack,
 	onSkip,
 }: MigrationPreviewStepProps) {
-	const [selectedFile, setSelectedFile] = useState<string | null>(null)
-	const [executing, setExecuting] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const [progress, setProgress] = useState<MigrationProgress | null>(null)
+	const { t } = useTranslation();
+	const [selectedFile, setSelectedFile] = useState<string | null>(null);
+	const [executing, setExecuting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [progress, setProgress] = useState<MigrationProgress | null>(null);
 
-	const isElectron = typeof window !== "undefined" && "palot" in window
-	const label = PROVIDER_LABELS[provider]
+	const isElectron = typeof window !== "undefined" && "palot" in window;
+	const label = PROVIDER_LABELS[provider];
 
 	// Subscribe to migration progress events during execution
 	useEffect(() => {
-		if (!isElectron || !executing) return
+		if (!isElectron || !executing) return;
 		const unsub = window.palot.onboarding.onMigrationProgress((p) => {
-			setProgress(p as MigrationProgress)
-		})
-		return unsub
-	}, [isElectron, executing])
+			setProgress(p as MigrationProgress);
+		});
+		return unsub;
+	}, [isElectron, executing]);
 
 	const handleExecute = useCallback(async () => {
-		if (!isElectron || !scanResult) return
-		setExecuting(true)
-		setError(null)
-		setProgress(null)
+		if (!isElectron || !scanResult) return;
+		setExecuting(true);
+		setError(null);
+		setProgress(null);
 
 		try {
 			const result = await window.palot.onboarding.executeMigration(
 				provider,
 				scanResult,
 				categories,
-			)
-			onComplete(result)
+			);
+			onComplete(result);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Migration failed")
-			setExecuting(false)
+			setError(
+				err instanceof Error
+					? err.message
+					: t("onboarding.migration.migrationFailed", {
+							error: "unknown error",
+						}),
+			);
+			setExecuting(false);
 		}
-	}, [isElectron, provider, scanResult, categories, onComplete])
+	}, [isElectron, provider, scanResult, categories, onComplete]);
 
-	if (!preview) return null
+	if (!preview) return null;
 
 	// Find the selected file's content for the diff preview
 	const selectedFileContent = (() => {
 		for (const cat of preview.categories) {
 			for (const file of cat.files) {
-				if (file.path === selectedFile) return file.content
+				if (file.path === selectedFile) return file.content;
 			}
 		}
-		return null
-	})()
+		return null;
+	})();
 
 	return (
 		<div className="flex h-full flex-col px-6 py-4">
 			<div className="mx-auto w-full max-w-3xl space-y-4">
 				{/* Header */}
 				<div className="text-center">
-					<h2 className="text-xl font-semibold text-foreground">{label} Migration Preview</h2>
+					<h2 className="text-xl font-semibold text-foreground">
+						{t("onboarding.migration.previewTitle", { provider: label })}
+					</h2>
 					<p className="mt-1 text-sm text-muted-foreground">
-						{preview.fileCount} file(s) will be created. Review the changes below.
+						{t("onboarding.migration.filesWillCreate", {
+							count: preview.fileCount,
+						})}
 					</p>
 				</div>
 
@@ -126,17 +138,29 @@ export function MigrationPreviewStep({
 						data-slot="onboarding-card"
 						className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-3"
 					>
-						<FolderOpenIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+						<FolderOpenIcon
+							aria-hidden="true"
+							className="size-4 shrink-0 text-muted-foreground"
+						/>
 						<p className="text-sm text-muted-foreground">
-							{preview.sessionCount} session{preview.sessionCount === 1 ? "" : "s"} across{" "}
-							{preview.sessionProjectCount} project
-							{preview.sessionProjectCount === 1 ? "" : "s"} will be imported.
+							{t(
+								preview.sessionCount === 1
+									? "onboarding.migration.sessionsWillImport_one"
+									: "onboarding.migration.sessionsWillImport_other",
+								{
+									count: preview.sessionCount,
+									projects: preview.sessionProjectCount,
+								},
+							)}
 						</p>
 					</div>
 				)}
 
 				{/* File tree + preview split */}
-				<div className="flex gap-4" style={{ minHeight: "300px", maxHeight: "400px" }}>
+				<div
+					className="flex gap-4"
+					style={{ minHeight: "300px", maxHeight: "400px" }}
+				>
 					{/* File tree */}
 					<div
 						data-slot="onboarding-card"
@@ -160,7 +184,9 @@ export function MigrationPreviewStep({
 										}`}
 									>
 										<FileIcon aria-hidden="true" className="size-3 shrink-0" />
-										<span className="min-w-0 truncate">{shortenPath(file.path)}</span>
+										<span className="min-w-0 truncate">
+											{shortenPath(file.path)}
+										</span>
 										<span
 											className={`ml-auto shrink-0 rounded px-1 py-0.5 text-[10px] font-medium uppercase ${
 												file.status === "new"
@@ -170,7 +196,9 @@ export function MigrationPreviewStep({
 														: "bg-muted text-muted-foreground"
 											}`}
 										>
-											{file.status}
+											{t(
+												`onboarding.migration.status${file.status[0].toUpperCase()}${file.status.slice(1)}`,
+											)}
 										</span>
 									</button>
 								))}
@@ -184,10 +212,12 @@ export function MigrationPreviewStep({
 						className="w-1/2 overflow-y-auto rounded-lg border border-border bg-zinc-950 p-3 font-mono text-xs text-zinc-300"
 					>
 						{selectedFileContent ? (
-							<pre className="whitespace-pre-wrap break-all">{selectedFileContent}</pre>
+							<pre className="whitespace-pre-wrap break-all">
+								{selectedFileContent}
+							</pre>
 						) : (
 							<div className="flex h-full items-center justify-center text-zinc-500">
-								Select a file to preview
+								{t("onboarding.migration.selectFile")}
 							</div>
 						)}
 					</div>
@@ -198,7 +228,7 @@ export function MigrationPreviewStep({
 					<div className="space-y-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
 						<div className="flex items-center gap-2 text-xs font-medium text-amber-500">
 							<AlertTriangleIcon aria-hidden="true" className="size-3.5" />
-							Warnings
+							{t("onboarding.migration.warnings")}
 						</div>
 						{preview.warnings.map((w) => (
 							<p key={w} className="text-xs text-amber-500/80">
@@ -212,7 +242,7 @@ export function MigrationPreviewStep({
 				{preview.manualActions.length > 0 && (
 					<div className="space-y-1 rounded-lg border border-border bg-muted/20 p-3">
 						<div className="text-xs font-medium text-muted-foreground">
-							Needs manual attention after migration:
+							{t("onboarding.migration.manualActions")}
 						</div>
 						{preview.manualActions.map((a) => (
 							<p key={a} className="text-xs text-muted-foreground">
@@ -231,35 +261,39 @@ export function MigrationPreviewStep({
 
 				{/* Backup notice */}
 				<p className="text-center text-xs text-muted-foreground/60">
-					A backup will be saved to ~/.config/opencode/backups/ before any changes.
+					{t("onboarding.migration.backupNotice")}
 				</p>
 
 				{/* Actions */}
 				<div className="flex items-center justify-center gap-3">
 					<Button variant="outline" onClick={onBack} className="gap-2">
 						<ArrowLeftIcon aria-hidden="true" className="size-3.5" />
-						Back
+						{t("onboarding.migration.back")}
 					</Button>
 					<Button variant="outline" onClick={onSkip}>
-						Skip
+						{t("common.actions.skip")}
 					</Button>
-					<Button onClick={handleExecute} disabled={executing} className="gap-2">
+					<Button
+						onClick={handleExecute}
+						disabled={executing}
+						className="gap-2"
+					>
 						{executing ? (
 							<>
 								<Spinner className="size-3.5" />
-								{formatProgressLabel(progress)}
+								{formatProgressLabel(progress, t)}
 							</>
 						) : (
 							<>
 								<PlayIcon aria-hidden="true" className="size-3.5" />
-								Apply Migration
+								{t("onboarding.migration.confirm")}
 							</>
 						)}
 					</Button>
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -267,40 +301,48 @@ export function MigrationPreviewStep({
 // ============================================================
 
 /** Format migration progress into a short label for the button. */
-function formatProgressLabel(progress: MigrationProgress | null): string {
-	if (!progress) return "Migrating..."
+function formatProgressLabel(
+	progress: MigrationProgress | null,
+	t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+	if (!progress) return t("onboarding.migration.migrating");
 
 	switch (progress.phase) {
 		case "converting":
-			return "Converting sessions..."
+			return t("onboarding.migration.converting");
 		case "dedup-check":
-			return "Checking for duplicates..."
+			return t("onboarding.migration.checkingDuplicates");
 		case "writing":
 			if (progress.total > 0) {
-				return `Writing session ${progress.current}/${progress.total}...`
+				return t("onboarding.migration.writingSession", {
+					current: progress.current,
+					total: progress.total,
+				});
 			}
-			return "Writing sessions..."
+			return t("onboarding.migration.writingFiles");
 		case "complete":
-			return "Finishing..."
+			return t("onboarding.migration.finalizing");
 		default:
-			return "Migrating..."
+			return t("onboarding.migration.migrating");
 	}
 }
 
 /** Shorten a file path for display by replacing the home directory with ~. */
 function shortenPath(filePath: string): string {
 	// Try to shorten common prefixes
-	const homePatterns = ["/Users/", "/home/", "C:\\Users\\"]
+	const homePatterns = ["/Users/", "/home/", "C:\\Users\\"];
 	for (const pattern of homePatterns) {
-		const idx = filePath.indexOf(pattern)
+		const idx = filePath.indexOf(pattern);
 		if (idx !== -1) {
-			const afterHome = filePath.slice(idx + pattern.length)
+			const afterHome = filePath.slice(idx + pattern.length);
 			const slashIdx =
-				afterHome.indexOf("/") !== -1 ? afterHome.indexOf("/") : afterHome.indexOf("\\")
+				afterHome.indexOf("/") !== -1
+					? afterHome.indexOf("/")
+					: afterHome.indexOf("\\");
 			if (slashIdx !== -1) {
-				return `~${afterHome.slice(slashIdx)}`
+				return `~${afterHome.slice(slashIdx)}`;
 			}
 		}
 	}
-	return filePath
+	return filePath;
 }

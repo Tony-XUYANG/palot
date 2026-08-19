@@ -40,5 +40,5 @@ export function PalotWordmark({ className }: { className?: string }) {
 				fill="currentColor"
 			/>
 		</svg>
-	)
+	);
 }

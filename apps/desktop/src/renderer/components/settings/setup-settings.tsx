@@ -2,23 +2,25 @@
  * Settings tab for environment setup, migration management, and re-running onboarding.
  */
 
-import { Button } from "@palot/ui/components/button"
-import { Spinner } from "@palot/ui/components/spinner"
-import { useAtomValue, useSetAtom } from "jotai"
+import { Button } from "@palot/ui/components/button";
+import { Spinner } from "@palot/ui/components/spinner";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircleIcon,
 	CheckCircle2Icon,
 	RefreshCwIcon,
 	RotateCcwIcon,
 	UndoIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
-import type { OpenCodeCheckResult } from "../../../preload/api"
-import { onboardingStateAtom } from "../../atoms/onboarding"
-import { SettingsRow } from "./settings-row"
-import { SettingsSection } from "./settings-section"
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { OpenCodeCheckResult } from "../../../preload/api";
+import { onboardingStateAtom } from "../../atoms/onboarding";
+import { useAppLanguage } from "../language-provider";
+import { SettingsRow } from "./settings-row";
+import { SettingsSection } from "./settings-section";
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 // ============================================================
 // Provider display metadata
@@ -28,20 +30,21 @@ const PROVIDER_LABELS: Record<string, string> = {
 	"claude-code": "Claude Code",
 	cursor: "Cursor",
 	opencode: "OpenCode",
-}
+};
 
 export function SetupSettings() {
+	const { t } = useTranslation("settings");
 	return (
 		<div className="space-y-8">
 			<div>
-				<h2 className="text-xl font-semibold">Setup</h2>
+				<h2 className="text-xl font-semibold">{t("setup.title")}</h2>
 			</div>
 
 			<OpenCodeStatusSection />
 			<MigrationSection />
 			<OnboardingSection />
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -49,32 +52,35 @@ export function SetupSettings() {
 // ============================================================
 
 function OpenCodeStatusSection() {
-	const [checking, setChecking] = useState(false)
-	const [result, setResult] = useState<OpenCodeCheckResult | null>(null)
+	const { t } = useTranslation("settings");
+	const [checking, setChecking] = useState(false);
+	const [result, setResult] = useState<OpenCodeCheckResult | null>(null);
 
 	const checkStatus = useCallback(async () => {
-		if (!isElectron) return
-		setChecking(true)
+		if (!isElectron) return;
+		setChecking(true);
 		try {
-			const r = await window.palot.onboarding.checkOpenCode()
-			setResult(r)
+			const r = await window.palot.onboarding.checkOpenCode();
+			setResult(r);
 		} catch {
 			// ignore
 		} finally {
-			setChecking(false)
+			setChecking(false);
 		}
-	}, [])
+	}, []);
 
 	useEffect(() => {
-		checkStatus()
-	}, [checkStatus])
+		checkStatus();
+	}, [checkStatus]);
 
 	return (
 		<SettingsSection title="OpenCode CLI">
 			<SettingsRow
-				label="Version"
+				label={t("setup.version")}
 				description={
-					result?.source === "bundled" ? "Included with Palot" : (result?.path ?? "Checking...")
+					result?.source === "bundled"
+						? t("setup.included")
+						: (result?.path ?? t("common:states.checking"))
 				}
 			>
 				<div className="flex items-center gap-2">
@@ -94,7 +100,7 @@ function OpenCodeStatusSection() {
 							)}
 						</>
 					) : (
-						<span className="text-sm text-red-500">Not found</span>
+						<span className="text-sm text-red-500">{t("setup.notFound")}</span>
 					)}
 					<Button
 						variant="outline"
@@ -104,7 +110,7 @@ function OpenCodeStatusSection() {
 						className="gap-1.5"
 					>
 						<RefreshCwIcon aria-hidden="true" className="size-3" />
-						Check
+						{t("setup.check")}
 					</Button>
 				</div>
 			</SettingsRow>
@@ -113,7 +119,7 @@ function OpenCodeStatusSection() {
 				<div className="px-4 py-2 text-xs text-amber-500">{result.message}</div>
 			)}
 		</SettingsSection>
-	)
+	);
 }
 
 // ============================================================
@@ -121,65 +127,82 @@ function OpenCodeStatusSection() {
 // ============================================================
 
 function MigrationSection() {
-	const onboardingState = useAtomValue(onboardingStateAtom)
-	const [restoring, setRestoring] = useState(false)
-	const [restoreResult, setRestoreResult] = useState<string | null>(null)
+	const { t } = useTranslation("settings");
+	const { language } = useAppLanguage();
+	const onboardingState = useAtomValue(onboardingStateAtom);
+	const [restoring, setRestoring] = useState(false);
+	const [restoreResult, setRestoreResult] = useState<string | null>(null);
 
 	const handleRestore = useCallback(async () => {
-		if (!isElectron) return
-		setRestoring(true)
-		setRestoreResult(null)
+		if (!isElectron) return;
+		setRestoring(true);
+		setRestoreResult(null);
 		try {
-			const result = await window.palot.onboarding.restoreBackup()
+			const result = await window.palot.onboarding.restoreBackup();
 			if (result.success) {
-				setRestoreResult(`Restored ${result.restored.length} file(s)`)
+				setRestoreResult(
+					t("setup.restoredFiles", { count: result.restored.length }),
+				);
 			} else {
-				setRestoreResult(`Errors: ${result.errors.join(", ")}`)
+				setRestoreResult(
+					t("setup.restoreErrors", { errors: result.errors.join(", ") }),
+				);
 			}
 		} catch (err) {
-			setRestoreResult(err instanceof Error ? err.message : "Restore failed")
+			setRestoreResult(
+				err instanceof Error ? err.message : t("setup.restoreFailed"),
+			);
 		} finally {
-			setRestoring(false)
+			setRestoring(false);
 		}
-	}, [])
+	}, [t]);
 
-	const migratedFrom = onboardingState.migratedFrom ?? []
+	const migratedFrom = onboardingState.migratedFrom ?? [];
 
 	if (!onboardingState.migrationPerformed || migratedFrom.length === 0) {
 		return (
-			<SettingsSection title="Configuration Migration">
-				<SettingsRow label="Status" description="No migration has been performed">
+			<SettingsSection title={t("setup.migration")}>
+				<SettingsRow
+					label={t("setup.status")}
+					description={t("setup.noMigration")}
+				>
 					<span className="text-sm text-muted-foreground">N/A</span>
 				</SettingsRow>
 			</SettingsSection>
-		)
+		);
 	}
 
-	const migratedLabels = migratedFrom.map((p) => PROVIDER_LABELS[p] ?? p).join(", ")
+	const migratedLabels = migratedFrom
+		.map((p) => PROVIDER_LABELS[p] ?? p)
+		.join(", ");
 
 	return (
-		<SettingsSection title="Configuration Migration">
-			<SettingsRow label="Migrated from" description={migratedLabels}>
+		<SettingsSection title={t("setup.migration")}>
+			<SettingsRow label={t("setup.migratedFrom")} description={migratedLabels}>
 				<CheckCircle2Icon className="size-4 text-emerald-500" />
 			</SettingsRow>
 			<SettingsRow
-				label="Last migrated"
+				label={t("setup.lastMigrated")}
 				description={
 					onboardingState.completedAt
-						? new Date(onboardingState.completedAt).toLocaleString()
-						: "Unknown"
+						? new Date(onboardingState.completedAt).toLocaleString(language)
+						: t("setup.unknown")
 				}
 			>
 				<span className="text-xs text-muted-foreground">
-					{migratedFrom.length} provider{migratedFrom.length === 1 ? "" : "s"}
+					{t("setup.providerCount", { count: migratedFrom.length })}
 				</span>
 			</SettingsRow>
 			<SettingsRow
-				label="Restore backup"
-				description="Undo the migration and restore original files"
+				label={t("setup.restoreBackup")}
+				description={t("setup.restoreDescription")}
 			>
 				<div className="flex items-center gap-2">
-					{restoreResult && <span className="text-xs text-muted-foreground">{restoreResult}</span>}
+					{restoreResult && (
+						<span className="text-xs text-muted-foreground">
+							{restoreResult}
+						</span>
+					)}
 					<Button
 						variant="outline"
 						size="sm"
@@ -192,12 +215,12 @@ function MigrationSection() {
 						) : (
 							<UndoIcon aria-hidden="true" className="size-3" />
 						)}
-						Restore
+						{t("setup.restore")}
 					</Button>
 				</div>
 			</SettingsRow>
 		</SettingsSection>
-	)
+	);
 }
 
 // ============================================================
@@ -205,7 +228,8 @@ function MigrationSection() {
 // ============================================================
 
 function OnboardingSection() {
-	const setOnboardingState = useSetAtom(onboardingStateAtom)
+	const { t } = useTranslation("settings");
+	const setOnboardingState = useSetAtom(onboardingStateAtom);
 
 	const handleRerun = useCallback(() => {
 		setOnboardingState({
@@ -216,24 +240,29 @@ function OnboardingSection() {
 			migratedFrom: [],
 			opencodeVersion: null,
 			providersConnected: 0,
-		})
+		});
 		// Relaunch the app to show onboarding fresh
 		if (isElectron) {
-			window.palot.relaunch()
+			window.palot.relaunch();
 		}
-	}, [setOnboardingState])
+	}, [setOnboardingState]);
 
 	return (
-		<SettingsSection title="Onboarding">
+		<SettingsSection title={t("setup.onboarding")}>
 			<SettingsRow
-				label="Re-run setup"
-				description="Reset and show the onboarding wizard again on next launch"
+				label={t("setup.rerun")}
+				description={t("setup.rerunDescription")}
 			>
-				<Button variant="outline" size="sm" onClick={handleRerun} className="gap-1.5">
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={handleRerun}
+					className="gap-1.5"
+				>
 					<RotateCcwIcon aria-hidden="true" className="size-3" />
-					Re-run Setup
+					{t("setup.rerun")}
 				</Button>
 			</SettingsRow>
 		</SettingsSection>
-	)
+	);
 }

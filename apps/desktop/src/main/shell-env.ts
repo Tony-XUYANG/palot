@@ -15,10 +15,10 @@
  * user environment from the registry.
  */
 
-import { execFile } from "node:child_process"
-import { homedir } from "node:os"
+import { execFile } from "node:child_process";
+import { homedir } from "node:os";
 
-const DELIMITER = "__PALOT_SHELL_ENV_DELIMITER__"
+const DELIMITER = "__PALOT_SHELL_ENV_DELIMITER__";
 
 /**
  * List of env vars we should NOT overwrite from the shell, because Electron
@@ -31,16 +31,16 @@ const PROTECTED_KEYS = new Set([
 	"SHLVL",
 	"PWD",
 	"OLDPWD",
-])
+]);
 
 /**
  * Detect the user's preferred shell. Falls back to /bin/zsh on macOS,
  * /bin/bash on Linux.
  */
 function getShell(): string {
-	if (process.env.SHELL) return process.env.SHELL
-	if (process.platform === "darwin") return "/bin/zsh"
-	return "/bin/bash"
+	if (process.env.SHELL) return process.env.SHELL;
+	if (process.platform === "darwin") return "/bin/zsh";
+	return "/bin/bash";
 }
 
 /**
@@ -49,22 +49,22 @@ function getShell(): string {
  * the first `=` per logical entry and joining until the next KEY= pattern.
  */
 function parseEnv(raw: string): Record<string, string> {
-	const start = raw.indexOf(DELIMITER)
-	const end = raw.lastIndexOf(DELIMITER)
-	if (start === -1 || end === -1 || start === end) return {}
+	const start = raw.indexOf(DELIMITER);
+	const end = raw.lastIndexOf(DELIMITER);
+	if (start === -1 || end === -1 || start === end) return {};
 
-	const envBlock = raw.slice(start + DELIMITER.length, end)
-	const result: Record<string, string> = {}
+	const envBlock = raw.slice(start + DELIMITER.length, end);
+	const result: Record<string, string> = {};
 
 	for (const line of envBlock.split("\n").filter(Boolean)) {
-		const eqIndex = line.indexOf("=")
-		if (eqIndex === -1) continue
-		const key = line.slice(0, eqIndex)
-		const value = line.slice(eqIndex + 1)
-		result[key] = value
+		const eqIndex = line.indexOf("=");
+		if (eqIndex === -1) continue;
+		const key = line.slice(0, eqIndex);
+		const value = line.slice(eqIndex + 1);
+		result[key] = value;
 	}
 
-	return result
+	return result;
 }
 
 /** Promise wrapper around `child_process.execFile`. Returns stdout as a string. */
@@ -72,19 +72,19 @@ function execFileAsync(
 	file: string,
 	args: string[],
 	options: {
-		encoding: "utf-8"
-		timeout: number
-		maxBuffer: number
-		cwd: string
-		env: NodeJS.ProcessEnv
+		encoding: "utf-8";
+		timeout: number;
+		maxBuffer: number;
+		cwd: string;
+		env: NodeJS.ProcessEnv;
 	},
 ): Promise<string> {
 	return new Promise((resolve, reject) => {
 		execFile(file, args, options, (error, stdout) => {
-			if (error) reject(error)
-			else resolve(stdout)
-		})
-	})
+			if (error) reject(error);
+			else resolve(stdout);
+		});
+	});
 }
 
 /**
@@ -93,18 +93,18 @@ function execFileAsync(
  * /bin/zsh and /bin/bash.
  */
 async function resolveShellEnvAsync(): Promise<Record<string, string>> {
-	const command = `echo -n "${DELIMITER}"; command env; echo -n "${DELIMITER}"; exit`
+	const command = `echo -n "${DELIMITER}"; command env; echo -n "${DELIMITER}"; exit`;
 	const spawnEnv = {
 		...process.env,
 		// Prevent oh-my-zsh auto-update from blocking
 		DISABLE_AUTO_UPDATE: "true",
 		ZSH_TMUX_AUTOSTARTED: "true",
 		ZSH_TMUX_AUTOSTART: "false",
-	}
+	};
 
 	const shells = [getShell(), "/bin/zsh", "/bin/bash"].filter(
 		(shell, i, arr) => arr.indexOf(shell) === i,
-	)
+	);
 
 	for (const shell of shells) {
 		try {
@@ -114,15 +114,15 @@ async function resolveShellEnvAsync(): Promise<Record<string, string>> {
 				maxBuffer: 10 * 1024 * 1024,
 				cwd: homedir(),
 				env: spawnEnv,
-			})
-			const env = parseEnv(stdout)
-			if (env.PATH) return env
+			});
+			const env = parseEnv(stdout);
+			if (env.PATH) return env;
 		} catch {
 			// Try next shell
 		}
 	}
 
-	return {}
+	return {};
 }
 
 /**
@@ -133,23 +133,25 @@ async function resolveShellEnvAsync(): Promise<Record<string, string>> {
  * No-op on Windows (GUI apps already inherit the full user environment).
  */
 async function resolveAndMergeEnv(): Promise<void> {
-	if (process.platform === "win32") return
+	if (process.platform === "win32") return;
 
 	try {
-		const shellEnv = await resolveShellEnvAsync()
+		const shellEnv = await resolveShellEnvAsync();
 		if (!shellEnv.PATH) {
-			console.warn("[shell-env] Could not resolve shell environment -- PATH will be limited")
-			return
+			console.warn(
+				"[shell-env] Could not resolve shell environment -- PATH will be limited",
+			);
+			return;
 		}
 
 		for (const [key, value] of Object.entries(shellEnv)) {
-			if (PROTECTED_KEYS.has(key)) continue
-			process.env[key] = value
+			if (PROTECTED_KEYS.has(key)) continue;
+			process.env[key] = value;
 		}
 
-		console.log("[shell-env] Merged shell environment into process.env")
+		console.log("[shell-env] Merged shell environment into process.env");
 	} catch (error) {
-		console.warn("[shell-env] Failed to resolve shell environment:", error)
+		console.warn("[shell-env] Failed to resolve shell environment:", error);
 	}
 }
 
@@ -158,7 +160,7 @@ async function resolveAndMergeEnv(): Promise<void> {
 // ============================================================
 
 /** Promise that resolves when the shell environment has been merged. */
-let envReadyPromise: Promise<void> | null = null
+let envReadyPromise: Promise<void> | null = null;
 
 /**
  * Start resolving the shell environment asynchronously.
@@ -171,10 +173,10 @@ let envReadyPromise: Promise<void> | null = null
  */
 export function startEnvResolution(): void {
 	if (process.platform === "win32") {
-		envReadyPromise = Promise.resolve()
-		return
+		envReadyPromise = Promise.resolve();
+		return;
 	}
-	envReadyPromise = resolveAndMergeEnv()
+	envReadyPromise = resolveAndMergeEnv();
 }
 
 /**
@@ -182,5 +184,5 @@ export function startEnvResolution(): void {
  * Safe to call multiple times; resolves immediately if already done.
  */
 export function waitForEnv(): Promise<void> {
-	return envReadyPromise ?? Promise.resolve()
+	return envReadyPromise ?? Promise.resolve();
 }

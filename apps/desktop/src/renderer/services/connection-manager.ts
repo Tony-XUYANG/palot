@@ -1,14 +1,18 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { processEvent } from "../atoms/actions/event-processor"
-import { authHeaderAtom, serverConnectedAtom, serverUrlAtom } from "../atoms/connection"
-import { batchUpsertPartsAtom } from "../atoms/parts"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { processEvent } from "../atoms/actions/event-processor";
+import {
+	authHeaderAtom,
+	serverConnectedAtom,
+	serverUrlAtom,
+} from "../atoms/connection";
+import { batchUpsertPartsAtom } from "../atoms/parts";
 import {
 	SESSIONS_PAGE_SIZE,
 	setProjectPaginationLoadingAtom,
 	setSessionsAtom,
 	updateProjectPaginationAtom,
-} from "../atoms/sessions"
-import { appStore } from "../atoms/store"
+} from "../atoms/sessions";
+import { appStore } from "../atoms/store";
 import {
 	applyStreamingDelta,
 	flushStreamingParts,
@@ -16,9 +20,9 @@ import {
 	isStreamingPartType,
 	streamingVersionFamily,
 	updateStreamingPart,
-} from "../atoms/streaming"
-import { createLogger } from "../lib/logger"
-import type { Event } from "../lib/types"
+} from "../atoms/streaming";
+import { createLogger } from "../lib/logger";
+import type { Event } from "../lib/types";
 import {
 	connectToServer,
 	disposeAllInstances,
@@ -27,9 +31,9 @@ import {
 	listProjects,
 	listSessions,
 	subscribeToGlobalEvents,
-} from "./opencode"
+} from "./opencode";
 
-const log = createLogger("connection-manager")
+const log = createLogger("connection-manager");
 
 // ============================================================
 // Health check
@@ -40,21 +44,24 @@ const log = createLogger("connection-manager")
  * Uses plain browser fetch (bypasses the SDK's retry wrapper and IPC proxy)
  * to avoid spamming the main process with failing requests when a server is down.
  */
-async function checkHealth(url: string, authHeader: string | null): Promise<boolean> {
-	const controller = new AbortController()
-	const timeout = setTimeout(() => controller.abort(), 3000)
+async function checkHealth(
+	url: string,
+	authHeader: string | null,
+): Promise<boolean> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 3000);
 	try {
-		const headers: Record<string, string> = {}
-		if (authHeader) headers.Authorization = authHeader
+		const headers: Record<string, string> = {};
+		if (authHeader) headers.Authorization = authHeader;
 		const res = await fetch(`${url}/global/health`, {
 			signal: controller.signal,
 			headers,
-		})
-		return res.ok
+		});
+		return res.ok;
 	} catch {
-		return false
+		return false;
 	} finally {
-		clearTimeout(timeout)
+		clearTimeout(timeout);
 	}
 }
 
@@ -64,21 +71,21 @@ async function checkHealth(url: string, authHeader: string | null): Promise<bool
 
 /** The single OpenCode server connection */
 let connection: {
-	url: string
+	url: string;
 	/** Auth header for remote servers (null for local/unauthenticated). */
-	authHeader: string | null
+	authHeader: string | null;
 	/** Base client (no directory) — used for SSE subscription */
-	baseClient: OpencodeClient
-	abortController: AbortController
-} | null = null
+	baseClient: OpencodeClient;
+	abortController: AbortController;
+} | null = null;
 
 /** Per-project SDK clients, keyed by directory path */
-const projectClients = new Map<string, OpencodeClient>()
+const projectClients = new Map<string, OpencodeClient>();
 
 /**
  * Monotonically increasing ID for event loop instances.
  */
-let eventLoopGeneration = 0
+let eventLoopGeneration = 0;
 
 /**
  * Global reference to the SSE AbortController that survives Vite HMR
@@ -87,16 +94,16 @@ let eventLoopGeneration = 0
  * with an unreachable AbortController. By storing it on `window`, the
  * new module can abort the stale loop on reconnect.
  */
-const SSE_ABORT_KEY = "__palot_sse_abort__" as const
+const SSE_ABORT_KEY = "__palot_sse_abort__" as const;
 
 function getGlobalAbort(): AbortController | undefined {
 	// biome-ignore lint/suspicious/noExplicitAny: accessing dynamic window property for SSE abort controller
-	return (window as any)[SSE_ABORT_KEY]
+	return (window as any)[SSE_ABORT_KEY];
 }
 
 function setGlobalAbort(controller: AbortController | null) {
 	// biome-ignore lint/suspicious/noExplicitAny: accessing dynamic window property for SSE abort controller
-	;(window as any)[SSE_ABORT_KEY] = controller
+	(window as any)[SSE_ABORT_KEY] = controller;
 }
 
 // ============================================================
@@ -110,52 +117,61 @@ function setGlobalAbort(controller: AbortController | null) {
  * @param url       Base URL of the OpenCode server
  * @param authHeader  Optional HTTP Authorization header for remote servers
  */
-export async function connectToOpenCode(url: string, authHeader?: string | null): Promise<void> {
+export async function connectToOpenCode(
+	url: string,
+	authHeader?: string | null,
+): Promise<void> {
 	// Disconnect existing connection if any
 	if (connection) {
-		log.info("Disconnecting previous connection", { url: connection.url })
-		connection.abortController.abort()
-		projectClients.clear()
+		log.info("Disconnecting previous connection", { url: connection.url });
+		connection.abortController.abort();
+		projectClients.clear();
 	}
 
 	// Also abort any stale SSE loop from a previous HMR module that we can't
 	// reach through the module-level `connection` variable.
-	const staleAbort = getGlobalAbort()
+	const staleAbort = getGlobalAbort();
 	if (staleAbort && !staleAbort.signal.aborted) {
-		log.info("Aborting stale SSE connection from previous module")
-		staleAbort.abort()
+		log.info("Aborting stale SSE connection from previous module");
+		staleAbort.abort();
 	}
 
 	// Bump generation — any previous event loop will see it's stale and exit
-	eventLoopGeneration++
-	const gen = eventLoopGeneration
+	eventLoopGeneration++;
+	const gen = eventLoopGeneration;
 
-	const resolvedAuth = authHeader ?? null
-	appStore.set(serverUrlAtom, url)
-	appStore.set(authHeaderAtom, resolvedAuth)
+	const resolvedAuth = authHeader ?? null;
+	appStore.set(serverUrlAtom, url);
+	appStore.set(authHeaderAtom, resolvedAuth);
 
 	// Base client has no directory — used for SSE events (which cover all projects)
-	const baseClient = connectToServer(url, { authHeader: resolvedAuth ?? undefined })
-	const abortController = new AbortController()
+	const baseClient = connectToServer(url, {
+		authHeader: resolvedAuth ?? undefined,
+	});
+	const abortController = new AbortController();
 
-	connection = { url, authHeader: resolvedAuth, baseClient, abortController }
-	setGlobalAbort(abortController)
+	connection = { url, authHeader: resolvedAuth, baseClient, abortController };
+	setGlobalAbort(abortController);
 
-	log.info("Connecting to OpenCode server", { url, authenticated: !!resolvedAuth, generation: gen })
+	log.info("Connecting to OpenCode server", {
+		url,
+		authenticated: !!resolvedAuth,
+		generation: gen,
+	});
 
 	// Ping the server to check if it's reachable before starting the event loop.
 	// This sets the initial connected state accurately instead of optimistically.
-	const healthy = await checkHealth(url, resolvedAuth)
-	appStore.set(serverConnectedAtom, healthy)
+	const healthy = await checkHealth(url, resolvedAuth);
+	appStore.set(serverConnectedAtom, healthy);
 	if (healthy) {
-		log.info("Server health check passed", { url })
+		log.info("Server health check passed", { url });
 	} else {
-		log.warn("Server health check failed, will retry via SSE loop", { url })
+		log.warn("Server health check failed, will retry via SSE loop", { url });
 	}
 
 	// Start SSE event loop in the background.
 	// Connected state is updated when the SSE stream opens or fails.
-	startEventLoop(baseClient, abortController.signal, gen)
+	startEventLoop(baseClient, abortController.signal, gen);
 }
 
 /**
@@ -163,18 +179,18 @@ export async function connectToOpenCode(url: string, authHeader?: string | null)
  * Uses the base client (no directory scope) since project.list() is global.
  */
 export async function loadAllProjects() {
-	const client = getBaseClient()
+	const client = getBaseClient();
 	if (!client) {
-		log.warn("Cannot load projects: not connected to server")
-		return []
+		log.warn("Cannot load projects: not connected to server");
+		return [];
 	}
 	try {
-		const projects = await listProjects(client)
-		log.info("Loaded projects from API", { count: projects.length })
-		return projects
+		const projects = await listProjects(client);
+		log.info("Loaded projects from API", { count: projects.length });
+		return projects;
 	} catch (err) {
-		log.error("Failed to load projects from API", err)
-		return []
+		log.error("Failed to load projects from API", err);
+		return [];
 	}
 }
 
@@ -192,26 +208,31 @@ export async function loadProjectSessions(
 	sandboxDirs?: Set<string>,
 	options?: { limit?: number; roots?: boolean; search?: string },
 ): Promise<void> {
-	const client = getProjectClient(directory)
-	if (!client) return
+	const client = getProjectClient(directory);
+	if (!client) return;
 
 	// Set loading state so the sidebar shows a spinner
 	if (options?.limit) {
-		appStore.set(setProjectPaginationLoadingAtom, directory)
+		appStore.set(setProjectPaginationLoadingAtom, directory);
 	}
 
 	try {
 		const [sessions, statuses] = await Promise.all([
 			listSessions(client, options),
 			getSessionStatuses(client),
-		])
+		]);
 		log.info("Loaded sessions for project", {
 			directory,
 			count: sessions.length,
 			limit: options?.limit,
 			roots: options?.roots,
-		})
-		appStore.set(setSessionsAtom, { sessions, statuses, directory, sandboxDirs })
+		});
+		appStore.set(setSessionsAtom, {
+			sessions,
+			statuses,
+			directory,
+			sandboxDirs,
+		});
 
 		// Update pagination state if a limit was specified
 		if (options?.limit) {
@@ -219,17 +240,17 @@ export async function loadProjectSessions(
 				directory,
 				fetchedCount: sessions.length,
 				limit: options.limit,
-			})
+			});
 		}
 	} catch (err) {
-		log.error("Failed to load sessions", { directory }, err)
+		log.error("Failed to load sessions", { directory }, err);
 		// Reset loading state on error
 		if (options?.limit) {
 			appStore.set(updateProjectPaginationAtom, {
 				directory,
 				fetchedCount: 0,
 				limit: options.limit,
-			})
+			});
 		}
 	}
 }
@@ -245,40 +266,42 @@ export async function loadMoreProjectSessions(
 	directory: string,
 	currentLimit: number,
 ): Promise<void> {
-	const nextLimit = currentLimit + SESSIONS_PAGE_SIZE
-	log.info("Loading more sessions", { directory, currentLimit, nextLimit })
-	appStore.set(setProjectPaginationLoadingAtom, directory)
+	const nextLimit = currentLimit + SESSIONS_PAGE_SIZE;
+	log.info("Loading more sessions", { directory, currentLimit, nextLimit });
+	appStore.set(setProjectPaginationLoadingAtom, directory);
 
-	const client = getProjectClient(directory)
+	const client = getProjectClient(directory);
 	if (!client) {
-		log.warn("Cannot load more sessions: no client for directory", { directory })
-		return
+		log.warn("Cannot load more sessions: no client for directory", {
+			directory,
+		});
+		return;
 	}
 
 	try {
 		const [sessions, statuses] = await Promise.all([
 			listSessions(client, { limit: nextLimit, roots: true }),
 			getSessionStatuses(client),
-		])
+		]);
 		log.info("Loaded more sessions for project", {
 			directory,
 			count: sessions.length,
 			limit: nextLimit,
-		})
-		appStore.set(setSessionsAtom, { sessions, statuses, directory })
+		});
+		appStore.set(setSessionsAtom, { sessions, statuses, directory });
 		appStore.set(updateProjectPaginationAtom, {
 			directory,
 			fetchedCount: sessions.length,
 			limit: nextLimit,
-		})
+		});
 	} catch (err) {
-		log.error("Failed to load more sessions", { directory }, err)
+		log.error("Failed to load more sessions", { directory }, err);
 		// Reset loading state on error
 		appStore.set(updateProjectPaginationAtom, {
 			directory,
 			fetchedCount: currentLimit,
 			limit: currentLimit,
-		})
+		});
 	}
 }
 
@@ -291,39 +314,48 @@ export async function loadMoreProjectSessions(
 export function getProjectClient(directory: string): OpencodeClient | null {
 	if (!connection) {
 		// HMR recovery: module state is gone but the store remembers the URL
-		const storeUrl = appStore.get(serverUrlAtom)
+		const storeUrl = appStore.get(serverUrlAtom);
 		if (storeUrl) {
-			log.warn("Connection lost (likely HMR), reconnecting to", { url: storeUrl })
+			log.warn("Connection lost (likely HMR), reconnecting to", {
+				url: storeUrl,
+			});
 
 			// Abort any stale SSE loop from the previous module
-			const staleAbort = getGlobalAbort()
+			const staleAbort = getGlobalAbort();
 			if (staleAbort && !staleAbort.signal.aborted) {
-				log.info("Aborting stale SSE connection from previous module")
-				staleAbort.abort()
+				log.info("Aborting stale SSE connection from previous module");
+				staleAbort.abort();
 			}
 
-			const storeAuth = appStore.get(authHeaderAtom)
-			const baseClient = connectToServer(storeUrl, { authHeader: storeAuth ?? undefined })
-			const abortController = new AbortController()
-			eventLoopGeneration++
-			connection = { url: storeUrl, authHeader: storeAuth, baseClient, abortController }
-			setGlobalAbort(abortController)
-			startEventLoop(baseClient, abortController.signal, eventLoopGeneration)
+			const storeAuth = appStore.get(authHeaderAtom);
+			const baseClient = connectToServer(storeUrl, {
+				authHeader: storeAuth ?? undefined,
+			});
+			const abortController = new AbortController();
+			eventLoopGeneration++;
+			connection = {
+				url: storeUrl,
+				authHeader: storeAuth,
+				baseClient,
+				abortController,
+			};
+			setGlobalAbort(abortController);
+			startEventLoop(baseClient, abortController.signal, eventLoopGeneration);
 			// Connected state is set by startEventLoop once SSE actually opens
 		} else {
-			return null
+			return null;
 		}
 	}
 
-	let client = projectClients.get(directory)
+	let client = projectClients.get(directory);
 	if (!client) {
 		client = connectToServer(connection.url, {
 			directory,
 			authHeader: connection.authHeader ?? undefined,
-		})
-		projectClients.set(directory, client)
+		});
+		projectClients.set(directory, client);
 	}
-	return client
+	return client;
 }
 
 /**
@@ -337,10 +369,12 @@ export function getProjectClient(directory: string): OpencodeClient | null {
  * Returns `null` if the session is not found, the server is unreachable, or
  * no connection has been established.
  */
-export async function fetchSessionById(sessionId: string): Promise<import("../lib/types").Session | null> {
-	const client = getBaseClient()
-	if (!client) return null
-	return getSession(client, sessionId)
+export async function fetchSessionById(
+	sessionId: string,
+): Promise<import("../lib/types").Session | null> {
+	const client = getBaseClient();
+	if (!client) return null;
+	return getSession(client, sessionId);
 }
 
 /**
@@ -351,35 +385,42 @@ export async function fetchSessionById(sessionId: string): Promise<import("../li
 export function getBaseClient(): OpencodeClient | null {
 	if (!connection) {
 		// HMR recovery
-		const storeUrl = appStore.get(serverUrlAtom)
+		const storeUrl = appStore.get(serverUrlAtom);
 		if (storeUrl) {
-			const storeAuth = appStore.get(authHeaderAtom)
-			const baseClient = connectToServer(storeUrl, { authHeader: storeAuth ?? undefined })
-			const abortController = new AbortController()
-			eventLoopGeneration++
-			connection = { url: storeUrl, authHeader: storeAuth, baseClient, abortController }
-			setGlobalAbort(abortController)
-			startEventLoop(baseClient, abortController.signal, eventLoopGeneration)
+			const storeAuth = appStore.get(authHeaderAtom);
+			const baseClient = connectToServer(storeUrl, {
+				authHeader: storeAuth ?? undefined,
+			});
+			const abortController = new AbortController();
+			eventLoopGeneration++;
+			connection = {
+				url: storeUrl,
+				authHeader: storeAuth,
+				baseClient,
+				abortController,
+			};
+			setGlobalAbort(abortController);
+			startEventLoop(baseClient, abortController.signal, eventLoopGeneration);
 			// Connected state is set by startEventLoop once SSE actually opens
 		} else {
-			return null
+			return null;
 		}
 	}
-	return connection.baseClient
+	return connection.baseClient;
 }
 
 /**
  * Check if we're connected to the OpenCode server.
  */
 export function isConnected(): boolean {
-	return connection !== null
+	return connection !== null;
 }
 
 /**
  * Get the server URL, or null if not connected.
  */
 export function getServerUrl(): string | null {
-	return connection?.url ?? null
+	return connection?.url ?? null;
 }
 
 /**
@@ -389,86 +430,89 @@ export function getServerUrl(): string | null {
  */
 export async function reloadConfig(): Promise<void> {
 	if (!connection) {
-		log.warn("Cannot reload config: not connected to server")
-		return
+		log.warn("Cannot reload config: not connected to server");
+		return;
 	}
-	log.info("Reloading OpenCode config (disposing all instances)")
-	await disposeAllInstances(connection.baseClient)
+	log.info("Reloading OpenCode config (disposing all instances)");
+	await disposeAllInstances(connection.baseClient);
 }
 
 /**
  * Disconnect from the OpenCode server.
  */
 export function disconnect(): void {
-	log.info("Disconnecting from OpenCode server")
+	log.info("Disconnecting from OpenCode server");
 	if (connection) {
-		connection.abortController.abort()
-		connection = null
-		projectClients.clear()
+		connection.abortController.abort();
+		connection = null;
+		projectClients.clear();
 	}
-	setGlobalAbort(null)
-	eventLoopGeneration++
-	appStore.set(serverConnectedAtom, false)
+	setGlobalAbort(null);
+	eventLoopGeneration++;
+	appStore.set(serverConnectedAtom, false);
 }
 
 // ============================================================
 // Event Batching (OpenCode-inspired 16ms flush with coalescing)
 // ============================================================
 
-const FRAME_BUDGET_MS = 16
+const FRAME_BUDGET_MS = 16;
 
 function coalescingKey(event: Event): string | undefined {
 	switch (event.type) {
 		case "message.part.updated": {
-			const part = event.properties.part
-			return `part:${part.messageID}:${part.id}`
+			const part = event.properties.part;
+			return `part:${part.messageID}:${part.id}`;
 		}
 		case "message.part.delta":
-			return `part:${event.properties.messageID}:${event.properties.partID}`
+			return `part:${event.properties.messageID}:${event.properties.partID}`;
 		case "session.status":
-			return `status:${event.properties.sessionID}`
+			return `status:${event.properties.sessionID}`;
 		default:
-			return undefined
+			return undefined;
 	}
 }
 
 function createEventBatcher() {
-	let queue: Event[] = []
-	const coalesced = new Map<string, Event>()
-	let scheduled: number | undefined
-	let lastFlush = 0
+	let queue: Event[] = [];
+	const coalesced = new Map<string, Event>();
+	let scheduled: number | undefined;
+	let lastFlush = 0;
 
 	function flush() {
-		const events = [...queue, ...coalesced.values()]
-		queue = []
-		coalesced.clear()
-		scheduled = undefined
-		lastFlush = performance.now()
+		const events = [...queue, ...coalesced.values()];
+		queue = [];
+		coalesced.clear();
+		scheduled = undefined;
+		lastFlush = performance.now();
 
-		if (events.length === 0) return
+		if (events.length === 0) return;
 
 		// Collect non-streaming parts across all events in the batch so we can
 		// write them in a single batchUpsertPartsAtom call instead of N individual
 		// upsertPartAtom calls. This significantly reduces Jotai atom writes and
 		// React reconciliation passes during heavy tool-call activity.
-		const batchedParts: import("../lib/types").Part[] = []
-		const batchedPartSessionIds = new Set<string>()
+		const batchedParts: import("../lib/types").Part[] = [];
+		const batchedPartSessionIds = new Set<string>();
 
 		for (const event of events) {
-			if (event.type === "message.part.updated" && !isStreamingPartType(event.properties.part)) {
-				batchedParts.push(event.properties.part)
-				batchedPartSessionIds.add(event.properties.part.sessionID)
+			if (
+				event.type === "message.part.updated" &&
+				!isStreamingPartType(event.properties.part)
+			) {
+				batchedParts.push(event.properties.part);
+				batchedPartSessionIds.add(event.properties.part.sessionID);
 			} else {
-				processEvent(event)
+				processEvent(event);
 			}
 		}
 
 		// Flush collected non-streaming parts in a single batch write
 		if (batchedParts.length > 0) {
-			appStore.set(batchUpsertPartsAtom, batchedParts)
+			appStore.set(batchUpsertPartsAtom, batchedParts);
 			// Bump per-session streaming version so the UI picks up the new parts
 			for (const sid of batchedPartSessionIds) {
-				appStore.set(streamingVersionFamily(sid), (v: number) => v + 1)
+				appStore.set(streamingVersionFamily(sid), (v: number) => v + 1);
 			}
 		}
 	}
@@ -476,86 +520,95 @@ function createEventBatcher() {
 	function enqueue(event: Event) {
 		// Fast path: route high-frequency text/reasoning part updates to streaming buffer
 		if (event.type === "message.part.updated") {
-			const part = event.properties.part
+			const part = event.properties.part;
 			if (isStreamingPartType(part)) {
-				updateStreamingPart(part)
-				const key = coalescingKey(event)
-				if (key) coalesced.set(key, event)
-				if (scheduled !== undefined) return
-				const elapsed = performance.now() - lastFlush
+				updateStreamingPart(part);
+				const key = coalescingKey(event);
+				if (key) coalesced.set(key, event);
+				if (scheduled !== undefined) return;
+				const elapsed = performance.now() - lastFlush;
 				if (elapsed < FRAME_BUDGET_MS) {
-					scheduled = requestAnimationFrame(flush)
+					scheduled = requestAnimationFrame(flush);
 				} else {
-					flush()
+					flush();
 				}
-				return
+				return;
 			}
 		}
 
 		// Fast path: route incremental text/reasoning deltas to streaming buffer
 		if (event.type === "message.part.delta") {
-			const { messageID, partID, field, delta, sessionID } = event.properties
+			const { messageID, partID, field, delta, sessionID } = event.properties;
 			if (isStreamingField(field)) {
-				const applied = applyStreamingDelta(messageID, partID, field, delta, sessionID)
+				const applied = applyStreamingDelta(
+					messageID,
+					partID,
+					field,
+					delta,
+					sessionID,
+				);
 				if (applied) {
-					const key = coalescingKey(event)
-					if (key) coalesced.set(key, event)
-					if (scheduled !== undefined) return
-					const elapsed = performance.now() - lastFlush
+					const key = coalescingKey(event);
+					if (key) coalesced.set(key, event);
+					if (scheduled !== undefined) return;
+					const elapsed = performance.now() - lastFlush;
 					if (elapsed < FRAME_BUDGET_MS) {
-						scheduled = requestAnimationFrame(flush)
+						scheduled = requestAnimationFrame(flush);
 					} else {
-						flush()
+						flush();
 					}
-					return
+					return;
 				}
 				// Part not in streaming buffer yet, fall through to normal processing
 			}
 		}
 
 		// When a session goes idle, flush streaming parts to main store
-		if (event.type === "session.status" && event.properties.status.type === "idle") {
-			const flushedParts = flushStreamingParts()
+		if (
+			event.type === "session.status" &&
+			event.properties.status.type === "idle"
+		) {
+			const flushedParts = flushStreamingParts();
 			if (flushedParts.length > 0) {
-				appStore.set(batchUpsertPartsAtom, flushedParts)
+				appStore.set(batchUpsertPartsAtom, flushedParts);
 			}
 		}
 
-		const key = coalescingKey(event)
+		const key = coalescingKey(event);
 		if (key) {
-			coalesced.set(key, event)
+			coalesced.set(key, event);
 		} else {
-			queue.push(event)
+			queue.push(event);
 		}
 
-		if (scheduled !== undefined) return
+		if (scheduled !== undefined) return;
 
-		const elapsed = performance.now() - lastFlush
+		const elapsed = performance.now() - lastFlush;
 		if (elapsed < FRAME_BUDGET_MS) {
-			scheduled = requestAnimationFrame(flush)
+			scheduled = requestAnimationFrame(flush);
 		} else {
-			flush()
+			flush();
 		}
 	}
 
 	function dispose(discard = false) {
 		if (scheduled !== undefined) {
-			cancelAnimationFrame(scheduled)
-			scheduled = undefined
+			cancelAnimationFrame(scheduled);
+			scheduled = undefined;
 		}
 		if (discard) {
 			// Stale connection — drop buffered events instead of flushing them.
 			// Flushing would re-add sessions to the store after sessionIdsAtom has
 			// already been cleared by triggerServerSwitch(), causing stale sessions
 			// from the previous server to reappear in the sidebar.
-			queue = []
-			coalesced.clear()
+			queue = [];
+			coalesced.clear();
 		} else {
-			flush()
+			flush();
 		}
 	}
 
-	return { enqueue, dispose }
+	return { enqueue, dispose };
 }
 
 // ============================================================
@@ -567,16 +620,16 @@ async function startEventLoop(
 	signal: AbortSignal,
 	generation: number,
 ): Promise<void> {
-	let retryDelay = 1000
+	let retryDelay = 1000;
 
-	const isStale = () => signal.aborted || generation !== eventLoopGeneration
+	const isStale = () => signal.aborted || generation !== eventLoopGeneration;
 
 	/** Only write serverConnectedAtom if this event loop is still the active one. */
 	const setConnected = (value: boolean) => {
-		if (!isStale()) appStore.set(serverConnectedAtom, value)
-	}
+		if (!isStale()) appStore.set(serverConnectedAtom, value);
+	};
 
-	log.info("SSE event loop started", { generation })
+	log.info("SSE event loop started", { generation });
 
 	while (!isStale()) {
 		// Before opening the SSE stream, check if the server is reachable.
@@ -584,56 +637,65 @@ async function startEventLoop(
 		// On the first iteration the caller already ran a health check, so
 		// we only probe when retrying (retryDelay > 1000 means we already failed once).
 		if (retryDelay > 1000 || !appStore.get(serverConnectedAtom)) {
-			const healthy = await checkHealth(connection?.url ?? "", connection?.authHeader ?? null)
-			if (isStale()) break
-			setConnected(healthy)
+			const healthy = await checkHealth(
+				connection?.url ?? "",
+				connection?.authHeader ?? null,
+			);
+			if (isStale()) break;
+			setConnected(healthy);
 			if (!healthy) {
-				log.warn("Server health check failed, backing off", { generation, retryDelay })
-				await new Promise((resolve) => setTimeout(resolve, retryDelay))
-				retryDelay = Math.min(retryDelay * 2, 30000)
-				continue
+				log.warn("Server health check failed, backing off", {
+					generation,
+					retryDelay,
+				});
+				await new Promise((resolve) => setTimeout(resolve, retryDelay));
+				retryDelay = Math.min(retryDelay * 2, 30000);
+				continue;
 			}
 		}
 
-		const batcher = createEventBatcher()
+		const batcher = createEventBatcher();
 
 		try {
-			log.debug("Opening SSE stream", { generation })
-			const stream = await subscribeToGlobalEvents(client)
-			if (isStale()) break
-			retryDelay = 1000
-			log.info("SSE stream connected", { generation })
+			log.debug("Opening SSE stream", { generation });
+			const stream = await subscribeToGlobalEvents(client);
+			if (isStale()) break;
+			retryDelay = 1000;
+			log.info("SSE stream connected", { generation });
 
 			// SSE stream opened successfully, server is reachable
-			setConnected(true)
+			setConnected(true);
 
 			for await (const globalEvent of stream) {
-				if (isStale()) break
-				const event = globalEvent.payload
+				if (isStale()) break;
+				const event = globalEvent.payload;
 				if (event) {
-					batcher.enqueue(event)
+					batcher.enqueue(event);
 				}
 			}
 			if (!isStale()) {
-				log.warn("SSE stream ended (server closed connection)", { generation })
-				setConnected(false)
+				log.warn("SSE stream ended (server closed connection)", { generation });
+				setConnected(false);
 			}
 		} catch (err) {
-			if (isStale()) break
-			log.error("SSE stream disconnected", { generation, retryDelay }, err)
-			setConnected(false)
+			if (isStale()) break;
+			log.error("SSE stream disconnected", { generation, retryDelay }, err);
+			setConnected(false);
 		} finally {
 			// Discard pending events when the loop is stale (server switched / disconnected).
 			// Flushing stale events would re-populate session atoms that were just cleared.
-			batcher.dispose(isStale())
+			batcher.dispose(isStale());
 		}
 
-		if (isStale()) break
+		if (isStale()) break;
 
-		log.info("Reconnecting SSE in", { delayMs: retryDelay, generation })
-		await new Promise((resolve) => setTimeout(resolve, retryDelay))
-		retryDelay = Math.min(retryDelay * 2, 30000)
+		log.info("Reconnecting SSE in", { delayMs: retryDelay, generation });
+		await new Promise((resolve) => setTimeout(resolve, retryDelay));
+		retryDelay = Math.min(retryDelay * 2, 30000);
 	}
 
-	log.info("SSE event loop exited", { generation, stale: generation !== eventLoopGeneration })
+	log.info("SSE event loop exited", {
+		generation,
+		stale: generation !== eventLoopGeneration,
+	});
 }

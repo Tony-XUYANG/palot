@@ -5,26 +5,38 @@
  * Exports the public API consumed by IPC handlers.
  */
 
-import crypto from "node:crypto"
-import { eq, sql } from "drizzle-orm"
-import { BrowserWindow } from "electron"
-import { createLogger } from "../logger"
-import { closeDb, ensureDb, getDb } from "./database"
-import { executeRun } from "./executor"
-import { createConfig, deleteConfig, listConfigs, readConfig, updateConfig } from "./registry"
-import { addTask, getNextRunTime, previewSchedule, removeTask, stopAll } from "./scheduler"
-import { automationRuns, automations } from "./schema"
-import { Semaphore } from "./semaphore"
+import crypto from "node:crypto";
+import { eq, sql } from "drizzle-orm";
+import { BrowserWindow } from "electron";
+import { createLogger } from "../logger";
+import { closeDb, ensureDb, getDb } from "./database";
+import { executeRun } from "./executor";
+import {
+	createConfig,
+	deleteConfig,
+	listConfigs,
+	readConfig,
+	updateConfig,
+} from "./registry";
+import {
+	addTask,
+	getNextRunTime,
+	previewSchedule,
+	removeTask,
+	stopAll,
+} from "./scheduler";
+import { automationRuns, automations } from "./schema";
+import { Semaphore } from "./semaphore";
 import type {
 	Automation,
 	AutomationRun,
 	CreateAutomationInput,
 	UpdateAutomationInput,
-} from "./types"
+} from "./types";
 
-const log = createLogger("automation")
+const log = createLogger("automation");
 
-const semaphore = new Semaphore(5)
+const semaphore = new Semaphore(5);
 
 // ============================================================
 // Broadcast helper
@@ -33,7 +45,7 @@ const semaphore = new Semaphore(5)
 /** Notify all renderer windows that automation data has changed. */
 function broadcastRunsUpdated(): void {
 	for (const win of BrowserWindow.getAllWindows()) {
-		win.webContents.send("automation:runs-updated")
+		win.webContents.send("automation:runs-updated");
 	}
 }
 
@@ -43,16 +55,20 @@ function broadcastRunsUpdated(): void {
 
 /** Initialize the automation subsystem. Call once at app startup. */
 export async function initAutomations(): Promise<void> {
-	log.info("Initializing automation subsystem")
-	const db = await ensureDb()
+	log.info("Initializing automation subsystem");
+	const db = await ensureDb();
 
 	// Load all active automations and schedule them
-	const configs = listConfigs()
+	const configs = listConfigs();
 	for (const config of configs) {
-		if (config.status !== "active") continue
+		if (config.status !== "active") continue;
 
 		// Ensure timing row exists in SQLite
-		const existing = await db.select().from(automations).where(eq(automations.id, config.id)).get()
+		const existing = await db
+			.select()
+			.from(automations)
+			.where(eq(automations.id, config.id))
+			.get();
 		if (!existing) {
 			await db
 				.insert(automations)
@@ -61,20 +77,26 @@ export async function initAutomations(): Promise<void> {
 					createdAt: Date.now(),
 					updatedAt: Date.now(),
 				})
-				.run()
+				.run();
 		}
 
-		await scheduleAndPersistNextRun(config.id, config.schedule.rrule, config.schedule.timezone)
+		await scheduleAndPersistNextRun(
+			config.id,
+			config.schedule.rrule,
+			config.schedule.timezone,
+		);
 	}
 
-	log.info(`Loaded ${configs.filter((c) => c.status === "active").length} active automations`)
+	log.info(
+		`Loaded ${configs.filter((c) => c.status === "active").length} active automations`,
+	);
 }
 
 /** Shut down the automation subsystem. Call on app quit. */
 export function shutdownAutomations(): void {
-	stopAll()
-	closeDb()
-	log.info("Automation subsystem shut down")
+	stopAll();
+	closeDb();
+	log.info("Automation subsystem shut down");
 }
 
 // ============================================================
@@ -90,13 +112,13 @@ async function scheduleAndPersistNextRun(
 	rruleStr: string,
 	timezone: string,
 ): Promise<void> {
-	log.info("Scheduling and persisting next run", { id, rruleStr, timezone })
+	log.info("Scheduling and persisting next run", { id, rruleStr, timezone });
 	const nextRunAt = await addTask(id, rruleStr, timezone, async () => {
-		await executeAutomation(id)
-	})
+		await executeAutomation(id);
+	});
 
 	// Persist the computed nextRunAt
-	const db = getDb()
+	const db = getDb();
 	await db
 		.update(automations)
 		.set({
@@ -104,12 +126,12 @@ async function scheduleAndPersistNextRun(
 			updatedAt: Date.now(),
 		})
 		.where(eq(automations.id, id))
-		.run()
+		.run();
 
 	log.info("Next run persisted to DB", {
 		id,
 		nextRunAt: nextRunAt?.toISOString() ?? "none",
-	})
+	});
 }
 
 // ============================================================
@@ -117,28 +139,38 @@ async function scheduleAndPersistNextRun(
 // ============================================================
 
 export async function listAutomations(): Promise<Automation[]> {
-	const configs = listConfigs()
-	const db = getDb()
-	const results: Automation[] = []
+	const configs = listConfigs();
+	const db = getDb();
+	const results: Automation[] = [];
 	for (const config of configs) {
-		const timing = await db.select().from(automations).where(eq(automations.id, config.id)).get()
-		results.push(await mergeAutomation(config, timing))
+		const timing = await db
+			.select()
+			.from(automations)
+			.where(eq(automations.id, config.id))
+			.get();
+		results.push(await mergeAutomation(config, timing));
 	}
-	return results
+	return results;
 }
 
 export async function getAutomation(id: string): Promise<Automation | null> {
-	const config = readConfig(id)
-	if (!config) return null
-	const db = getDb()
-	const timing = await db.select().from(automations).where(eq(automations.id, id)).get()
-	return await mergeAutomation(config, timing)
+	const config = readConfig(id);
+	if (!config) return null;
+	const db = getDb();
+	const timing = await db
+		.select()
+		.from(automations)
+		.where(eq(automations.id, id))
+		.get();
+	return await mergeAutomation(config, timing);
 }
 
-export async function createAutomation(input: CreateAutomationInput): Promise<Automation> {
-	const id = createConfig(input)
-	const db = getDb()
-	const now = Date.now()
+export async function createAutomation(
+	input: CreateAutomationInput,
+): Promise<Automation> {
+	const id = createConfig(input);
+	const db = getDb();
+	const now = Date.now();
 
 	await db
 		.insert(automations)
@@ -147,63 +179,76 @@ export async function createAutomation(input: CreateAutomationInput): Promise<Au
 			createdAt: now,
 			updatedAt: now,
 		})
-		.run()
+		.run();
 
 	// Schedule if active
-	const config = readConfig(id)!
+	const config = readConfig(id)!;
 	if (config.status === "active") {
-		await scheduleAndPersistNextRun(id, config.schedule.rrule, config.schedule.timezone)
+		await scheduleAndPersistNextRun(
+			id,
+			config.schedule.rrule,
+			config.schedule.timezone,
+		);
 	}
 
-	return (await getAutomation(id))!
+	return (await getAutomation(id))!;
 }
 
-export async function updateAutomation(input: UpdateAutomationInput): Promise<Automation | null> {
-	const before = readConfig(input.id)
-	if (!before) return null
+export async function updateAutomation(
+	input: UpdateAutomationInput,
+): Promise<Automation | null> {
+	const before = readConfig(input.id);
+	if (!before) return null;
 
-	updateConfig(input)
-	const db = getDb()
+	updateConfig(input);
+	const db = getDb();
 	await db
 		.update(automations)
 		.set({ updatedAt: Date.now() })
 		.where(eq(automations.id, input.id))
-		.run()
+		.run();
 
-	const after = readConfig(input.id)!
+	const after = readConfig(input.id)!;
 
 	// Re-schedule if schedule or status changed
 	if (input.schedule || input.status) {
-		removeTask(input.id)
+		removeTask(input.id);
 		if (after.status === "active") {
-			await scheduleAndPersistNextRun(input.id, after.schedule.rrule, after.schedule.timezone)
+			await scheduleAndPersistNextRun(
+				input.id,
+				after.schedule.rrule,
+				after.schedule.timezone,
+			);
 		} else {
 			// Paused/archived: clear nextRunAt
 			await db
 				.update(automations)
 				.set({ nextRunAt: null, updatedAt: Date.now() })
 				.where(eq(automations.id, input.id))
-				.run()
+				.run();
 		}
 	}
 
-	return getAutomation(input.id)
+	return getAutomation(input.id);
 }
 
 export async function deleteAutomation(id: string): Promise<boolean> {
-	removeTask(id)
-	deleteConfig(id)
-	const db = getDb()
-	await db.delete(automations).where(eq(automations.id, id)).run()
-	return true
+	removeTask(id);
+	deleteConfig(id);
+	const db = getDb();
+	await db.delete(automations).where(eq(automations.id, id)).run();
+	return true;
 }
 
 // ============================================================
 // Run operations
 // ============================================================
 
-export async function listRuns(automationId?: string, limit = 50): Promise<AutomationRun[]> {
-	const db = getDb()
+export async function listRuns(
+	automationId?: string,
+	limit = 50,
+): Promise<AutomationRun[]> {
+	const db = getDb();
 
 	if (automationId) {
 		return (await db
@@ -211,17 +256,21 @@ export async function listRuns(automationId?: string, limit = 50): Promise<Autom
 			.from(automationRuns)
 			.where(eq(automationRuns.automationId, automationId))
 			.limit(limit)
-			.all()) as AutomationRun[]
+			.all()) as AutomationRun[];
 	}
 
-	return (await db.select().from(automationRuns).limit(limit).all()) as AutomationRun[]
+	return (await db
+		.select()
+		.from(automationRuns)
+		.limit(limit)
+		.all()) as AutomationRun[];
 }
 
 export async function archiveRun(
 	runId: string,
 	reason: "auto" | "manual" = "manual",
 ): Promise<boolean> {
-	const db = getDb()
+	const db = getDb();
 	const result = await db
 		.update(automationRuns)
 		.set({
@@ -231,12 +280,12 @@ export async function archiveRun(
 			updatedAt: Date.now(),
 		})
 		.where(eq(automationRuns.id, runId))
-		.run()
-	return result.rowsAffected > 0
+		.run();
+	return result.rowsAffected > 0;
 }
 
 export async function acceptRun(runId: string): Promise<boolean> {
-	const db = getDb()
+	const db = getDb();
 	const result = await db
 		.update(automationRuns)
 		.set({
@@ -245,13 +294,13 @@ export async function acceptRun(runId: string): Promise<boolean> {
 			updatedAt: Date.now(),
 		})
 		.where(eq(automationRuns.id, runId))
-		.run()
-	return result.rowsAffected > 0
+		.run();
+	return result.rowsAffected > 0;
 }
 
 /** Mark a run as read without changing its status. */
 export async function markRunRead(runId: string): Promise<boolean> {
-	const db = getDb()
+	const db = getDb();
 	const result = await db
 		.update(automationRuns)
 		.set({
@@ -259,8 +308,8 @@ export async function markRunRead(runId: string): Promise<boolean> {
 			updatedAt: Date.now(),
 		})
 		.where(eq(automationRuns.id, runId))
-		.run()
-	return result.rowsAffected > 0
+		.run();
+	return result.rowsAffected > 0;
 }
 
 /**
@@ -272,18 +321,21 @@ export async function markRunRead(runId: string): Promise<boolean> {
  * block the renderer.
  */
 export async function runNow(id: string): Promise<boolean> {
-	const config = readConfig(id)
-	if (!config) return false
+	const config = readConfig(id);
+	if (!config) return false;
 
 	// Fire-and-forget: start execution in the background
 	executeAutomation(id, { isManualTrigger: true }).catch((err) => {
-		log.error("runNow background execution failed", { automationId: id, error: err })
-	})
+		log.error("runNow background execution failed", {
+			automationId: id,
+			error: err,
+		});
+	});
 
-	return true
+	return true;
 }
 
-export { previewSchedule }
+export { previewSchedule };
 
 // ============================================================
 // Execution -- runs agent sessions via OpenCode SDK
@@ -291,52 +343,58 @@ export { previewSchedule }
 
 interface ExecuteOptions {
 	/** When true, skip the active-status check (used by runNow). */
-	isManualTrigger?: boolean
+	isManualTrigger?: boolean;
 }
 
-async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise<void> {
-	const config = readConfig(id)
+async function executeAutomation(
+	id: string,
+	opts: ExecuteOptions = {},
+): Promise<void> {
+	const config = readConfig(id);
 	if (!config) {
-		log.warn("Automation config not found, skipping execution", { id })
-		return
+		log.warn("Automation config not found, skipping execution", { id });
+		return;
 	}
 
 	// Scheduled runs require active status; manual triggers skip the check
 	if (!opts.isManualTrigger && config.status !== "active") {
-		log.info("Automation not active, skipping execution", { id, status: config.status })
-		return
+		log.info("Automation not active, skipping execution", {
+			id,
+			status: config.status,
+		});
+		return;
 	}
 
-	const db = getDb()
+	const db = getDb();
 
 	log.info("Waiting for semaphore", {
 		automationId: id,
 		isManual: !!opts.isManualTrigger,
 		semaphoreActive: semaphore.active,
 		semaphorePending: semaphore.pending,
-	})
-	const semaphoreWaitStart = Date.now()
-	const release = await semaphore.acquire()
-	const semaphoreWaitMs = Date.now() - semaphoreWaitStart
+	});
+	const semaphoreWaitStart = Date.now();
+	const release = await semaphore.acquire();
+	const semaphoreWaitMs = Date.now() - semaphoreWaitStart;
 	log.info("Semaphore acquired", {
 		automationId: id,
 		waitMs: semaphoreWaitMs,
 		semaphoreActive: semaphore.active,
-	})
+	});
 
 	try {
 		// Run once per workspace, or once with empty workspace if none configured
-		const targets = config.workspaces.length > 0 ? config.workspaces : [""]
+		const targets = config.workspaces.length > 0 ? config.workspaces : [""];
 		log.info("Starting automation execution", {
 			automationId: id,
 			name: config.name,
 			workspaceCount: targets.length,
 			retries: config.execution.retries,
 			timeoutSec: config.execution.timeout,
-		})
+		});
 		for (const workspace of targets) {
-			const runId = crypto.randomUUID()
-			const now = Date.now()
+			const runId = crypto.randomUUID();
+			const now = Date.now();
 
 			await db
 				.insert(automationRuns)
@@ -351,18 +409,22 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 					createdAt: now,
 					updatedAt: now,
 				})
-				.run()
+				.run();
 
-			log.info("Automation run started", { automationId: id, runId, workspace })
+			log.info("Automation run started", {
+				automationId: id,
+				runId,
+				workspace,
+			});
 
 			// Notify renderer that a new run appeared
-			broadcastRunsUpdated()
+			broadcastRunsUpdated();
 
-			let runFailed = false
+			let runFailed = false;
 
 			try {
-				const maxAttempts = Math.max(1, config.execution.retries + 1)
-				let lastResult: Awaited<ReturnType<typeof executeRun>> | null = null
+				const maxAttempts = Math.max(1, config.execution.retries + 1);
+				let lastResult: Awaited<ReturnType<typeof executeRun>> | null = null;
 
 				for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 					if (attempt > 1) {
@@ -371,17 +433,19 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 							.update(automationRuns)
 							.set({ attempt, updatedAt: Date.now() })
 							.where(eq(automationRuns.id, runId))
-							.run()
+							.run();
 
 						log.info("Retrying automation run", {
 							automationId: id,
 							runId,
 							attempt,
 							maxAttempts,
-						})
+						});
 
 						// Wait before retrying
-						await new Promise((resolve) => setTimeout(resolve, config.execution.retryDelay * 1000))
+						await new Promise((resolve) =>
+							setTimeout(resolve, config.execution.retryDelay * 1000),
+						);
 					}
 
 					lastResult = await executeRun(config, workspace, async (info) => {
@@ -395,30 +459,30 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 								updatedAt: Date.now(),
 							})
 							.where(eq(automationRuns.id, runId))
-							.run()
+							.run();
 
-						broadcastRunsUpdated()
-					})
+						broadcastRunsUpdated();
+					});
 
 					// If no error, break out of retry loop
-					if (!lastResult.error) break
+					if (!lastResult.error) break;
 
 					// If this was the last attempt, don't retry
-					if (attempt >= maxAttempts) break
+					if (attempt >= maxAttempts) break;
 
 					log.warn("Automation run attempt failed, will retry", {
 						automationId: id,
 						runId,
 						attempt,
 						error: lastResult.error,
-					})
+					});
 				}
 
-				const result = lastResult!
+				const result = lastResult!;
 
 				if (result.error) {
 					// Run completed with error (all retries exhausted)
-					runFailed = true
+					runFailed = true;
 					await db
 						.update(automationRuns)
 						.set({
@@ -430,13 +494,13 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 							updatedAt: Date.now(),
 						})
 						.where(eq(automationRuns.id, runId))
-						.run()
+						.run();
 
 					log.warn("Automation run failed", {
 						automationId: id,
 						runId,
 						error: result.error,
-					})
+					});
 				} else if (!result.hasActionable) {
 					// Nothing actionable -- auto-archive
 					await db
@@ -453,12 +517,12 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 							updatedAt: Date.now(),
 						})
 						.where(eq(automationRuns.id, runId))
-						.run()
+						.run();
 
 					log.info("Automation run auto-archived (not actionable)", {
 						automationId: id,
 						runId,
-					})
+					});
 				} else {
 					// Actionable results -- mark for human review
 					await db
@@ -473,16 +537,16 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 							updatedAt: Date.now(),
 						})
 						.where(eq(automationRuns.id, runId))
-						.run()
+						.run();
 
 					log.info("Automation run completed, pending review", {
 						automationId: id,
 						runId,
-					})
+					});
 				}
 			} catch (err) {
 				// Unexpected error during execution
-				runFailed = true
+				runFailed = true;
 				await db
 					.update(automationRuns)
 					.set({
@@ -492,13 +556,13 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 						updatedAt: Date.now(),
 					})
 					.where(eq(automationRuns.id, runId))
-					.run()
+					.run();
 
 				log.error("Automation run threw unexpected error", {
 					automationId: id,
 					runId,
 					error: err,
-				})
+				});
 			}
 
 			// Update run count and consecutive failures
@@ -512,7 +576,7 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 						updatedAt: Date.now(),
 					})
 					.where(eq(automations.id, id))
-					.run()
+					.run();
 			} else {
 				await db
 					.update(automations)
@@ -523,21 +587,21 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 						updatedAt: Date.now(),
 					})
 					.where(eq(automations.id, id))
-					.run()
+					.run();
 			}
 
 			// Notify renderer that the run completed
-			broadcastRunsUpdated()
+			broadcastRunsUpdated();
 		}
 
 		// Re-persist nextRunAt (compute fresh since scheduler reschedules asynchronously)
-		const afterConfig = readConfig(id)
+		const afterConfig = readConfig(id);
 		if (afterConfig && afterConfig.status === "active") {
 			const [nextDate] = await previewSchedule(
 				afterConfig.schedule.rrule,
 				afterConfig.schedule.timezone,
 				1,
-			)
+			);
 			await db
 				.update(automations)
 				.set({
@@ -545,24 +609,24 @@ async function executeAutomation(id: string, opts: ExecuteOptions = {}): Promise
 					updatedAt: Date.now(),
 				})
 				.where(eq(automations.id, id))
-				.run()
+				.run();
 			log.info("Execution complete, next run persisted", {
 				automationId: id,
 				nextRunAt: nextDate?.toISOString() ?? "none",
-			})
+			});
 		} else {
 			log.info("Execution complete, automation no longer active", {
 				automationId: id,
 				status: afterConfig?.status ?? "deleted",
-			})
+			});
 		}
 	} finally {
-		release()
+		release();
 		log.debug("Semaphore released", {
 			automationId: id,
 			semaphoreActive: semaphore.active,
 			semaphorePending: semaphore.pending,
-		})
+		});
 	}
 }
 
@@ -575,16 +639,25 @@ async function mergeAutomation(
 	timing?: typeof automations.$inferSelect | undefined,
 ): Promise<Automation> {
 	// Prefer in-memory scheduler value (always up-to-date) over DB value (may be stale)
-	const schedulerNext = getNextRunTime(config.id)
-	let nextRunAt = schedulerNext ? schedulerNext.getTime() : (timing?.nextRunAt ?? null)
+	const schedulerNext = getNextRunTime(config.id);
+	let nextRunAt = schedulerNext
+		? schedulerNext.getTime()
+		: (timing?.nextRunAt ?? null);
 
 	// If the automation is active but neither the scheduler nor the DB has a future
 	// nextRunAt, compute it directly from the rrule. This covers the startup race
 	// where initAutomations hasn't finished yet and the DB value is stale/null.
-	if (config.status === "active" && (nextRunAt === null || nextRunAt <= Date.now())) {
-		const preview = await previewSchedule(config.schedule.rrule, config.schedule.timezone, 1)
+	if (
+		config.status === "active" &&
+		(nextRunAt === null || nextRunAt <= Date.now())
+	) {
+		const preview = await previewSchedule(
+			config.schedule.rrule,
+			config.schedule.timezone,
+			1,
+		);
 		if (preview.length > 0) {
-			nextRunAt = preview[0].getTime()
+			nextRunAt = preview[0].getTime();
 		}
 	}
 
@@ -602,5 +675,5 @@ async function mergeAutomation(
 		consecutiveFailures: timing?.consecutiveFailures ?? 0,
 		createdAt: timing?.createdAt ?? Date.now(),
 		updatedAt: timing?.updatedAt ?? Date.now(),
-	}
+	};
 }

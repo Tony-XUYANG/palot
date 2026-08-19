@@ -5,7 +5,7 @@
  * Falls back to a colored letter avatar when the logo fails to load.
  */
 
-import { useState } from "react"
+import { useState } from "react";
 
 // ============================================================
 // Color palette for letter avatars (fallback)
@@ -22,15 +22,15 @@ const AVATAR_COLORS = [
 	"bg-emerald-500/20 text-emerald-400",
 	"bg-orange-500/20 text-orange-400",
 	"bg-pink-500/20 text-pink-400",
-]
+];
 
 function hashString(str: string): number {
-	let hash = 0
+	let hash = 0;
 	for (let i = 0; i < str.length; i++) {
-		hash = (hash << 5) - hash + str.charCodeAt(i)
-		hash |= 0
+		hash = (hash << 5) - hash + str.charCodeAt(i);
+		hash |= 0;
 	}
-	return Math.abs(hash)
+	return Math.abs(hash);
 }
 
 // ============================================================
@@ -42,7 +42,7 @@ const SIZE_CLASSES = {
 	sm: "size-7",
 	md: "size-8",
 	lg: "size-10",
-} as const
+} as const;
 
 /** Pixel sizes matching the Tailwind size classes, used for img width/height attributes */
 const SIZE_PX = {
@@ -50,22 +50,27 @@ const SIZE_PX = {
 	sm: 28,
 	md: 32,
 	lg: 40,
-} as const
+} as const;
 
 interface ProviderIconProps {
 	/** Provider ID (e.g. "anthropic", "openai") */
-	id: string
+	id: string;
 	/** Provider display name (used for letter fallback) */
-	name: string
-	size?: "xs" | "sm" | "md" | "lg"
-	className?: string
+	name: string;
+	size?: "xs" | "sm" | "md" | "lg";
+	className?: string;
 }
 
-export function ProviderIcon({ id, name, size = "md", className = "" }: ProviderIconProps) {
-	const [errored, setErrored] = useState(false)
+export function ProviderIcon({
+	id,
+	name,
+	size = "md",
+	className = "",
+}: ProviderIconProps) {
+	const [errored, setErrored] = useState(false);
 
-	const rounding = size === "xs" ? "rounded-sm" : "rounded-md"
-	const px = SIZE_PX[size]
+	const rounding = size === "xs" ? "rounded-sm" : "rounded-md";
+	const px = SIZE_PX[size];
 
 	if (!errored) {
 		return (
@@ -78,13 +83,14 @@ export function ProviderIcon({ id, name, size = "md", className = "" }: Provider
 				aria-hidden="true"
 				onError={() => setErrored(true)}
 			/>
-		)
+		);
 	}
 
 	// Fallback: colored letter avatar
-	const colorClass = AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length]
-	const letter = name.charAt(0).toUpperCase()
-	const textSize = size === "xs" ? "text-[9px]" : size === "sm" ? "text-xs" : "text-sm"
+	const colorClass = AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length];
+	const letter = name.charAt(0).toUpperCase();
+	const textSize =
+		size === "xs" ? "text-[9px]" : size === "sm" ? "text-xs" : "text-sm";
 
 	return (
 		<div
@@ -93,5 +99,5 @@ export function ProviderIcon({ id, name, size = "md", className = "" }: Provider
 		>
 			{letter}
 		</div>
-	)
+	);
 }

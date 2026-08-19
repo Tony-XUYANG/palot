@@ -6,11 +6,11 @@
  * servers on the network as an alternative connection path.
  */
 
-import { Button } from "@palot/ui/components/button"
-import { Input } from "@palot/ui/components/input"
-import { Label } from "@palot/ui/components/label"
-import { Spinner } from "@palot/ui/components/spinner"
-import { useAtomValue } from "jotai"
+import { Button } from "@palot/ui/components/button";
+import { Input } from "@palot/ui/components/input";
+import { Label } from "@palot/ui/components/label";
+import { Spinner } from "@palot/ui/components/spinner";
+import { useAtomValue } from "jotai";
 import {
 	AlertCircleIcon,
 	ArrowRightIcon,
@@ -22,221 +22,256 @@ import {
 	RadarIcon,
 	RefreshCwIcon,
 	XCircleIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { OpenCodeCheckResult, RemoteServerConfig } from "../../../../preload/api"
-import { discoveredMdnsServersAtom } from "../../../atoms/connection"
-import { useServerActions } from "../../../hooks/use-servers"
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type {
+	OpenCodeCheckResult,
+	RemoteServerConfig,
+} from "../../../../preload/api";
+import { discoveredMdnsServersAtom } from "../../../atoms/connection";
+import { useServerActions } from "../../../hooks/use-servers";
 
 // ============================================================
 // Types
 // ============================================================
 
-type CheckStatus = "pending" | "running" | "success" | "warning" | "error"
+type CheckStatus = "pending" | "running" | "success" | "warning" | "error";
 
 interface CheckItem {
-	id: string
-	label: string
-	status: CheckStatus
-	detail?: string
+	id: string;
+	label: string;
+	status: CheckStatus;
+	detail?: string;
 }
 
 interface EnvironmentCheckStepProps {
-	onComplete: (version: string | null) => void
-	onSkip: () => void
+	onComplete: (version: string | null) => void;
+	onSkip: () => void;
 }
 
 // ============================================================
 // Component
 // ============================================================
 
-export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckStepProps) {
+export function EnvironmentCheckStep({
+	onComplete,
+	onSkip,
+}: EnvironmentCheckStepProps) {
+	const { t } = useTranslation("onboarding");
 	const [checks, setChecks] = useState<CheckItem[]>([
-		{ id: "locate", label: "Locating OpenCode CLI", status: "pending" },
-		{ id: "version", label: "Checking version compatibility", status: "pending" },
-	])
-	const [openCodeResult, setOpenCodeResult] = useState<OpenCodeCheckResult | null>(null)
-	const [installing, setInstalling] = useState(false)
-	const [installOutput, setInstallOutput] = useState<string[]>([])
-	const [allDone, setAllDone] = useState(false)
-	const [savingMdnsId, setSavingMdnsId] = useState<string | null>(null)
-	const hasRun = useRef(false)
-	const terminalRef = useRef<HTMLDivElement>(null)
+		{ id: "locate", label: t("environment.locating"), status: "pending" },
+		{
+			id: "version",
+			label: t("environment.checkingVersion"),
+			status: "pending",
+		},
+	]);
+	const [openCodeResult, setOpenCodeResult] =
+		useState<OpenCodeCheckResult | null>(null);
+	const [installing, setInstalling] = useState(false);
+	const [installOutput, setInstallOutput] = useState<string[]>([]);
+	const [allDone, setAllDone] = useState(false);
+	const [savingMdnsId, setSavingMdnsId] = useState<string | null>(null);
+	const hasRun = useRef(false);
+	const terminalRef = useRef<HTMLDivElement>(null);
 
-	const isElectron = typeof window !== "undefined" && "palot" in window
+	const isElectron = typeof window !== "undefined" && "palot" in window;
 
 	// mDNS discovered servers (scanner starts before onboarding renders)
-	const discoveredServers = useAtomValue(discoveredMdnsServersAtom)
-	const { saveDiscoveredServer, switchServer, addServer, testConnection } = useServerActions()
+	const discoveredServers = useAtomValue(discoveredMdnsServersAtom);
+	const { saveDiscoveredServer, switchServer, addServer, testConnection } =
+		useServerActions();
 
 	// Manual server form state
-	const [showManualForm, setShowManualForm] = useState(false)
-	const [manualUrl, setManualUrl] = useState("")
-	const [manualUsername, setManualUsername] = useState("")
-	const [manualPassword, setManualPassword] = useState("")
-	const [manualTesting, setManualTesting] = useState(false)
-	const [manualTestResult, setManualTestResult] = useState<string | null | undefined>(undefined)
-	const [manualSaving, setManualSaving] = useState(false)
+	const [showManualForm, setShowManualForm] = useState(false);
+	const [manualUrl, setManualUrl] = useState("");
+	const [manualUsername, setManualUsername] = useState("");
+	const [manualPassword, setManualPassword] = useState("");
+	const [manualTesting, setManualTesting] = useState(false);
+	const [manualTestResult, setManualTestResult] = useState<
+		string | null | undefined
+	>(undefined);
+	const [manualSaving, setManualSaving] = useState(false);
 
 	const updateCheck = useCallback((id: string, update: Partial<CheckItem>) => {
-		setChecks((prev) => prev.map((c) => (c.id === id ? { ...c, ...update } : c)))
-	}, [])
+		setChecks((prev) =>
+			prev.map((c) => (c.id === id ? { ...c, ...update } : c)),
+		);
+	}, []);
 
 	// --- Run checks ---
 
 	const runChecks = useCallback(async () => {
-		if (!isElectron) return
+		if (!isElectron) return;
 
 		// Reset
-		setAllDone(false)
-		setOpenCodeResult(null)
+		setAllDone(false);
+		setOpenCodeResult(null);
 		setChecks([
-			{ id: "locate", label: "Locating OpenCode CLI", status: "running" },
-			{ id: "version", label: "Checking version compatibility", status: "pending" },
-		])
+			{ id: "locate", label: t("environment.locating"), status: "running" },
+			{
+				id: "version",
+				label: t("environment.checkingVersion"),
+				status: "pending",
+			},
+		]);
 
 		try {
 			// Step 1: Check OpenCode installation
-			const result = await window.palot.onboarding.checkOpenCode()
-			setOpenCodeResult(result)
+			const result = await window.palot.onboarding.checkOpenCode();
+			setOpenCodeResult(result);
 
 			if (!result.installed) {
 				updateCheck("locate", {
 					status: "error",
-					label: "OpenCode CLI not found",
-					detail: "Install OpenCode to continue",
-				})
-				return
+					label: t("environment.notFound"),
+					detail: t("environment.installToContinue"),
+				});
+				return;
 			}
 
 			updateCheck("locate", {
 				status: "success",
 				label:
 					result.source === "bundled"
-						? `OpenCode ${result.version} included`
-						: `OpenCode ${result.version} found`,
-				detail: result.source === "bundled" ? "Included with Palot" : (result.path ?? undefined),
-			})
+						? t("environment.includedVersion", { version: result.version })
+						: t("environment.foundVersion", { version: result.version }),
+				detail:
+					result.source === "bundled"
+						? t("environment.included")
+						: (result.path ?? undefined),
+			});
 
 			// Step 2: Version compatibility
-			updateCheck("version", { status: "running" })
-			await new Promise((r) => setTimeout(r, 300)) // Brief pause for visual feedback
+			updateCheck("version", { status: "running" });
+			await new Promise((r) => setTimeout(r, 300)); // Brief pause for visual feedback
 
 			if (result.compatibility === "too-old") {
 				updateCheck("version", {
 					status: "error",
-					label: "Version not compatible",
+					label: t("environment.incompatible"),
 					detail: result.message ?? undefined,
-				})
-				return
+				});
+				return;
 			}
 
 			if (result.compatibility === "blocked") {
 				updateCheck("version", {
 					status: "error",
-					label: "Version blocked",
+					label: t("environment.blocked"),
 					detail: result.message ?? undefined,
-				})
-				return
+				});
+				return;
 			}
 
 			if (result.compatibility === "too-new") {
 				updateCheck("version", {
 					status: "warning",
-					label: "Newer than tested",
+					label: t("environment.newer"),
 					detail: result.message ?? undefined,
-				})
+				});
 			} else {
 				updateCheck("version", {
 					status: "success",
-					label: "Version compatible",
-				})
+					label: t("environment.compatible"),
+				});
 			}
 
-			setAllDone(true)
+			setAllDone(true);
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Check failed"
-			updateCheck("locate", { status: "error", detail: message })
+			const message =
+				err instanceof Error ? err.message : t("environment.checkFailed");
+			updateCheck("locate", { status: "error", detail: message });
 		}
-	}, [isElectron, updateCheck])
+	}, [isElectron, updateCheck, t]);
 
 	useEffect(() => {
-		if (hasRun.current) return
-		hasRun.current = true
-		runChecks()
-	}, [runChecks])
+		if (hasRun.current) return;
+		hasRun.current = true;
+		runChecks();
+	}, [runChecks]);
 
 	// --- Install handler ---
 
 	const handleInstall = useCallback(async () => {
-		if (!isElectron) return
-		setInstalling(true)
-		setInstallOutput([])
+		if (!isElectron) return;
+		setInstalling(true);
+		setInstallOutput([]);
 
 		const cleanup = window.palot.onboarding.onInstallOutput((text) => {
-			setInstallOutput((prev) => [...prev, text])
-		})
+			setInstallOutput((prev) => [...prev, text]);
+		});
 
 		try {
-			const result = await window.palot.onboarding.installOpenCode()
-			cleanup()
+			const result = await window.palot.onboarding.installOpenCode();
+			cleanup();
 
 			if (result.success) {
-				setInstalling(false)
+				setInstalling(false);
 				// Re-run checks after install
-				hasRun.current = false
-				runChecks()
+				hasRun.current = false;
+				runChecks();
 			} else {
 				setInstallOutput((prev) => [
 					...prev,
-					`\nInstallation failed: ${result.error ?? "Unknown error"}`,
-				])
-				setInstalling(false)
+					t("environment.installationFailed", {
+						error: result.error ?? t("environment.unknownError"),
+					}),
+				]);
+				setInstalling(false);
 			}
 		} catch (err) {
-			cleanup()
+			cleanup();
 			setInstallOutput((prev) => [
 				...prev,
-				`\nError: ${err instanceof Error ? err.message : "Installation failed"}`,
-			])
-			setInstalling(false)
+				t("environment.error", {
+					error:
+						err instanceof Error
+							? err.message
+							: t("environment.installationFailed", {
+									error: t("environment.unknownError"),
+								}),
+				}),
+			]);
+			setInstalling(false);
 		}
-	}, [isElectron, runChecks])
+	}, [isElectron, runChecks, t]);
 
 	// Auto-scroll terminal when new output arrives
 	// biome-ignore lint/correctness/useExhaustiveDependencies: installOutput triggers scroll on new output
 	useEffect(() => {
 		if (terminalRef.current) {
-			terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+			terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
 		}
-	}, [installOutput])
+	}, [installOutput]);
 
 	// --- Manual server connection ---
 
 	const handleManualTest = useCallback(async () => {
-		setManualTesting(true)
-		setManualTestResult(undefined)
+		setManualTesting(true);
+		setManualTestResult(undefined);
 		const result = await testConnection(
 			manualUrl.trim(),
 			manualUsername.trim() || undefined,
 			manualPassword || undefined,
-		)
-		setManualTestResult(result)
-		setManualTesting(false)
-	}, [manualUrl, manualUsername, manualPassword, testConnection])
+		);
+		setManualTestResult(result);
+		setManualTesting(false);
+	}, [manualUrl, manualUsername, manualPassword, testConnection]);
 
 	const handleManualConnect = useCallback(async () => {
-		if (!isElectron || !manualUrl.trim()) return
+		if (!isElectron || !manualUrl.trim()) return;
 
-		setManualSaving(true)
+		setManualSaving(true);
 		try {
-			const id = `remote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-			const url = manualUrl.trim()
+			const id = `remote-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+			const url = manualUrl.trim();
 			// Derive a name from the URL hostname
-			let name = "Remote Server"
+			let name = "Remote Server";
 			try {
-				const parsed = new URL(url)
-				name = parsed.hostname
+				const parsed = new URL(url);
+				name = parsed.hostname;
 			} catch {
 				// Use default name
 			}
@@ -248,67 +283,77 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 				url,
 				username: manualUsername.trim() || undefined,
 				hasPassword: !!manualPassword,
-			}
+			};
 
-			await addServer(server, manualPassword || undefined)
-			await switchServer(id)
+			await addServer(server, manualPassword || undefined);
+			await switchServer(id);
 
 			// Skip the environment check since we're using a remote server
-			onComplete(null)
+			onComplete(null);
 		} finally {
-			setManualSaving(false)
+			setManualSaving(false);
 		}
-	}, [isElectron, manualUrl, manualUsername, manualPassword, addServer, switchServer, onComplete])
+	}, [
+		isElectron,
+		manualUrl,
+		manualUsername,
+		manualPassword,
+		addServer,
+		switchServer,
+		onComplete,
+	]);
 
 	// --- Connect to discovered server ---
 
 	const handleConnectDiscovered = useCallback(
 		async (mdnsId: string) => {
-			const mdnsServer = discoveredServers.find((s) => s.id === mdnsId)
-			if (!mdnsServer) return
+			const mdnsServer = discoveredServers.find((s) => s.id === mdnsId);
+			if (!mdnsServer) return;
 
-			setSavingMdnsId(mdnsId)
+			setSavingMdnsId(mdnsId);
 			try {
-				await saveDiscoveredServer(mdnsServer)
+				await saveDiscoveredServer(mdnsServer);
 
 				// The newly saved server gets an auto-generated ID. Find it in settings
 				// and switch to it.
-				const settings = await window.palot.getSettings()
+				const settings = await window.palot.getSettings();
 				const saved = settings.servers?.servers.find(
 					(s) =>
 						s.type === "remote" &&
 						s.url.includes(`:${mdnsServer.port}`) &&
 						s.name === mdnsServer.name,
-				)
+				);
 				if (saved) {
-					await switchServer(saved.id)
+					await switchServer(saved.id);
 				}
 
 				// Skip the environment check since we're using a remote server
-				onComplete(null)
+				onComplete(null);
 			} finally {
-				setSavingMdnsId(null)
+				setSavingMdnsId(null);
 			}
 		},
 		[discoveredServers, saveDiscoveredServer, switchServer, onComplete],
-	)
+	);
 
 	// --- Render ---
 
-	const needsInstall = openCodeResult && !openCodeResult.installed
-	const needsUpdate = openCodeResult?.compatibility === "too-old"
-	const needsRepair = openCodeResult?.repairRequired === true
-	const showInstallUI = (needsInstall || needsUpdate) && !needsRepair
-	const showRemoteOption = showInstallUI && !installing
-	const manualUrlValid = manualUrl.trim().length > 0
+	const needsInstall = openCodeResult && !openCodeResult.installed;
+	const needsUpdate = openCodeResult?.compatibility === "too-old";
+	const needsRepair = openCodeResult?.repairRequired === true;
+	const showInstallUI = (needsInstall || needsUpdate) && !needsRepair;
+	const showRemoteOption = showInstallUI && !installing;
+	const manualUrlValid = manualUrl.trim().length > 0;
 
 	return (
 		<div className="flex h-full flex-col items-center justify-center px-6">
 			<div className="w-full max-w-lg space-y-6">
 				<div className="text-center">
-					<h2 className="text-xl font-semibold text-foreground">Environment Check</h2>
+					<h2 className="text-xl font-semibold text-foreground">
+						{t("environment.title")}
+					</h2>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Verifying your setup is ready for Palot.
+						{t("environment.description")}
 					</p>
 				</div>
 
@@ -324,9 +369,13 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 								<CheckStatusIcon status={check.status} />
 							</div>
 							<div className="min-w-0 flex-1">
-								<p className="text-sm font-medium text-foreground">{check.label}</p>
+								<p className="text-sm font-medium text-foreground">
+									{check.label}
+								</p>
 								{check.detail && (
-									<p className="mt-0.5 text-xs text-muted-foreground">{check.detail}</p>
+									<p className="mt-0.5 text-xs text-muted-foreground">
+										{check.detail}
+									</p>
 								)}
 							</div>
 						</div>
@@ -340,11 +389,10 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 					>
 						<div className="flex items-center gap-2 text-sm font-medium text-red-500">
 							<CircleAlertIcon aria-hidden="true" className="size-4" />
-							Palot installation needs repair
+							{t("environment.repairTitle")}
 						</div>
 						<p className="text-xs text-muted-foreground">
-							The included OpenCode runtime is missing. Reinstall Palot, then run this check
-							again.
+							{t("environment.repairDescription")}
 						</p>
 					</div>
 				) : null}
@@ -357,20 +405,24 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 					>
 						<p className="text-sm text-muted-foreground">
 							{needsUpdate
-								? "Your OpenCode version is too old. Update to continue."
-								: "Palot needs the OpenCode CLI to function. Install it to continue."}
+								? t("environment.oldVersion")
+								: t("environment.needsCli")}
 						</p>
 						<div className="flex gap-2">
 							<Button size="sm" onClick={handleInstall} className="gap-2">
 								<DownloadIcon aria-hidden="true" className="size-3.5" />
-								{needsUpdate ? "Update for me" : "Install for me"}
+								{needsUpdate
+									? t("environment.updateForMe")
+									: t("environment.installForMe")}
 							</Button>
 							<Button size="sm" variant="outline" onClick={onSkip}>
-								{needsUpdate ? "Continue anyway" : "I'll install manually"}
+								{needsUpdate
+									? t("environment.continueAnyway")
+									: t("environment.installManually")}
 							</Button>
 						</div>
 						<p className="text-xs text-muted-foreground/60">
-							Or run: curl -fsSL https://opencode.ai/install | bash
+							{t("environment.manualCommand")}
 						</p>
 					</div>
 				)}
@@ -383,11 +435,12 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 					>
 						<div className="flex items-center gap-2">
 							<GlobeIcon aria-hidden="true" className="size-4 text-primary" />
-							<p className="text-sm font-medium text-foreground">Or connect to a remote server</p>
+							<p className="text-sm font-medium text-foreground">
+								{t("environment.remoteTitle")}
+							</p>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Connect to an OpenCode server running on another machine instead of installing
-							locally.
+							{t("environment.remoteDescription")}
 						</p>
 
 						{/* mDNS discovered servers */}
@@ -395,13 +448,14 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 							<div className="space-y-2">
 								<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
 									<RadarIcon aria-hidden="true" className="size-3" />
-									Discovered on your network
+									{t("environment.discovered")}
 								</p>
 								<div className="space-y-1.5">
 									{discoveredServers.map((server) => {
 										const displayAddr =
-											server.addresses.find((a) => !a.includes(":")) || server.host
-										const isSaving = savingMdnsId === server.id
+											server.addresses.find((a) => !a.includes(":")) ||
+											server.host;
+										const isSaving = savingMdnsId === server.id;
 
 										return (
 											<button
@@ -435,7 +489,7 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 													/>
 												)}
 											</button>
-										)
+										);
 									})}
 								</div>
 							</div>
@@ -449,21 +503,21 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 								className="flex w-full items-center gap-3 rounded-md border border-dashed border-border bg-background px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
 							>
 								<GlobeIcon aria-hidden="true" className="size-4 shrink-0" />
-								<span>Connect manually by URL...</span>
+								<span>{t("environment.manualUrl")}</span>
 							</button>
 						) : (
 							<div className="space-y-3 rounded-md border border-border bg-background p-3">
 								<div className="space-y-1.5">
 									<Label htmlFor="onboard-url" className="text-xs">
-										Server URL
+										{t("environment.serverUrl")}
 									</Label>
 									<Input
 										id="onboard-url"
 										placeholder="https://opencode.example.com:4096"
 										value={manualUrl}
 										onChange={(e) => {
-											setManualUrl(e.target.value)
-											setManualTestResult(undefined)
+											setManualUrl(e.target.value);
+											setManualTestResult(undefined);
 										}}
 										className="h-8 text-sm"
 									/>
@@ -471,7 +525,7 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 								<div className="grid grid-cols-2 gap-2">
 									<div className="space-y-1.5">
 										<Label htmlFor="onboard-username" className="text-xs">
-											Username
+											{t("environment.username")}
 										</Label>
 										<Input
 											id="onboard-username"
@@ -483,12 +537,12 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 									</div>
 									<div className="space-y-1.5">
 										<Label htmlFor="onboard-password" className="text-xs">
-											Password
+											{t("environment.password")}
 										</Label>
 										<Input
 											id="onboard-password"
 											type="password"
-											placeholder="Optional"
+											placeholder={t("environment.optional")}
 											value={manualPassword}
 											onChange={(e) => setManualPassword(e.target.value)}
 											className="h-8 text-sm"
@@ -500,15 +554,16 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 								{manualTestResult === null && (
 									<p className="flex items-center gap-1 text-xs text-green-600">
 										<CheckCircle2Icon aria-hidden="true" className="size-3" />
-										Connection successful
+										{t("environment.connectionSuccess")}
 									</p>
 								)}
-								{manualTestResult !== null && manualTestResult !== undefined && (
-									<p className="flex items-center gap-1 text-xs text-destructive">
-										<CircleAlertIcon aria-hidden="true" className="size-3" />
-										{manualTestResult}
-									</p>
-								)}
+								{manualTestResult !== null &&
+									manualTestResult !== undefined && (
+										<p className="flex items-center gap-1 text-xs text-destructive">
+											<CircleAlertIcon aria-hidden="true" className="size-3" />
+											{manualTestResult}
+										</p>
+									)}
 
 								<div className="flex gap-2">
 									<Button
@@ -518,9 +573,12 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 										onClick={handleManualTest}
 									>
 										{manualTesting && (
-											<Loader2Icon aria-hidden="true" className="size-3 animate-spin" />
+											<Loader2Icon
+												aria-hidden="true"
+												className="size-3 animate-spin"
+											/>
 										)}
-										Test
+										{t("environment.test")}
 									</Button>
 									<Button
 										size="sm"
@@ -528,19 +586,22 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 										onClick={handleManualConnect}
 									>
 										{manualSaving && (
-											<Loader2Icon aria-hidden="true" className="size-3 animate-spin" />
+											<Loader2Icon
+												aria-hidden="true"
+												className="size-3 animate-spin"
+											/>
 										)}
-										Connect
+										{t("common:actions.connect")}
 									</Button>
 									<Button
 										size="sm"
 										variant="ghost"
 										onClick={() => {
-											setShowManualForm(false)
-											setManualTestResult(undefined)
+											setShowManualForm(false);
+											setManualTestResult(undefined);
 										}}
 									>
-										Cancel
+										{t("common:actions.cancel")}
 									</Button>
 								</div>
 							</div>
@@ -568,7 +629,7 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 						{installing && (
 							<div className="mt-1 flex items-center gap-2 text-zinc-400">
 								<Spinner className="size-3" />
-								Installing...
+								{t("environment.installing")}
 							</div>
 						)}
 					</div>
@@ -581,13 +642,13 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 							size="sm"
 							variant="outline"
 							onClick={() => {
-								hasRun.current = false
-								runChecks()
+								hasRun.current = false;
+								runChecks();
 							}}
 							className="gap-2"
 						>
 							<RefreshCwIcon aria-hidden="true" className="size-3.5" />
-							Re-check
+							{t("environment.recheck")}
 						</Button>
 					)}
 
@@ -597,14 +658,14 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 							onClick={() => onComplete(openCodeResult?.version ?? null)}
 							className="gap-2"
 						>
-							Continue
+							{t("environment.continue")}
 							<ArrowRightIcon aria-hidden="true" className="size-4" />
 						</Button>
 					)}
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -614,14 +675,16 @@ export function EnvironmentCheckStep({ onComplete, onSkip }: EnvironmentCheckSte
 function CheckStatusIcon({ status }: { status: CheckStatus }) {
 	switch (status) {
 		case "pending":
-			return <div className="size-4 rounded-full border border-muted-foreground/20" />
+			return (
+				<div className="size-4 rounded-full border border-muted-foreground/20" />
+			);
 		case "running":
-			return <Spinner className="size-4" />
+			return <Spinner className="size-4" />;
 		case "success":
-			return <CheckCircle2Icon className="size-4 text-emerald-500" />
+			return <CheckCircle2Icon className="size-4 text-emerald-500" />;
 		case "warning":
-			return <AlertCircleIcon className="size-4 text-amber-500" />
+			return <AlertCircleIcon className="size-4 text-amber-500" />;
 		case "error":
-			return <XCircleIcon className="size-4 text-red-500" />
+			return <XCircleIcon className="size-4 text-red-500" />;
 	}
 }

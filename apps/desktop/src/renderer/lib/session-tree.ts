@@ -17,17 +17,17 @@
 export function buildChildrenMap(
 	sessions: Map<string, { parentID?: string }>,
 ): Map<string, string[]> {
-	const map = new Map<string, string[]>()
+	const map = new Map<string, string[]>();
 	for (const [id, session] of sessions) {
-		if (!session.parentID) continue
-		const existing = map.get(session.parentID)
+		if (!session.parentID) continue;
+		const existing = map.get(session.parentID);
 		if (existing) {
-			existing.push(id)
+			existing.push(id);
 		} else {
-			map.set(session.parentID, [id])
+			map.set(session.parentID, [id]);
 		}
 	}
-	return map
+	return map;
 }
 
 /**
@@ -38,20 +38,20 @@ export function getSessionDescendants(
 	childrenMap: Map<string, string[]>,
 	rootSessionId: string,
 ): string[] {
-	const seen = new Set([rootSessionId])
-	const ids = [rootSessionId]
+	const seen = new Set([rootSessionId]);
+	const ids = [rootSessionId];
 
 	for (const id of ids) {
-		const children = childrenMap.get(id)
-		if (!children) continue
+		const children = childrenMap.get(id);
+		if (!children) continue;
 		for (const child of children) {
-			if (seen.has(child)) continue
-			seen.add(child)
-			ids.push(child)
+			if (seen.has(child)) continue;
+			seen.add(child);
+			ids.push(child);
 		}
 	}
 
-	return ids
+	return ids;
 }
 
 /**
@@ -72,16 +72,16 @@ export function findTreeRequest<T>(
 	rootSessionId: string,
 	include: (item: T) => boolean = () => true,
 ): { request: T; sessionId: string } | undefined {
-	const ids = getSessionDescendants(childrenMap, rootSessionId)
+	const ids = getSessionDescendants(childrenMap, rootSessionId);
 
 	for (const id of ids) {
-		const list = requests.get(id)
-		if (!list) continue
-		const found = list.find(include)
-		if (found !== undefined) return { request: found, sessionId: id }
+		const list = requests.get(id);
+		if (!list) continue;
+		const found = list.find(include);
+		if (found !== undefined) return { request: found, sessionId: id };
 	}
 
-	return undefined
+	return undefined;
 }
 
 // ============================================================
@@ -98,5 +98,7 @@ export function hasTreeRequest<T>(
 	rootSessionId: string,
 	include?: (item: T) => boolean,
 ): boolean {
-	return findTreeRequest(childrenMap, requests, rootSessionId, include) !== undefined
+	return (
+		findTreeRequest(childrenMap, requests, rootSessionId, include) !== undefined
+	);
 }

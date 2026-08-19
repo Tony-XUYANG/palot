@@ -1,35 +1,40 @@
-import { net } from "electron"
-import { createLogger } from "./logger"
-import { setServerUrl, showNotification, updateBadgeCount } from "./notifications"
+import { net } from "electron";
+import { tMain } from "./i18n";
+import { createLogger } from "./logger";
+import {
+	setServerUrl,
+	showNotification,
+	updateBadgeCount,
+} from "./notifications";
 
-const log = createLogger("notification-watcher")
+const log = createLogger("notification-watcher");
 
 // ============================================================
 // Types — minimal, only what we need for notification decisions
 // ============================================================
 
 export interface SessionState {
-	status: string // "busy" | "idle" | "retry"
-	title: string
-	directory?: string
+	status: string; // "busy" | "idle" | "retry"
+	title: string;
+	directory?: string;
 	/** If set, this session is a sub-agent spawned by another session. */
-	parentID?: string
+	parentID?: string;
 }
 
 // ============================================================
 // State
 // ============================================================
 
-let abortController: AbortController | null = null
+let abortController: AbortController | null = null;
 
 /** Minimal session state for transition detection. */
-const sessions = new Map<string, SessionState>()
+const sessions = new Map<string, SessionState>();
 
 /** Pending permission/question count for badge. */
-let pendingCount = 0
+let pendingCount = 0;
 
 /** Listeners notified whenever session or pending state changes. */
-const changeListeners = new Set<() => void>()
+const changeListeners = new Set<() => void>();
 
 // ============================================================
 // Public API
@@ -44,18 +49,18 @@ const changeListeners = new Set<() => void>()
  */
 export function startNotificationWatcher(url: string): void {
 	if (abortController) {
-		log.debug("Stopping existing watcher before restart")
-		abortController.abort()
+		log.debug("Stopping existing watcher before restart");
+		abortController.abort();
 	}
 
-	abortController = new AbortController()
-	pendingCount = 0
+	abortController = new AbortController();
+	pendingCount = 0;
 
 	// Make the server URL available for notification action replies
-	setServerUrl(url)
+	setServerUrl(url);
 
-	log.info("Starting notification watcher", { url })
-	connectWithRetry(url, abortController.signal)
+	log.info("Starting notification watcher", { url });
+	connectWithRetry(url, abortController.signal);
 }
 
 /**
@@ -63,21 +68,21 @@ export function startNotificationWatcher(url: string): void {
  */
 export function stopNotificationWatcher(): void {
 	if (abortController) {
-		abortController.abort()
-		abortController = null
+		abortController.abort();
+		abortController = null;
 	}
-	sessions.clear()
-	pendingCount = 0
-	updateBadgeCount(0)
-	setServerUrl(null)
-	log.info("Notification watcher stopped")
+	sessions.clear();
+	pendingCount = 0;
+	updateBadgeCount(0);
+	setServerUrl(null);
+	log.info("Notification watcher stopped");
 }
 
 /**
  * Check if the watcher is currently running.
  */
 export function isWatcherRunning(): boolean {
-	return abortController !== null && !abortController.signal.aborted
+	return abortController !== null && !abortController.signal.aborted;
 }
 
 /**
@@ -85,14 +90,14 @@ export function isWatcherRunning(): boolean {
  * Returns a new Map (caller-safe to iterate without races).
  */
 export function getSessionStates(): ReadonlyMap<string, SessionState> {
-	return new Map(sessions)
+	return new Map(sessions);
 }
 
 /**
  * Get the current pending permission/question count.
  */
 export function getPendingCount(): number {
-	return pendingCount
+	return pendingCount;
 }
 
 /**
@@ -101,87 +106,92 @@ export function getPendingCount(): number {
  * Returns an unsubscribe function.
  */
 export function onStateChanged(listener: () => void): () => void {
-	changeListeners.add(listener)
-	return () => changeListeners.delete(listener)
+	changeListeners.add(listener);
+	return () => changeListeners.delete(listener);
 }
 
 // ============================================================
 // SSE Connection + Retry Loop
 // ============================================================
 
-async function connectWithRetry(url: string, signal: AbortSignal): Promise<void> {
-	let retryDelay = 1_000
+async function connectWithRetry(
+	url: string,
+	signal: AbortSignal,
+): Promise<void> {
+	let retryDelay = 1_000;
 
 	while (!signal.aborted) {
 		try {
-			await consumeSSE(url, signal)
+			await consumeSSE(url, signal);
 			// Stream ended normally (server closed connection)
 			if (!signal.aborted) {
-				log.warn("SSE stream ended, reconnecting...")
+				log.warn("SSE stream ended, reconnecting...");
 			}
 		} catch (err) {
-			if (signal.aborted) break
-			log.error("SSE stream error, reconnecting", { retryDelay }, err)
+			if (signal.aborted) break;
+			log.error("SSE stream error, reconnecting", { retryDelay }, err);
 		}
 
-		if (signal.aborted) break
+		if (signal.aborted) break;
 
 		// Exponential backoff: 1s -> 2s -> 4s -> ... -> 30s max
-		await sleep(retryDelay, signal)
-		retryDelay = Math.min(retryDelay * 2, 30_000)
+		await sleep(retryDelay, signal);
+		retryDelay = Math.min(retryDelay * 2, 30_000);
 	}
 }
 
 async function consumeSSE(url: string, signal: AbortSignal): Promise<void> {
-	const sseUrl = `${url}/global/event`
+	const sseUrl = `${url}/global/event`;
 
 	const response = await net.fetch(sseUrl, {
 		headers: { Accept: "text/event-stream" },
 		signal,
-	})
+	});
 
 	if (!response.ok) {
-		throw new Error(`SSE connection failed: ${response.status} ${response.statusText}`)
+		throw new Error(
+			`SSE connection failed: ${response.status} ${response.statusText}`,
+		);
 	}
 
 	if (!response.body) {
-		throw new Error("SSE response has no body")
+		throw new Error("SSE response has no body");
 	}
 
-	log.info("SSE stream connected")
+	log.info("SSE stream connected");
 
-	const reader = response.body.getReader()
-	const decoder = new TextDecoder()
-	let buffer = ""
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
 
 	try {
 		while (!signal.aborted) {
-			const { done, value } = await reader.read()
-			if (done) break
+			const { done, value } = await reader.read();
+			if (done) break;
 
-			buffer += decoder.decode(value, { stream: true })
+			buffer += decoder.decode(value, { stream: true });
 
 			// Process complete SSE lines
-			let newlineIndex: number = buffer.indexOf("\n")
+			let newlineIndex: number = buffer.indexOf("\n");
 			while (newlineIndex !== -1) {
-				const line = buffer.slice(0, newlineIndex).trim()
-				buffer = buffer.slice(newlineIndex + 1)
+				const line = buffer.slice(0, newlineIndex).trim();
+				buffer = buffer.slice(newlineIndex + 1);
 
 				if (line.startsWith("data: ")) {
-					const jsonStr = line.slice(6)
+					const jsonStr = line.slice(6);
 					try {
-						const globalEvent = JSON.parse(jsonStr)
-						processGlobalEvent(globalEvent)
+						const globalEvent = JSON.parse(jsonStr);
+						processGlobalEvent(globalEvent);
 					} catch {
 						// Malformed JSON — skip
 					}
 				}
 
-				newlineIndex = buffer.indexOf("\n")
+				newlineIndex = buffer.indexOf("\n");
 			}
 		}
 	} finally {
-		reader.releaseLock()
+		reader.releaseLock();
 	}
 }
 
@@ -190,95 +200,98 @@ async function consumeSSE(url: string, signal: AbortSignal): Promise<void> {
 // ============================================================
 
 interface GlobalSSEEvent {
-	directory?: string
+	directory?: string;
 	payload?: {
-		type: string
-		properties: Record<string, unknown>
-	}
+		type: string;
+		properties: Record<string, unknown>;
+	};
 }
 
 function processGlobalEvent(globalEvent: GlobalSSEEvent): void {
-	const event = globalEvent.payload
-	if (!event) return
+	const event = globalEvent.payload;
+	if (!event) return;
 
-	const eventType = event.type
-	const props = event.properties
+	const eventType = event.type;
+	const props = event.properties;
 
-	const directory = globalEvent.directory
+	const directory = globalEvent.directory;
 
 	switch (eventType) {
 		case "permission.asked": {
-			const sessionId = props.sessionID as string
-			const permission = (props as { permission?: string }).permission
+			const sessionId = props.sessionID as string;
+			const permission = (props as { permission?: string }).permission;
 			// Always count sub-agent permissions — they block the parent too.
 			// Attribute the notification to the root session so clicking it
 			// navigates to the parent where the user can respond.
-			const rootId = getRootSession(sessionId)
-			const notifySessionId = rootId
-			const rootTitle = sessions.get(rootId)?.title
-			const rootDir = sessions.get(rootId)?.directory ?? directory
-			pendingCount++
-			updateBadgeCount(pendingCount)
+			const rootId = getRootSession(sessionId);
+			const notifySessionId = rootId;
+			const rootTitle = sessions.get(rootId)?.title;
+			const rootDir = sessions.get(rootId)?.directory ?? directory;
+			pendingCount++;
+			updateBadgeCount(pendingCount);
 			showNotification({
 				type: "permission",
 				sessionId: notifySessionId,
 				title: isSubAgent(sessionId)
-					? `Sub-agent needs permission${rootTitle ? ` — ${rootTitle}` : ""}`
-					: "Agent needs permission",
-				body: permission || "Approval required",
+					? `${tMain("native.notifications.subAgentNeedsPermission")}${rootTitle ? ` — ${rootTitle}` : ""}`
+					: tMain("native.notifications.agentNeedsPermission"),
+				body: permission || tMain("native.notifications.approvalRequired"),
 				directory: rootDir,
 				meta: { permissionId: props.id as string },
-			})
-			scheduleNotify()
-			break
+			});
+			scheduleNotify();
+			break;
 		}
 
 		case "permission.replied": {
-			pendingCount = Math.max(0, pendingCount - 1)
-			updateBadgeCount(pendingCount)
-			scheduleNotify()
-			break
+			pendingCount = Math.max(0, pendingCount - 1);
+			updateBadgeCount(pendingCount);
+			scheduleNotify();
+			break;
 		}
 
 		case "question.asked": {
-			const sessionId = props.sessionID as string
-			const questions = props.questions as Array<{ header?: string }> | undefined
-			const header = questions?.[0]?.header ?? "Question"
+			const sessionId = props.sessionID as string;
+			const questions = props.questions as
+				| Array<{ header?: string }>
+				| undefined;
+			const header =
+				questions?.[0]?.header ?? tMain("native.notifications.question");
 			// Same bubbling logic as permission.asked.
-			const rootId = getRootSession(sessionId)
-			const rootTitle = sessions.get(rootId)?.title
-			const rootDir = sessions.get(rootId)?.directory ?? directory
-			pendingCount++
-			updateBadgeCount(pendingCount)
+			const rootId = getRootSession(sessionId);
+			const rootTitle = sessions.get(rootId)?.title;
+			const rootDir = sessions.get(rootId)?.directory ?? directory;
+			pendingCount++;
+			updateBadgeCount(pendingCount);
 			showNotification({
 				type: "question",
 				sessionId: rootId,
 				title: isSubAgent(sessionId)
-					? `Sub-agent has a question${rootTitle ? ` — ${rootTitle}` : ""}`
-					: "Agent has a question",
+					? `${tMain("native.notifications.subAgentQuestion")}${rootTitle ? ` — ${rootTitle}` : ""}`
+					: tMain("native.notifications.agentQuestion"),
 				body: header,
 				directory: rootDir,
 				meta: { requestId: props.id as string },
-			})
-			scheduleNotify()
-			break
+			});
+			scheduleNotify();
+			break;
 		}
 
 		case "question.replied":
 		case "question.rejected": {
-			pendingCount = Math.max(0, pendingCount - 1)
-			updateBadgeCount(pendingCount)
-			scheduleNotify()
-			break
+			pendingCount = Math.max(0, pendingCount - 1);
+			updateBadgeCount(pendingCount);
+			scheduleNotify();
+			break;
 		}
 
 		case "session.status": {
-			const sessionId = props.sessionID as string
-			const newStatusType = (props.status as { type: string })?.type
-			if (!sessionId || !newStatusType) break
+			const sessionId = props.sessionID as string;
+			const newStatusType = (props.status as { type: string })?.type;
+			if (!sessionId || !newStatusType) break;
 
-			const prev = sessions.get(sessionId)
-			const prevStatus = prev?.status
+			const prev = sessions.get(sessionId);
+			const prevStatus = prev?.status;
 
 			// Update tracked state
 			sessions.set(sessionId, {
@@ -286,8 +299,8 @@ function processGlobalEvent(globalEvent: GlobalSSEEvent): void {
 				title: prev?.title ?? "",
 				directory: directory ?? prev?.directory,
 				parentID: prev?.parentID,
-			})
-			scheduleNotify()
+			});
+			scheduleNotify();
 
 			// Detect busy/retry -> idle transition (agent completed)
 			if (
@@ -295,49 +308,51 @@ function processGlobalEvent(globalEvent: GlobalSSEEvent): void {
 				(prevStatus === "busy" || prevStatus === "retry") &&
 				!isSubAgent(sessionId)
 			) {
-				const sessionTitle = sessions.get(sessionId)?.title
+				const sessionTitle = sessions.get(sessionId)?.title;
 				showNotification({
 					type: "completed",
 					sessionId,
-					title: "Agent finished",
-					body: sessionTitle || "Task completed",
+					title: tMain("native.notifications.agentFinished"),
+					body: sessionTitle || tMain("native.notifications.taskCompleted"),
 					directory,
-				})
+				});
 			}
-			break
+			break;
 		}
 
 		case "session.error": {
-			const sessionId = props.sessionID as string
-			const error = props.error as { name?: string } | undefined
-			if (!sessionId) break
+			const sessionId = props.sessionID as string;
+			const error = props.error as { name?: string } | undefined;
+			if (!sessionId) break;
 			if (!isSubAgent(sessionId)) {
 				showNotification({
 					type: "error",
 					sessionId,
-					title: "Agent encountered an error",
-					body: error?.name ?? "Unknown error",
+					title: tMain("native.notifications.agentError"),
+					body: error?.name ?? tMain("native.notifications.unknownError"),
 					directory,
-				})
+				});
 			}
-			break
+			break;
 		}
 
 		case "session.created":
 		case "session.updated": {
 			// Track session title, directory, and parentID for use in notification decisions
-			const info = props.info as { id?: string; title?: string; parentID?: string } | undefined
+			const info = props.info as
+				| { id?: string; title?: string; parentID?: string }
+				| undefined;
 			if (info?.id) {
-				const existing = sessions.get(info.id)
+				const existing = sessions.get(info.id);
 				sessions.set(info.id, {
 					status: existing?.status ?? "idle",
 					title: info.title ?? existing?.title ?? "",
 					directory: directory ?? existing?.directory,
 					parentID: info.parentID ?? existing?.parentID,
-				})
-				scheduleNotify()
+				});
+				scheduleNotify();
 			}
-			break
+			break;
 		}
 
 		// All other events (message.*, todo.*, etc.) are ignored —
@@ -350,25 +365,25 @@ function processGlobalEvent(globalEvent: GlobalSSEEvent): void {
 // ============================================================
 
 /** Notify all change listeners (debounced per event loop tick). */
-let notifyScheduled = false
+let notifyScheduled = false;
 function scheduleNotify(): void {
-	if (notifyScheduled) return
-	notifyScheduled = true
+	if (notifyScheduled) return;
+	notifyScheduled = true;
 	queueMicrotask(() => {
-		notifyScheduled = false
+		notifyScheduled = false;
 		for (const listener of changeListeners) {
 			try {
-				listener()
+				listener();
 			} catch {
 				// Listener errors must not break the watcher
 			}
 		}
-	})
+	});
 }
 
 /** Check if a session is a sub-agent (has a parent session). */
 function isSubAgent(sessionId: string): boolean {
-	return !!sessions.get(sessionId)?.parentID
+	return !!sessions.get(sessionId)?.parentID;
 }
 
 /**
@@ -377,32 +392,32 @@ function isSubAgent(sessionId: string): boolean {
  * Guards against cycles with a depth limit.
  */
 function getRootSession(sessionId: string): string {
-	let id = sessionId
-	const seen = new Set<string>()
+	let id = sessionId;
+	const seen = new Set<string>();
 	while (true) {
-		if (seen.has(id)) break // cycle guard
-		seen.add(id)
-		const parentID = sessions.get(id)?.parentID
-		if (!parentID) break
-		id = parentID
+		if (seen.has(id)) break; // cycle guard
+		seen.add(id);
+		const parentID = sessions.get(id)?.parentID;
+		if (!parentID) break;
+		id = parentID;
 	}
-	return id
+	return id;
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {
 		if (signal.aborted) {
-			resolve()
-			return
+			resolve();
+			return;
 		}
-		const timer = setTimeout(resolve, ms)
+		const timer = setTimeout(resolve, ms);
 		signal.addEventListener(
 			"abort",
 			() => {
-				clearTimeout(timer)
-				resolve()
+				clearTimeout(timer);
+				resolve();
 			},
 			{ once: true },
-		)
-	})
+		);
+	});
 }

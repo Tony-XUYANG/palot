@@ -4,13 +4,14 @@
  * Shows a row of dots: filled = completed, ring with fill = current, empty ring = upcoming.
  */
 
-import type { OnboardingStep } from "./onboarding-overlay"
+import { useTranslation } from "react-i18next";
+import type { OnboardingStep } from "./onboarding-overlay";
 
 interface OnboardingProgressProps {
-	steps: OnboardingStep[]
-	currentStep: OnboardingStep
-	currentIndex: number
-	total: number
+	steps: OnboardingStep[];
+	currentStep: OnboardingStep;
+	currentIndex: number;
+	total: number;
 }
 
 export function OnboardingProgress({
@@ -19,12 +20,13 @@ export function OnboardingProgress({
 	currentIndex,
 	total,
 }: OnboardingProgressProps) {
+	const { t } = useTranslation("onboarding");
 	return (
 		<div className="flex items-center justify-center gap-3">
 			<div className="flex items-center gap-2">
 				{steps.map((step, i) => {
-					const isCompleted = i < currentIndex
-					const isCurrent = step === currentStep
+					const isCompleted = i < currentIndex;
+					const isCurrent = step === currentStep;
 
 					return (
 						<div
@@ -37,12 +39,12 @@ export function OnboardingProgress({
 										: "bg-muted-foreground/20"
 							}`}
 						/>
-					)
+					);
 				})}
 			</div>
 			<span className="text-xs text-muted-foreground">
-				{currentIndex + 1} of {total}
+				{t("progress", { current: currentIndex + 1, total })}
 			</span>
 		</div>
-	)
+	);
 }

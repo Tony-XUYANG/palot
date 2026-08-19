@@ -1,16 +1,21 @@
-import { type ReactNode, useId } from "react"
+import { type ReactNode, useId } from "react";
 
 interface SettingsRowProps {
-	label: string
-	description?: string
+	label: string;
+	description?: string;
 	/** Optional explicit ID for the control — if not provided, one is auto-generated. */
-	htmlFor?: string
-	children: ReactNode
+	htmlFor?: string;
+	children: ReactNode;
 }
 
-export function SettingsRow({ label, description, htmlFor, children }: SettingsRowProps) {
-	const autoId = useId()
-	const controlId = htmlFor ?? autoId
+export function SettingsRow({
+	label,
+	description,
+	htmlFor,
+	children,
+}: SettingsRowProps) {
+	const autoId = useId();
+	const controlId = htmlFor ?? autoId;
 
 	return (
 		<div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -19,12 +24,15 @@ export function SettingsRow({ label, description, htmlFor, children }: SettingsR
 					{label}
 				</label>
 				{description && (
-					<span id={`${controlId}-desc`} className="text-sm text-muted-foreground">
+					<span
+						id={`${controlId}-desc`}
+						className="text-sm text-muted-foreground"
+					>
 						{description}
 					</span>
 				)}
 			</div>
 			<div className="flex shrink-0 items-center gap-2">{children}</div>
 		</div>
-	)
+	);
 }

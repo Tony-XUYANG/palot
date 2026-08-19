@@ -6,21 +6,24 @@
  * because the DevTools hook must be installed before React initializes.
  */
 
-import { atom } from "jotai"
-import { atomWithStorage } from "jotai/utils"
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
-const STORAGE_KEY = "palot:reactScan"
+const STORAGE_KEY = "palot:reactScan";
 
 /**
  * Persisted toggle for React Scan.
  * Read by the inline script in index.html to decide whether to load react-scan.
  */
-export const reactScanStorageAtom = atomWithStorage<boolean>(STORAGE_KEY, false)
+export const reactScanStorageAtom = atomWithStorage<boolean>(
+	STORAGE_KEY,
+	false,
+);
 
 /**
  * Read-only derived atom.
  */
-export const isReactScanAtom = atom((get) => get(reactScanStorageAtom))
+export const isReactScanAtom = atom((get) => get(reactScanStorageAtom));
 
 /**
  * Write-only toggle atom for the Command Palette.
@@ -28,11 +31,11 @@ export const isReactScanAtom = atom((get) => get(reactScanStorageAtom))
  * be loaded (or not) before React initializes.
  */
 export const toggleReactScanAtom = atom(null, (get, set) => {
-	const next = !get(reactScanStorageAtom)
-	set(reactScanStorageAtom, next)
+	const next = !get(reactScanStorageAtom);
+	set(reactScanStorageAtom, next);
 
 	// Small delay so Jotai's storage sync completes before reload
 	setTimeout(() => {
-		window.location.reload()
-	}, 50)
-})
+		window.location.reload();
+	}, 50);
+});

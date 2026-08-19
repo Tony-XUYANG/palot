@@ -11,7 +11,7 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-} from "@palot/ui/components/context-menu"
+} from "@palot/ui/components/context-menu";
 import {
 	ArchiveIcon,
 	CheckCircle2Icon,
@@ -19,19 +19,19 @@ import {
 	CopyIcon,
 	ExternalLinkIcon,
 	Loader2Icon,
-} from "lucide-react"
-import { memo, useCallback, useState } from "react"
-import type { AutomationRun } from "../../../preload/api"
-import { formatTimeAgo } from "../../lib/time-format"
+} from "lucide-react";
+import { memo, useCallback, useState } from "react";
+import type { AutomationRun } from "../../../preload/api";
+import { formatTimeAgo } from "../../lib/time-format";
 
 interface InboxRunRowProps {
-	run: AutomationRun
-	automationName: string
-	projectLabel: string | null
-	isSelected: boolean
-	onClick: () => void
-	onArchive?: (runId: string) => void
-	onMarkRead?: (runId: string) => void
+	run: AutomationRun;
+	automationName: string;
+	projectLabel: string | null;
+	isSelected: boolean;
+	onClick: () => void;
+	onArchive?: (runId: string) => void;
+	onMarkRead?: (runId: string) => void;
 }
 
 export const InboxRunRow = memo(function InboxRunRow({
@@ -43,25 +43,25 @@ export const InboxRunRow = memo(function InboxRunRow({
 	onArchive,
 	onMarkRead,
 }: InboxRunRowProps) {
-	const [hovered, setHovered] = useState(false)
+	const [hovered, setHovered] = useState(false);
 
-	const isUnread = run.readAt === null && run.status === "pending_review"
-	const isArchived = run.status === "archived"
-	const isRunning = run.status === "running" || run.status === "queued"
-	const isAccepted = run.status === "accepted"
+	const isUnread = run.readAt === null && run.status === "pending_review";
+	const isArchived = run.status === "archived";
+	const isRunning = run.status === "running" || run.status === "queued";
+	const isAccepted = run.status === "accepted";
 
-	const summary = run.resultSummary ?? run.resultTitle ?? null
-	const timeText = run.createdAt ? formatTimeAgo(run.createdAt) : null
+	const summary = run.resultSummary ?? run.resultTitle ?? null;
+	const timeText = run.createdAt ? formatTimeAgo(run.createdAt) : null;
 
 	const handleCopy = useCallback(
 		(e: React.MouseEvent) => {
-			e.stopPropagation()
+			e.stopPropagation();
 			if (summary) {
-				navigator.clipboard.writeText(summary)
+				navigator.clipboard.writeText(summary);
 			}
 		},
 		[summary],
-	)
+	);
 
 	const row = (
 		<button
@@ -93,10 +93,16 @@ export const InboxRunRow = memo(function InboxRunRow({
 				<div className="flex items-center gap-1.5">
 					<span className="truncate text-sm font-medium">{automationName}</span>
 					{projectLabel && (
-						<span className="truncate text-xs text-muted-foreground">{projectLabel}</span>
+						<span className="truncate text-xs text-muted-foreground">
+							{projectLabel}
+						</span>
 					)}
 				</div>
-				{summary && <p className="mt-0.5 truncate text-xs text-muted-foreground">{summary}</p>}
+				{summary && (
+					<p className="mt-0.5 truncate text-xs text-muted-foreground">
+						{summary}
+					</p>
+				)}
 			</div>
 
 			{/* Right side: time or copy button */}
@@ -110,10 +116,14 @@ export const InboxRunRow = memo(function InboxRunRow({
 						<CopyIcon className="size-3.5" />
 					</button>
 				) : null}
-				{timeText && <span className="text-xs tabular-nums text-muted-foreground">{timeText}</span>}
+				{timeText && (
+					<span className="text-xs tabular-nums text-muted-foreground">
+						{timeText}
+					</span>
+				)}
 			</div>
 		</button>
-	)
+	);
 
 	return (
 		<ContextMenu>
@@ -131,7 +141,9 @@ export const InboxRunRow = memo(function InboxRunRow({
 						Open thread
 					</ContextMenuItem>
 				)}
-				{(onMarkRead || run.sessionId) && onArchive && !isArchived && <ContextMenuSeparator />}
+				{(onMarkRead || run.sessionId) && onArchive && !isArchived && (
+					<ContextMenuSeparator />
+				)}
 				{onArchive && !isArchived && (
 					<ContextMenuItem onSelect={() => onArchive(run.id)}>
 						<ArchiveIcon className="size-4" />
@@ -140,5 +152,5 @@ export const InboxRunRow = memo(function InboxRunRow({
 				)}
 			</ContextMenuContent>
 		</ContextMenu>
-	)
-})
+	);
+});

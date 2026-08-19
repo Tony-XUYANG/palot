@@ -10,7 +10,7 @@
 // Status and result types
 // ============================================================
 
-export type AutomationStatus = "active" | "paused" | "archived"
+export type AutomationStatus = "active" | "paused" | "archived";
 
 export type AutomationRunStatus =
 	| "queued"
@@ -18,11 +18,11 @@ export type AutomationRunStatus =
 	| "pending_review"
 	| "accepted"
 	| "archived"
-	| "failed"
+	| "failed";
 
-export type EffortLevel = "low" | "medium" | "high"
+export type EffortLevel = "low" | "medium" | "high";
 
-export type ApprovalPolicy = "never" | "auto-edit"
+export type ApprovalPolicy = "never" | "auto-edit";
 
 /**
  * Permission presets control how the agent handles tool permissions:
@@ -30,51 +30,51 @@ export type ApprovalPolicy = "never" | "auto-edit"
  * - "allow-all": Full autonomous mode, all permissions allowed
  * - "read-only": No file modifications allowed
  */
-export type PermissionPreset = "default" | "allow-all" | "read-only"
+export type PermissionPreset = "default" | "allow-all" | "read-only";
 
 // ============================================================
 // Config types (stored on disk as JSON)
 // ============================================================
 
 export interface AutomationSchedule {
-	rrule: string
-	timezone: string
+	rrule: string;
+	timezone: string;
 }
 
 export interface ExecutionConfig {
 	/** Model to use in "providerID/modelID" format (e.g. "anthropic/claude-opus-4-5"). Defaults to server default. */
-	model?: string
+	model?: string;
 	/** Agent name to use (e.g. "build", "research"). Defaults to server default agent. */
-	agent?: string
+	agent?: string;
 	/** Model variant name (e.g. "extended" for extended thinking). Defaults to model default. */
-	variant?: string
-	effort: EffortLevel
-	timeout: number
-	retries: number
-	retryDelay: number
-	parallelWorkspaces: boolean
-	approvalPolicy: ApprovalPolicy
+	variant?: string;
+	effort: EffortLevel;
+	timeout: number;
+	retries: number;
+	retryDelay: number;
+	parallelWorkspaces: boolean;
+	approvalPolicy: ApprovalPolicy;
 	/** Whether to run in an isolated git worktree (default: true) */
-	useWorktree: boolean
+	useWorktree: boolean;
 	/** Permission preset controlling agent tool access */
-	permissionPreset: PermissionPreset
+	permissionPreset: PermissionPreset;
 }
 
 export interface AutomationConfig {
-	version: 1
-	name: string
-	status: AutomationStatus
-	schedule: AutomationSchedule
-	workspaces: string[]
-	execution: ExecutionConfig
+	version: 1;
+	name: string;
+	status: AutomationStatus;
+	schedule: AutomationSchedule;
+	workspaces: string[];
+	execution: ExecutionConfig;
 }
 
 export interface RunResult {
-	title: string
-	summary: string
-	hasActionableOutput: boolean
-	branchName: string | null
-	prUrl: string | null
+	title: string;
+	summary: string;
+	hasActionableOutput: boolean;
+	branchName: string | null;
+	prUrl: string | null;
 }
 
 // ============================================================
@@ -82,43 +82,43 @@ export interface RunResult {
 // ============================================================
 
 export interface Automation {
-	id: string
-	name: string
-	prompt: string
-	status: AutomationStatus
-	schedule: AutomationSchedule
-	workspaces: string[]
-	execution: ExecutionConfig
-	nextRunAt: number | null
-	lastRunAt: number | null
-	runCount: number
-	consecutiveFailures: number
-	createdAt: number
-	updatedAt: number
+	id: string;
+	name: string;
+	prompt: string;
+	status: AutomationStatus;
+	schedule: AutomationSchedule;
+	workspaces: string[];
+	execution: ExecutionConfig;
+	nextRunAt: number | null;
+	lastRunAt: number | null;
+	runCount: number;
+	consecutiveFailures: number;
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface AutomationRun {
-	id: string
-	automationId: string
-	workspace: string
-	status: AutomationRunStatus
-	attempt: number
-	sessionId: string | null
-	worktreePath: string | null
-	startedAt: number | null
-	completedAt: number | null
-	timeoutAt: number | null
-	resultTitle: string | null
-	resultSummary: string | null
-	resultHasActionable: boolean | null
-	resultBranch: string | null
-	resultPrUrl: string | null
-	errorMessage: string | null
-	archivedReason: string | null
-	archivedAssistantMessage: string | null
-	readAt: number | null
-	createdAt: number
-	updatedAt: number
+	id: string;
+	automationId: string;
+	workspace: string;
+	status: AutomationRunStatus;
+	attempt: number;
+	sessionId: string | null;
+	worktreePath: string | null;
+	startedAt: number | null;
+	completedAt: number | null;
+	timeoutAt: number | null;
+	resultTitle: string | null;
+	resultSummary: string | null;
+	resultHasActionable: boolean | null;
+	resultBranch: string | null;
+	resultPrUrl: string | null;
+	errorMessage: string | null;
+	archivedReason: string | null;
+	archivedAssistantMessage: string | null;
+	readAt: number | null;
+	createdAt: number;
+	updatedAt: number;
 }
 
 // ============================================================
@@ -126,21 +126,21 @@ export interface AutomationRun {
 // ============================================================
 
 export interface CreateAutomationInput {
-	name: string
-	prompt: string
-	schedule: { rrule: string; timezone?: string }
-	workspaces: string[]
-	execution?: Partial<ExecutionConfig>
+	name: string;
+	prompt: string;
+	schedule: { rrule: string; timezone?: string };
+	workspaces: string[];
+	execution?: Partial<ExecutionConfig>;
 }
 
 export interface UpdateAutomationInput {
-	id: string
-	name?: string
-	prompt?: string
-	status?: AutomationStatus
-	schedule?: { rrule: string; timezone?: string }
-	workspaces?: string[]
-	execution?: Partial<ExecutionConfig>
+	id: string;
+	name?: string;
+	prompt?: string;
+	status?: AutomationStatus;
+	schedule?: { rrule: string; timezone?: string };
+	workspaces?: string[];
+	execution?: Partial<ExecutionConfig>;
 }
 
 // ============================================================
@@ -156,4 +156,4 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
 	approvalPolicy: "never",
 	useWorktree: true,
 	permissionPreset: "default",
-}
+};

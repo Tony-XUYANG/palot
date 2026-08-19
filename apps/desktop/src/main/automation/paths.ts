@@ -11,18 +11,19 @@
  * The SQLite database lives under data (machine-managed state).
  */
 
-import os from "node:os"
-import path from "node:path"
+import os from "node:os";
+import path from "node:path";
 
-const APP_NAME = "palot"
+const APP_NAME = "palot";
 
 /**
  * Returns the XDG config directory for Palot.
  * Automations configs are stored at `<config>/automations/<id>/`.
  */
 export function getConfigDir(): string {
-	const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config")
-	return path.join(xdgConfig, APP_NAME)
+	const xdgConfig =
+		process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+	return path.join(xdgConfig, APP_NAME);
 }
 
 /**
@@ -30,6 +31,7 @@ export function getConfigDir(): string {
  * The SQLite database is stored at `<data>/palot.db`.
  */
 export function getDataDir(): string {
-	const xdgData = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share")
-	return path.join(xdgData, APP_NAME)
+	const xdgData =
+		process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
+	return path.join(xdgData, APP_NAME);
 }

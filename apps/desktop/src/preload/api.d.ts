@@ -6,56 +6,56 @@
  */
 
 export interface OpenCodeServerInfo {
-	url: string
-	pid: number | null
-	managed: boolean
+	url: string;
+	pid: number | null;
+	managed: boolean;
 }
 
-export type AgentEngineId = "opencode" | "codex"
+export type AgentEngineId = "opencode" | "codex";
 
 export interface AgentEngineDescriptor {
-	id: AgentEngineId
-	label: string
-	availability: "available" | "unavailable" | "incompatible"
-	enabled: boolean
+	id: AgentEngineId;
+	label: string;
+	availability: "available" | "unavailable" | "incompatible";
+	enabled: boolean;
 	capabilities: {
-		auth: boolean
-		sessions: boolean
-		prompts: boolean
-		events: boolean
-		cancel: boolean
-		diff: boolean
-	}
-	source?: "override" | "bundled" | "user" | "path"
-	version?: string
-	transport?: "http" | "app-server"
-	reason?: string
+		auth: boolean;
+		sessions: boolean;
+		prompts: boolean;
+		events: boolean;
+		cancel: boolean;
+		diff: boolean;
+	};
+	source?: "override" | "bundled" | "user" | "path";
+	version?: string;
+	transport?: "http" | "app-server";
+	reason?: string;
 }
 
 export interface ModelRef {
-	providerID: string
-	modelID: string
+	providerID: string;
+	modelID: string;
 }
 
 export interface ModelState {
-	recent: ModelRef[]
-	favorite: ModelRef[]
-	variant: Record<string, string | undefined>
+	recent: ModelRef[];
+	favorite: ModelRef[];
+	variant: Record<string, string | undefined>;
 }
 
 export interface UpdateState {
-	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error"
-	version?: string
-	releaseNotes?: string
+	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error";
+	version?: string;
+	releaseNotes?: string;
 	progress?: {
-		percent: number
-		bytesPerSecond: number
-		transferred: number
-		total: number
-	}
-	error?: string
+		percent: number;
+		bytesPerSecond: number;
+		transferred: number;
+		total: number;
+	};
+	error?: string;
 	/** Whether the app can auto-install updates (false on unsigned macOS builds). */
-	canAutoInstall: boolean
+	canAutoInstall: boolean;
 }
 
 // ============================================================
@@ -63,63 +63,63 @@ export interface UpdateState {
 // ============================================================
 
 export interface GitBranchInfo {
-	current: string
-	detached: boolean
-	local: string[]
-	remote: string[]
+	current: string;
+	detached: boolean;
+	local: string[];
+	remote: string[];
 }
 
 export interface GitStatusInfo {
-	isClean: boolean
-	staged: number
-	modified: number
-	untracked: number
-	conflicted: number
-	summary: string
+	isClean: boolean;
+	staged: number;
+	modified: number;
+	untracked: number;
+	conflicted: number;
+	summary: string;
 }
 
 export interface GitCheckoutResult {
-	success: boolean
-	error?: string
+	success: boolean;
+	error?: string;
 }
 
 export interface GitStashResult {
-	success: boolean
-	stashed: boolean
-	error?: string
+	success: boolean;
+	stashed: boolean;
+	error?: string;
 }
 
 export interface GitDiffStat {
-	filesChanged: number
-	insertions: number
-	deletions: number
-	files: { path: string; insertions: number; deletions: number }[]
+	filesChanged: number;
+	insertions: number;
+	deletions: number;
+	files: { path: string; insertions: number; deletions: number }[];
 }
 
 export interface GitWorkingTreeDiff {
-	file: string
-	before: string
-	after: string
-	additions: number
-	deletions: number
-	status: "added" | "deleted" | "modified"
+	file: string;
+	before: string;
+	after: string;
+	additions: number;
+	deletions: number;
+	status: "added" | "deleted" | "modified";
 }
 
 export interface GitCommitResult {
-	success: boolean
-	commitHash?: string
-	error?: string
+	success: boolean;
+	commitHash?: string;
+	error?: string;
 }
 
 export interface GitPushResult {
-	success: boolean
-	error?: string
+	success: boolean;
+	error?: string;
 }
 
 export interface GitApplyResult {
-	success: boolean
-	filesApplied: string[]
-	error?: string
+	success: boolean;
+	filesApplied: string[];
+	error?: string;
 }
 
 // ============================================================
@@ -127,17 +127,17 @@ export interface GitApplyResult {
 // ============================================================
 
 export interface OpenInTarget {
-	id: string
-	label: string
-	available: boolean
+	id: string;
+	label: string;
+	available: boolean;
 	/** Base64-encoded PNG icon data URL, resolved at runtime from the installed app. */
-	iconDataUrl?: string
+	iconDataUrl?: string;
 }
 
 export interface OpenInTargetsResult {
-	targets: OpenInTarget[]
-	availableTargets: string[]
-	preferredTarget: string | null
+	targets: OpenInTarget[];
+	availableTargets: string[];
+	preferredTarget: string | null;
 }
 
 // ============================================================
@@ -146,53 +146,56 @@ export interface OpenInTargetsResult {
 
 /** Built-in local server, auto-managed by Palot via OpenCodeManager. */
 export interface LocalServerConfig {
-	id: "local"
-	name: string
-	type: "local"
+	id: "local";
+	name: string;
+	type: "local";
 	/** Hostname the local server binds to (default "127.0.0.1"). Use "0.0.0.0" to expose on the network. */
-	hostname?: string
+	hostname?: string;
 	/** Port the local server listens on (default 4101). */
-	port?: number
+	port?: number;
 	/** Whether a password is configured for the local server (stored in safeStorage). */
-	hasPassword?: boolean
+	hasPassword?: boolean;
 	/** Enable mDNS service discovery so this server is advertised on the local network. */
-	mdns?: boolean
+	mdns?: boolean;
 	/** Custom mDNS domain name (default "opencode.local"). Only used when mdns is enabled. */
-	mdnsDomain?: string
+	mdnsDomain?: string;
 }
 
 /** Remote server reachable over HTTP(S). */
 export interface RemoteServerConfig {
-	id: string
-	name: string
-	type: "remote"
+	id: string;
+	name: string;
+	type: "remote";
 	/** Full base URL, e.g. "https://opencode.example.com:4096" */
-	url: string
+	url: string;
 	/** Basic Auth username (defaults to "opencode" if omitted). */
-	username?: string
+	username?: string;
 	/** Whether a password is stored in safeStorage (never stored in settings.json). */
-	hasPassword?: boolean
+	hasPassword?: boolean;
 }
 
 /** SSH tunnel server (future -- type is defined now to avoid config migration later). */
 export interface SshServerConfig {
-	id: string
-	name: string
-	type: "ssh"
-	sshHost: string
-	sshPort?: number
-	sshUser: string
-	sshAuthMethod: "key" | "password" | "agent"
-	sshKeyPath?: string
+	id: string;
+	name: string;
+	type: "ssh";
+	sshHost: string;
+	sshPort?: number;
+	sshUser: string;
+	sshAuthMethod: "key" | "password" | "agent";
+	sshKeyPath?: string;
 	/** Where OpenCode listens on the remote machine (default 127.0.0.1). */
-	remoteHost?: string
-	remotePort: number
+	remoteHost?: string;
+	remotePort: number;
 	/** Basic Auth username for the OpenCode server (defaults to "opencode"). */
-	username?: string
-	hasPassword?: boolean
+	username?: string;
+	hasPassword?: boolean;
 }
 
-export type ServerConfig = LocalServerConfig | RemoteServerConfig | SshServerConfig
+export type ServerConfig =
+	| LocalServerConfig
+	| RemoteServerConfig
+	| SshServerConfig;
 
 // ============================================================
 // mDNS discovery types
@@ -201,47 +204,50 @@ export type ServerConfig = LocalServerConfig | RemoteServerConfig | SshServerCon
 /** A server discovered via mDNS on the local network. */
 export interface DiscoveredMdnsServer {
 	/** Unique key derived from host:port. */
-	id: string
+	id: string;
 	/** Service name from mDNS (e.g. "opencode-4096"). */
-	name: string
+	name: string;
 	/** Resolved hostname or IP address. */
-	host: string
+	host: string;
 	/** Port the OpenCode server is listening on. */
-	port: number
+	port: number;
 	/** IP addresses reported by the service. */
-	addresses: string[]
+	addresses: string[];
 }
 
 /** The default built-in local server entry (defined in server-config.ts). */
-export declare const DEFAULT_LOCAL_SERVER: LocalServerConfig
+export declare const DEFAULT_LOCAL_SERVER: LocalServerConfig;
 
 export interface ServerSettings {
 	/** Ordered list of configured servers. The local server is always first. */
-	servers: ServerConfig[]
+	servers: ServerConfig[];
 	/** ID of the currently active server. */
-	activeServerId: string
+	activeServerId: string;
 }
 
 // ============================================================
 // Settings types (shared between main process and renderer)
 // ============================================================
 
-export type CompletionNotificationMode = "off" | "unfocused" | "always"
+export type CompletionNotificationMode = "off" | "unfocused" | "always";
+export type SupportedLocale = "zh-CN" | "en-US";
 
 export interface NotificationSettings {
-	completionMode: CompletionNotificationMode
-	permissions: boolean
-	questions: boolean
-	errors: boolean
-	dockBadge: boolean
+	completionMode: CompletionNotificationMode;
+	permissions: boolean;
+	questions: boolean;
+	errors: boolean;
+	dockBadge: boolean;
 }
 
 export interface AppSettings {
-	notifications: NotificationSettings
+	notifications: NotificationSettings;
+	/** Selected UI language. Null until the first-run language choice is confirmed. */
+	language: SupportedLocale | null;
 	/** Whether the user prefers opaque (solid) windows. Read at window creation time. */
-	opaqueWindows: boolean
+	opaqueWindows: boolean;
 	/** Server connection configuration. */
-	servers: ServerSettings
+	servers: ServerSettings;
 }
 
 // ============================================================
@@ -249,8 +255,8 @@ export interface AppSettings {
 // ============================================================
 
 export interface CliInstallResult {
-	success: boolean
-	error?: string
+	success: boolean;
+	error?: string;
 }
 
 // ============================================================
@@ -258,204 +264,210 @@ export interface CliInstallResult {
 // ============================================================
 
 export interface OpenCodeCheckResult {
-	installed: boolean
-	version: string | null
-	path: string | null
-	source: "bundled" | "user" | "path" | null
-	repairRequired: boolean
-	compatible: boolean
-	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown"
-	message: string | null
+	installed: boolean;
+	version: string | null;
+	path: string | null;
+	source: "bundled" | "user" | "path" | null;
+	repairRequired: boolean;
+	compatible: boolean;
+	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown";
+	message: string | null;
 }
 
 /** Supported migration source providers. */
-export type MigrationProvider = "claude-code" | "cursor" | "opencode"
+export type MigrationProvider = "claude-code" | "cursor" | "opencode";
 
 /** Detection result for a single provider. */
 export interface ProviderDetection {
-	provider: MigrationProvider
-	found: boolean
-	label: string
-	summary: string
-	mcpServerCount: number
-	agentCount: number
-	commandCount: number
-	ruleCount: number
-	skillCount: number
-	projectCount: number
-	hasGlobalSettings: boolean
-	hasPermissions: boolean
-	hasHooks: boolean
-	totalSessions: number
-	totalMessages: number
+	provider: MigrationProvider;
+	found: boolean;
+	label: string;
+	summary: string;
+	mcpServerCount: number;
+	agentCount: number;
+	commandCount: number;
+	ruleCount: number;
+	skillCount: number;
+	projectCount: number;
+	hasGlobalSettings: boolean;
+	hasPermissions: boolean;
+	hasHooks: boolean;
+	totalSessions: number;
+	totalMessages: number;
 }
 
 export interface MigrationCategoryPreview {
-	category: string
-	itemCount: number
-	files: MigrationFilePreview[]
+	category: string;
+	itemCount: number;
+	files: MigrationFilePreview[];
 }
 
 export interface MigrationFilePreview {
-	path: string
-	status: "new" | "modified" | "skipped"
-	lineCount: number
-	content?: string
+	path: string;
+	status: "new" | "modified" | "skipped";
+	lineCount: number;
+	content?: string;
 }
 
 export interface MigrationPreview {
-	categories: MigrationCategoryPreview[]
-	warnings: string[]
-	manualActions: string[]
-	errors: string[]
-	fileCount: number
-	sessionCount: number
-	sessionProjectCount: number
+	categories: MigrationCategoryPreview[];
+	warnings: string[];
+	manualActions: string[];
+	errors: string[];
+	fileCount: number;
+	sessionCount: number;
+	sessionProjectCount: number;
 }
 
 export interface MigrationResult {
-	success: boolean
-	filesWritten: string[]
-	filesSkipped: string[]
-	backupDir: string | null
-	warnings: string[]
-	manualActions: string[]
-	errors: string[]
+	success: boolean;
+	filesWritten: string[];
+	filesSkipped: string[];
+	backupDir: string | null;
+	warnings: string[];
+	manualActions: string[];
+	errors: string[];
 	/** Number of history sessions that were skipped as duplicates */
-	historyDuplicatesSkipped: number
+	historyDuplicatesSkipped: number;
 }
 
 export interface MigrationProgress {
-	phase: string
-	current: number
-	total: number
-	duplicatesSkipped: number
+	phase: string;
+	current: number;
+	total: number;
+	duplicatesSkipped: number;
 }
 
 export interface AppInfo {
-	version: string
-	isDev: boolean
+	version: string;
+	isDev: boolean;
 }
 
 export interface SealosPreflightCheck {
-	id: "project" | "git" | "docker" | "sealos" | "auth" | "container"
-	label: string
-	status: "ready" | "missing" | "warning"
-	detail: string
+	id: "project" | "git" | "docker" | "sealos" | "auth" | "container";
+	label: string;
+	status: "ready" | "missing" | "warning";
+	detail: string;
 }
 
 export interface SealosPreflightResult {
-	projectName: string
-	framework: string | null
-	port: number | null
-	region: string | null
-	workspace: string | null
-	checks: SealosPreflightCheck[]
-	ready: boolean
+	projectName: string;
+	framework: string | null;
+	port: number | null;
+	region: string | null;
+	workspace: string | null;
+	checks: SealosPreflightCheck[];
+	ready: boolean;
 }
 
 export interface SealosDeployResult {
-	success: boolean
-	status: number
-	region: string
-	response: unknown
-	appUrl: string | null
-	instanceName: string | null
-	logPath: string
+	success: boolean;
+	status: number;
+	region: string;
+	response: unknown;
+	appUrl: string | null;
+	instanceName: string | null;
+	logPath: string;
 }
 
 export interface SealosWorkspace {
-	uid: string
-	id: string
-	teamName: string
-	current: boolean
+	uid: string;
+	id: string;
+	teamName: string;
+	current: boolean;
 }
 
 export interface SealosTemplateInput {
-	name: string
-	description: string
-	required: boolean
-	defaultValue: string | null
-	sensitive: boolean
+	name: string;
+	description: string;
+	required: boolean;
+	defaultValue: string | null;
+	sensitive: boolean;
 }
 
 export interface SealosDeploymentState {
-	version: "1.0"
+	version: "1.0";
 	last_deploy: {
-		app_name: string
-		namespace: string
-		region: string
-		image: string
-		repo_name: string
-		url: string | null
-		deployed_at: string
-		last_updated_at: string
-	}
+		app_name: string;
+		namespace: string;
+		region: string;
+		image: string;
+		repo_name: string;
+		url: string | null;
+		deployed_at: string;
+		last_updated_at: string;
+	};
 	history: {
-		at: string
-		action: "deploy" | "set-image"
-		status: "success" | "failed"
-		method: "template-api" | "kubectl-set-image"
-		image: string
-		previous_image?: string
-		note?: string
-	}[]
+		at: string;
+		action: "deploy" | "set-image";
+		status: "success" | "failed";
+		method: "template-api" | "kubectl-set-image";
+		image: string;
+		previous_image?: string;
+		note?: string;
+	}[];
 }
 
 export interface SealosUpdateResult {
-	success: boolean
-	appName: string
-	image: string
-	previousImage: string
-	url: string | null
+	success: boolean;
+	appName: string;
+	image: string;
+	previousImage: string;
+	url: string | null;
 }
 
 export interface GitHubBuildStatus {
-	cliAvailable: boolean
-	authenticated: boolean
-	login: string | null
-	repository: string | null
-	branch: string | null
-	clean: boolean
-	dockerfile: boolean
-	workflow: boolean
-	ready: boolean
-	detail: string
+	cliAvailable: boolean;
+	authenticated: boolean;
+	login: string | null;
+	repository: string | null;
+	branch: string | null;
+	clean: boolean;
+	dockerfile: boolean;
+	workflow: boolean;
+	ready: boolean;
+	detail: string;
 }
 
 export interface GitHubBuildProgress {
-	stage: "repository" | "dispatch" | "queued" | "building" | "publishing" | "complete"
-	status: "active" | "complete"
-	detail: string
-	runUrl?: string
+	stage:
+		| "repository"
+		| "dispatch"
+		| "queued"
+		| "building"
+		| "publishing"
+		| "complete";
+	status: "active" | "complete";
+	detail: string;
+	runUrl?: string;
 }
 
 export interface GitHubBuildResult {
-	repository: string
-	branch: string
-	commit: string
-	image: string
-	runUrl: string
+	repository: string;
+	branch: string;
+	commit: string;
+	image: string;
+	runUrl: string;
 }
 
 export interface SealosLoginStartResult {
-	sessionId: string
-	userCode: string
-	verificationUrl: string
-	expiresAt: number
+	sessionId: string;
+	userCode: string;
+	verificationUrl: string;
+	expiresAt: number;
 }
 
 export interface SealosLoginResult {
-	authenticated: boolean
-	region: string
-	workspace: string | null
+	authenticated: boolean;
+	region: string;
+	workspace: string | null;
 }
 
 export interface SealosRuntimeResult {
-	ok: boolean
-	status: number | null
-	url: string
-	detail: string
+	ok: boolean;
+	status: number | null;
+	url: string;
+	detail: string;
 	checks: {
 		id:
 			| "deployment"
@@ -467,60 +479,60 @@ export interface SealosRuntimeResult {
 			| "missing-path"
 			| "failure-text"
 			| "logs"
-			| "stability"
-		ok: boolean
-		detail: string
-	}[]
+			| "stability";
+		ok: boolean;
+		detail: string;
+	}[];
 }
 
-export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque"
+export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque";
 
 // ============================================================
 // Automation types
 // ============================================================
 
 export interface AutomationSchedule {
-	rrule: string
-	timezone: string
+	rrule: string;
+	timezone: string;
 }
 
-export type PermissionPreset = "default" | "allow-all" | "read-only"
+export type PermissionPreset = "default" | "allow-all" | "read-only";
 
 export interface ExecutionConfig {
 	/** Model to use in "providerID/modelID" format (e.g. "anthropic/claude-opus-4-5"). Defaults to server default. */
-	model?: string
+	model?: string;
 	/** Agent name to use (e.g. "build", "research"). Defaults to server default agent. */
-	agent?: string
+	agent?: string;
 	/** Model variant name (e.g. "extended" for extended thinking). Defaults to model default. */
-	variant?: string
-	effort: "low" | "medium" | "high"
-	timeout: number
-	retries: number
-	retryDelay: number
-	parallelWorkspaces: boolean
-	approvalPolicy: "never" | "auto-edit"
+	variant?: string;
+	effort: "low" | "medium" | "high";
+	timeout: number;
+	retries: number;
+	retryDelay: number;
+	parallelWorkspaces: boolean;
+	approvalPolicy: "never" | "auto-edit";
 	/** Whether to run in an isolated git worktree (default: true) */
-	useWorktree: boolean
+	useWorktree: boolean;
 	/** Permission preset controlling agent tool access */
-	permissionPreset: PermissionPreset
+	permissionPreset: PermissionPreset;
 }
 
-export type AutomationStatus = "active" | "paused" | "archived"
+export type AutomationStatus = "active" | "paused" | "archived";
 
 export interface Automation {
-	id: string
-	name: string
-	prompt: string
-	status: AutomationStatus
-	schedule: AutomationSchedule
-	workspaces: string[]
-	execution: ExecutionConfig
-	nextRunAt: number | null
-	lastRunAt: number | null
-	runCount: number
-	consecutiveFailures: number
-	createdAt: number
-	updatedAt: number
+	id: string;
+	name: string;
+	prompt: string;
+	status: AutomationStatus;
+	schedule: AutomationSchedule;
+	workspaces: string[];
+	execution: ExecutionConfig;
+	nextRunAt: number | null;
+	lastRunAt: number | null;
+	runCount: number;
+	consecutiveFailures: number;
+	createdAt: number;
+	updatedAt: number;
 }
 
 export type AutomationRunStatus =
@@ -529,48 +541,48 @@ export type AutomationRunStatus =
 	| "pending_review"
 	| "accepted"
 	| "archived"
-	| "failed"
+	| "failed";
 
 export interface AutomationRun {
-	id: string
-	automationId: string
-	workspace: string
-	status: AutomationRunStatus
-	attempt: number
-	sessionId: string | null
-	worktreePath: string | null
-	startedAt: number | null
-	completedAt: number | null
-	timeoutAt: number | null
-	resultTitle: string | null
-	resultSummary: string | null
-	resultHasActionable: boolean | null
-	resultBranch: string | null
-	resultPrUrl: string | null
-	errorMessage: string | null
-	archivedReason: string | null
-	archivedAssistantMessage: string | null
-	readAt: number | null
-	createdAt: number
-	updatedAt: number
+	id: string;
+	automationId: string;
+	workspace: string;
+	status: AutomationRunStatus;
+	attempt: number;
+	sessionId: string | null;
+	worktreePath: string | null;
+	startedAt: number | null;
+	completedAt: number | null;
+	timeoutAt: number | null;
+	resultTitle: string | null;
+	resultSummary: string | null;
+	resultHasActionable: boolean | null;
+	resultBranch: string | null;
+	resultPrUrl: string | null;
+	errorMessage: string | null;
+	archivedReason: string | null;
+	archivedAssistantMessage: string | null;
+	readAt: number | null;
+	createdAt: number;
+	updatedAt: number;
 }
 
 export interface CreateAutomationInput {
-	name: string
-	prompt: string
-	schedule: { rrule: string; timezone?: string }
-	workspaces: string[]
-	execution?: Partial<ExecutionConfig>
+	name: string;
+	prompt: string;
+	schedule: { rrule: string; timezone?: string };
+	workspaces: string[];
+	execution?: Partial<ExecutionConfig>;
 }
 
 export interface UpdateAutomationInput {
-	id: string
-	name?: string
-	prompt?: string
-	status?: AutomationStatus
-	schedule?: { rrule: string; timezone?: string }
-	workspaces?: string[]
-	execution?: Partial<ExecutionConfig>
+	id: string;
+	name?: string;
+	prompt?: string;
+	status?: AutomationStatus;
+	schedule?: { rrule: string; timezone?: string };
+	workspaces?: string[];
+	execution?: Partial<ExecutionConfig>;
 }
 
 // ============================================================
@@ -578,318 +590,364 @@ export interface UpdateAutomationInput {
 // ============================================================
 
 export interface PalotCloudModelInfo {
-	id: string
-	name: string
+	id: string;
+	name: string;
 	pricing: {
-		currency: "CNY"
-		unit: "million_tokens"
-		inputMicros: string
-		outputMicros: string
-		cacheReadMicros: string
-		version: number
-	}
+		currency: "CNY";
+		unit: "million_tokens";
+		inputMicros: string;
+		outputMicros: string;
+		cacheReadMicros: string;
+		version: number;
+	};
 }
 
 export interface PalotCloudUsageInfo {
-	id: string
-	model: string
-	priceVersion: number
-	state: "reserved" | "settled" | "refunded"
-	reservedMicros: string
-	chargedMicros: string
+	id: string;
+	model: string;
+	priceVersion: number;
+	state: "reserved" | "settled" | "refunded";
+	reservedMicros: string;
+	chargedMicros: string;
 	usage: {
-		inputTokens: number
-		outputTokens: number
-		cacheReadTokens: number
-		source: "provider" | "estimated"
-	} | null
-	createdAt: string
-	settledAt: string | null
+		inputTokens: number;
+		outputTokens: number;
+		cacheReadTokens: number;
+		source: "provider" | "estimated";
+	} | null;
+	createdAt: string;
+	settledAt: string | null;
 }
 
 export interface PalotCloudTopupPackage {
-	id: string
-	label: string
-	amountMicros: string
-	creditMicros: string
-	currency: "CNY"
+	id: string;
+	label: string;
+	amountMicros: string;
+	creditMicros: string;
+	currency: "CNY";
 }
 
 export interface PalotCloudTopupOrder {
-	id: string
-	packageId: string
-	channel: "alipay" | "sandbox"
-	state: "pending" | "paid" | "credited" | "closed" | "refunding" | "refunded" | "failed"
-	amountMicros: string
-	creditMicros: string
-	currency: "CNY"
-	createdAt: string
-	expiresAt: string
-	paidAt: string | null
-	creditedAt: string | null
-	refundedAt: string | null
+	id: string;
+	packageId: string;
+	channel: "alipay" | "sandbox";
+	state:
+		| "pending"
+		| "paid"
+		| "credited"
+		| "closed"
+		| "refunding"
+		| "refunded"
+		| "failed";
+	amountMicros: string;
+	creditMicros: string;
+	currency: "CNY";
+	createdAt: string;
+	expiresAt: string;
+	paidAt: string | null;
+	creditedAt: string | null;
+	refundedAt: string | null;
 }
 
 export interface PalotCloudAccountInfo {
-	id: string
-	name: string
-	state: "active" | "frozen"
-	balanceMicros: string
-	currency: "CNY"
-	recentUsage: PalotCloudUsageInfo[]
-	recentTopups: PalotCloudTopupOrder[]
+	id: string;
+	name: string;
+	state: "active" | "frozen";
+	balanceMicros: string;
+	currency: "CNY";
+	recentUsage: PalotCloudUsageInfo[];
+	recentTopups: PalotCloudTopupOrder[];
 }
 
 export interface PalotCloudStatus {
-	available: boolean
-	connected: boolean
-	encryptionAvailable: boolean
-	gatewayHost: string | null
-	account: PalotCloudAccountInfo | null
-	models: PalotCloudModelInfo[]
-	paymentsAvailable: boolean
-	paymentChannel: "alipay" | "sandbox" | null
-	topupPackages: PalotCloudTopupPackage[]
-	error: string | null
+	available: boolean;
+	connected: boolean;
+	encryptionAvailable: boolean;
+	gatewayHost: string | null;
+	account: PalotCloudAccountInfo | null;
+	models: PalotCloudModelInfo[];
+	paymentsAvailable: boolean;
+	paymentChannel: "alipay" | "sandbox" | null;
+	topupPackages: PalotCloudTopupPackage[];
+	error: string | null;
 }
 
 export interface PalotCloudProviderSetup {
-	providerId: "palot-cloud"
-	baseUrl: string
-	sessionToken: string
-	models: PalotCloudModelInfo[]
+	providerId: "palot-cloud";
+	baseUrl: string;
+	sessionToken: string;
+	models: PalotCloudModelInfo[];
 }
 
 export interface PalotCloudConnectionResult {
-	status: PalotCloudStatus
-	setup: PalotCloudProviderSetup | null
+	status: PalotCloudStatus;
+	setup: PalotCloudProviderSetup | null;
 }
 
 export interface PalotAPI {
 	/** The host platform: "darwin", "win32", or "linux". */
-	platform: NodeJS.Platform
-	getAppInfo: () => Promise<AppInfo>
+	platform: NodeJS.Platform;
+	getAppInfo: () => Promise<AppInfo>;
 
 	/** Subscribe to chrome tier notification (fired once on load). */
-	onChromeTier: (callback: (tier: WindowChromeTier) => void) => () => void
+	onChromeTier: (callback: (tier: WindowChromeTier) => void) => () => void;
 	/** Get the current chrome tier (pull-based, avoids race with push event). */
-	getChromeTier: () => Promise<WindowChromeTier>
+	getChromeTier: () => Promise<WindowChromeTier>;
 
-	ensureOpenCode: () => Promise<OpenCodeServerInfo>
-	getServerUrl: () => Promise<string | null>
-	stopOpenCode: () => Promise<boolean>
-	restartOpenCode: () => Promise<OpenCodeServerInfo>
+	ensureOpenCode: () => Promise<OpenCodeServerInfo>;
+	getServerUrl: () => Promise<string | null>;
+	stopOpenCode: () => Promise<boolean>;
+	restartOpenCode: () => Promise<OpenCodeServerInfo>;
 	agentEngines: {
-		list: () => Promise<AgentEngineDescriptor[]>
-	}
+		list: () => Promise<AgentEngineDescriptor[]>;
+	};
 	palotCloud: {
-		status: () => Promise<PalotCloudStatus>
-		bootstrap: () => Promise<PalotCloudConnectionResult>
-		connect: (token: string) => Promise<PalotCloudConnectionResult>
-		disconnect: () => Promise<PalotCloudStatus>
-		startTopup: (packageId: string) => Promise<PalotCloudTopupOrder>
-		topupOrder: (orderId: string) => Promise<PalotCloudTopupOrder>
-	}
-	getModelState: () => Promise<ModelState>
-	updateModelRecent: (model: ModelRef) => Promise<ModelState>
+		status: () => Promise<PalotCloudStatus>;
+		bootstrap: () => Promise<PalotCloudConnectionResult>;
+		connect: (token: string) => Promise<PalotCloudConnectionResult>;
+		disconnect: () => Promise<PalotCloudStatus>;
+		startTopup: (packageId: string) => Promise<PalotCloudTopupOrder>;
+		topupOrder: (orderId: string) => Promise<PalotCloudTopupOrder>;
+	};
+	getModelState: () => Promise<ModelState>;
+	updateModelRecent: (model: ModelRef) => Promise<ModelState>;
 
 	// Credential storage (safeStorage-backed, passwords never leave main process in plain text)
 	credential: {
 		/** Store an encrypted password for a server. */
-		store: (serverId: string, password: string) => Promise<void>
+		store: (serverId: string, password: string) => Promise<void>;
 		/** Retrieve a decrypted password for a server (only returns to renderer for auth headers). */
-		get: (serverId: string) => Promise<string | null>
+		get: (serverId: string) => Promise<string | null>;
 		/** Delete a stored password. */
-		delete: (serverId: string) => Promise<void>
-	}
+		delete: (serverId: string) => Promise<void>;
+	};
 
 	/** Test connectivity to a remote OpenCode server. Returns null on success or an error message. */
 	testServerConnection: (
 		url: string,
 		username?: string,
 		password?: string,
-	) => Promise<string | null>
+	) => Promise<string | null>;
 
 	// mDNS discovery
 	mdns: {
 		/** Get the current list of discovered servers. */
-		getDiscovered: () => Promise<DiscoveredMdnsServer[]>
+		getDiscovered: () => Promise<DiscoveredMdnsServer[]>;
 		/** Subscribe to discovered server list changes. Returns an unsubscribe function. */
-		onChanged: (callback: (servers: DiscoveredMdnsServer[]) => void) => () => void
-	}
+		onChanged: (
+			callback: (servers: DiscoveredMdnsServer[]) => void,
+		) => () => void;
+	};
 
 	// Auto-updater
-	getUpdateState: () => Promise<UpdateState>
-	checkForUpdates: () => Promise<void>
-	downloadUpdate: () => Promise<void>
-	installUpdate: () => Promise<void>
+	getUpdateState: () => Promise<UpdateState>;
+	checkForUpdates: () => Promise<void>;
+	downloadUpdate: () => Promise<void>;
+	installUpdate: () => Promise<void>;
 	/** Opens the GitHub release page for the current update version (fallback for unsigned macOS). */
-	openReleasePage: () => Promise<void>
-	onUpdateStateChanged: (callback: (state: UpdateState) => void) => () => void
+	openReleasePage: () => Promise<void>;
+	onUpdateStateChanged: (callback: (state: UpdateState) => void) => () => void;
 
 	// Git operations
 	git: {
-		listBranches: (directory: string) => Promise<GitBranchInfo>
-		getStatus: (directory: string) => Promise<GitStatusInfo>
-		checkout: (directory: string, branch: string) => Promise<GitCheckoutResult>
-		stashAndCheckout: (directory: string, branch: string) => Promise<GitStashResult>
-		stashPop: (directory: string) => Promise<GitStashResult>
-		getRoot: (directory: string) => Promise<string | null>
-		diffStat: (directory: string) => Promise<GitDiffStat>
-		workingTreeDiff: (directory: string) => Promise<GitWorkingTreeDiff[]>
-		commitAll: (directory: string, message: string) => Promise<GitCommitResult>
-		push: (directory: string, remote?: string) => Promise<GitPushResult>
-		createBranch: (directory: string, branchName: string) => Promise<GitCheckoutResult>
-		applyToLocal: (worktreeDir: string, localDir: string) => Promise<GitApplyResult>
-		applyDiffText: (localDir: string, diffText: string) => Promise<GitApplyResult>
-		getRemoteUrl: (directory: string, remote?: string) => Promise<string | null>
-	}
+		listBranches: (directory: string) => Promise<GitBranchInfo>;
+		getStatus: (directory: string) => Promise<GitStatusInfo>;
+		checkout: (directory: string, branch: string) => Promise<GitCheckoutResult>;
+		stashAndCheckout: (
+			directory: string,
+			branch: string,
+		) => Promise<GitStashResult>;
+		stashPop: (directory: string) => Promise<GitStashResult>;
+		getRoot: (directory: string) => Promise<string | null>;
+		diffStat: (directory: string) => Promise<GitDiffStat>;
+		workingTreeDiff: (directory: string) => Promise<GitWorkingTreeDiff[]>;
+		commitAll: (directory: string, message: string) => Promise<GitCommitResult>;
+		push: (directory: string, remote?: string) => Promise<GitPushResult>;
+		createBranch: (
+			directory: string,
+			branchName: string,
+		) => Promise<GitCheckoutResult>;
+		applyToLocal: (
+			worktreeDir: string,
+			localDir: string,
+		) => Promise<GitApplyResult>;
+		applyDiffText: (
+			localDir: string,
+			diffText: string,
+		) => Promise<GitApplyResult>;
+		getRemoteUrl: (
+			directory: string,
+			remote?: string,
+		) => Promise<string | null>;
+	};
 
 	// Window preferences (opaque windows / transparency)
 	/** Get the persisted opaque windows preference from the main process. */
-	getOpaqueWindows: () => Promise<boolean>
+	getOpaqueWindows: () => Promise<boolean>;
 	/** Set the opaque windows preference and persist it in the main process. */
-	setOpaqueWindows: (value: boolean) => Promise<{ success: boolean }>
+	setOpaqueWindows: (value: boolean) => Promise<{ success: boolean }>;
 	/** Relaunch the app (used after toggling transparency). */
-	relaunch: () => Promise<void>
+	relaunch: () => Promise<void>;
 
 	// CLI install
 	cli: {
-		isInstalled: () => Promise<boolean>
-		install: () => Promise<CliInstallResult>
-		uninstall: () => Promise<CliInstallResult>
-	}
+		isInstalled: () => Promise<boolean>;
+		install: () => Promise<CliInstallResult>;
+		uninstall: () => Promise<CliInstallResult>;
+	};
 
 	// Open in external app
 	openIn: {
-		getTargets: () => Promise<OpenInTargetsResult>
-		open: (directory: string, targetId: string, persistPreferred?: boolean) => Promise<void>
-		setPreferred: (targetId: string) => Promise<{ success: boolean }>
-	}
+		getTargets: () => Promise<OpenInTargetsResult>;
+		open: (
+			directory: string,
+			targetId: string,
+			persistPreferred?: boolean,
+		) => Promise<void>;
+		setPreferred: (targetId: string) => Promise<{ success: boolean }>;
+	};
 
 	// Native theme (syncs macOS glass tint to app color scheme)
 	/** Set the native theme source ("light" | "dark" | "system") to control macOS glass tint. */
-	setNativeTheme: (source: string) => Promise<void>
+	setNativeTheme: (source: string) => Promise<void>;
 
 	// System accent color
 	/** Get the system accent color as an 8-char hex RRGGBBAA string, or null if unavailable. */
-	getAccentColor: () => Promise<string | null>
+	getAccentColor: () => Promise<string | null>;
 	/** Subscribe to system accent color changes. Returns an unsubscribe function. */
-	onAccentColorChanged: (callback: (color: string) => void) => () => void
+	onAccentColorChanged: (callback: (color: string) => void) => () => void;
 
 	// Directory picker
-	pickDirectory: () => Promise<string | null>
+	pickDirectory: () => Promise<string | null>;
 
 	sealos: {
-		preflight: (directory: string) => Promise<SealosPreflightResult>
-		deploy: (directory: string, args?: Record<string, string>) => Promise<SealosDeployResult>
-		startLogin: (region: string) => Promise<SealosLoginStartResult>
-		completeLogin: (sessionId: string) => Promise<SealosLoginResult>
-		listWorkspaces: () => Promise<SealosWorkspace[]>
-		switchWorkspace: (workspaceId: string) => Promise<SealosWorkspace>
-		readTemplateInputs: (directory: string) => Promise<SealosTemplateInput[]>
-		getDeploymentState: (directory: string) => Promise<SealosDeploymentState | null>
-		updateDeployment: (directory: string) => Promise<SealosUpdateResult>
-		getGitHubStatus: (directory: string) => Promise<GitHubBuildStatus>
-		getGitHubBuildResult: (directory: string) => Promise<GitHubBuildResult | null>
+		preflight: (directory: string) => Promise<SealosPreflightResult>;
+		deploy: (
+			directory: string,
+			args?: Record<string, string>,
+		) => Promise<SealosDeployResult>;
+		startLogin: (region: string) => Promise<SealosLoginStartResult>;
+		completeLogin: (sessionId: string) => Promise<SealosLoginResult>;
+		listWorkspaces: () => Promise<SealosWorkspace[]>;
+		switchWorkspace: (workspaceId: string) => Promise<SealosWorkspace>;
+		readTemplateInputs: (directory: string) => Promise<SealosTemplateInput[]>;
+		getDeploymentState: (
+			directory: string,
+		) => Promise<SealosDeploymentState | null>;
+		updateDeployment: (directory: string) => Promise<SealosUpdateResult>;
+		getGitHubStatus: (directory: string) => Promise<GitHubBuildStatus>;
+		getGitHubBuildResult: (
+			directory: string,
+		) => Promise<GitHubBuildResult | null>;
 		startGitHubLogin: () => Promise<{
-			sessionId: string
-			userCode: string | null
-			verificationUrl: string
-		}>
-		completeGitHubLogin: (sessionId: string) => Promise<{ login: string }>
-		prepareGitHubBuild: (directory: string) => Promise<{ path: string; changed: boolean }>
+			sessionId: string;
+			userCode: string | null;
+			verificationUrl: string;
+		}>;
+		completeGitHubLogin: (sessionId: string) => Promise<{ login: string }>;
+		prepareGitHubBuild: (
+			directory: string,
+		) => Promise<{ path: string; changed: boolean }>;
 		publishGitHubSource: (
 			directory: string,
-		) => Promise<{ repository: string; branch: string; commit: string }>
-		runGitHubBuild: (directory: string) => Promise<GitHubBuildResult>
-		onGitHubBuildProgress: (callback: (progress: GitHubBuildProgress) => void) => () => void
-		verifyRuntime: (directory: string, url: string) => Promise<SealosRuntimeResult>
-	}
+		) => Promise<{ repository: string; branch: string; commit: string }>;
+		runGitHubBuild: (directory: string) => Promise<GitHubBuildResult>;
+		onGitHubBuildProgress: (
+			callback: (progress: GitHubBuildProgress) => void,
+		) => () => void;
+		verifyRuntime: (
+			directory: string,
+			url: string,
+		) => Promise<SealosRuntimeResult>;
+	};
 
 	// Fetch proxy (bypasses Chromium connection limits)
 	fetch: (req: {
-		url: string
-		method: string
-		headers: Record<string, string>
-		body: string | null
+		url: string;
+		method: string;
+		headers: Record<string, string>;
+		body: string | null;
 	}) => Promise<{
-		status: number
-		statusText: string
-		headers: Record<string, string>
-		body: string | null
-	}>
+		status: number;
+		statusText: string;
+		headers: Record<string, string>;
+		body: string | null;
+	}>;
 
 	// Notifications
 	/** Subscribe to navigation events from native OS notification clicks. */
-	onNotificationNavigate: (callback: (data: { sessionId: string }) => void) => () => void
+	onNotificationNavigate: (
+		callback: (data: { sessionId: string }) => void,
+	) => () => void;
 	/** Dismiss any active notification for a session. */
-	dismissNotification: (sessionId: string) => Promise<void>
+	dismissNotification: (sessionId: string) => Promise<void>;
 	/** Update the dock badge / app badge count. */
-	updateBadgeCount: (count: number) => Promise<void>
+	updateBadgeCount: (count: number) => Promise<void>;
 
 	// Settings
 	/** Get the full app settings object. */
-	getSettings: () => Promise<AppSettings>
+	getSettings: () => Promise<AppSettings>;
 	/** Update settings with a partial object (deep-merged). Returns the updated settings. */
-	updateSettings: (partial: Record<string, unknown>) => Promise<AppSettings>
+	updateSettings: (partial: Record<string, unknown>) => Promise<AppSettings>;
 	/** Subscribe to settings changes pushed from the main process. */
-	onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void
+	onSettingsChanged: (callback: (settings: AppSettings) => void) => () => void;
 
 	// Onboarding
 	// Automations
 	automation: {
-		list: () => Promise<Automation[]>
-		get: (id: string) => Promise<Automation | null>
-		create: (input: CreateAutomationInput) => Promise<Automation>
-		update: (input: UpdateAutomationInput) => Promise<Automation | null>
-		delete: (id: string) => Promise<boolean>
-		runNow: (id: string) => Promise<boolean>
-		listRuns: (automationId?: string) => Promise<AutomationRun[]>
-		archiveRun: (runId: string) => Promise<boolean>
-		acceptRun: (runId: string) => Promise<boolean>
-		markRunRead: (runId: string) => Promise<boolean>
-		previewSchedule: (rrule: string, timezone: string) => Promise<string[]>
-	}
+		list: () => Promise<Automation[]>;
+		get: (id: string) => Promise<Automation | null>;
+		create: (input: CreateAutomationInput) => Promise<Automation>;
+		update: (input: UpdateAutomationInput) => Promise<Automation | null>;
+		delete: (id: string) => Promise<boolean>;
+		runNow: (id: string) => Promise<boolean>;
+		listRuns: (automationId?: string) => Promise<AutomationRun[]>;
+		archiveRun: (runId: string) => Promise<boolean>;
+		acceptRun: (runId: string) => Promise<boolean>;
+		markRunRead: (runId: string) => Promise<boolean>;
+		previewSchedule: (rrule: string, timezone: string) => Promise<string[]>;
+	};
 	/** Subscribe to automation run state changes. */
-	onAutomationRunsUpdated: (callback: () => void) => () => void
+	onAutomationRunsUpdated: (callback: () => void) => () => void;
 
 	onboarding: {
-		checkOpenCode: () => Promise<OpenCodeCheckResult>
-		installOpenCode: () => Promise<{ success: boolean; error?: string }>
-		onInstallOutput: (callback: (text: string) => void) => () => void
+		checkOpenCode: () => Promise<OpenCodeCheckResult>;
+		installOpenCode: () => Promise<{ success: boolean; error?: string }>;
+		onInstallOutput: (callback: (text: string) => void) => () => void;
 		/** Quick-detect all supported providers (Claude Code, Cursor, OpenCode). */
-		detectProviders: () => Promise<ProviderDetection[]>
+		detectProviders: () => Promise<ProviderDetection[]>;
 		/** Full scan of a specific provider's configuration. */
 		scanProvider: (
 			provider: MigrationProvider,
-		) => Promise<{ detection: ProviderDetection; scanResult: unknown }>
+		) => Promise<{ detection: ProviderDetection; scanResult: unknown }>;
 		/** Dry-run migration preview for a provider. */
 		previewMigration: (
 			provider: MigrationProvider,
 			scanResult: unknown,
 			categories: string[],
-		) => Promise<MigrationPreview>
+		) => Promise<MigrationPreview>;
 		/** Execute migration (writes files with backup). */
 		executeMigration: (
 			provider: MigrationProvider,
 			scanResult: unknown,
 			categories: string[],
-		) => Promise<MigrationResult>
+		) => Promise<MigrationResult>;
 		/** Subscribe to migration progress updates (history writing). */
-		onMigrationProgress: (callback: (progress: MigrationProgress) => void) => () => void
+		onMigrationProgress: (
+			callback: (progress: MigrationProgress) => void,
+		) => () => void;
 		/** Restore the most recent migration backup. */
 		restoreBackup: () => Promise<{
-			success: boolean
-			restored: string[]
-			removed: string[]
-			errors: string[]
-		}>
-	}
+			success: boolean;
+			restored: string[];
+			removed: string[];
+			errors: string[];
+		}>;
+	};
 }
 
 declare global {
 	interface Window {
-		palot: PalotAPI
+		palot: PalotAPI;
 	}
 }

@@ -11,40 +11,40 @@
  * - `getDiscoveredServers()` returns the current snapshot
  */
 
-import { BrowserWindow } from "electron"
-import { createLogger } from "./logger"
+import { BrowserWindow } from "electron";
+import { createLogger } from "./logger";
 
-const log = createLogger("mdns")
+const log = createLogger("mdns");
 
 /** Shape of a discovered mDNS service, sent to the renderer via IPC. */
 export interface DiscoveredMdnsServer {
 	/** Unique key derived from host:port. */
-	id: string
+	id: string;
 	/** Service name from mDNS (e.g. "opencode-4096"). */
-	name: string
+	name: string;
 	/** Resolved hostname or IP address. */
-	host: string
+	host: string;
 	/** Port the OpenCode server is listening on. */
-	port: number
+	port: number;
 	/** IP addresses reported by the service. */
-	addresses: string[]
+	addresses: string[];
 }
 
 /** Currently known services, keyed by id. */
-const discovered = new Map<string, DiscoveredMdnsServer>()
+const discovered = new Map<string, DiscoveredMdnsServer>();
 
 // Dynamic import handle for bonjour-service (avoids top-level require issues)
-let bonjourInstance: import("bonjour-service").Bonjour | undefined
-let browser: import("bonjour-service").Browser | undefined
+let bonjourInstance: import("bonjour-service").Bonjour | undefined;
+let browser: import("bonjour-service").Browser | undefined;
 
 function makeId(host: string, port: number): string {
-	return `mdns-${host}:${port}`
+	return `mdns-${host}:${port}`;
 }
 
 function broadcastToRenderers(): void {
-	const servers = Array.from(discovered.values())
+	const servers = Array.from(discovered.values());
 	for (const win of BrowserWindow.getAllWindows()) {
-		win.webContents.send("mdns:servers-changed", servers)
+		win.webContents.send("mdns:servers-changed", servers);
 	}
 }
 
@@ -53,21 +53,21 @@ function broadcastToRenderers(): void {
  * Safe to call multiple times; subsequent calls are no-ops.
  */
 export async function startMdnsScanner(): Promise<void> {
-	if (bonjourInstance) return
+	if (bonjourInstance) return;
 
 	try {
-		const { Bonjour } = await import("bonjour-service")
-		bonjourInstance = new Bonjour()
+		const { Bonjour } = await import("bonjour-service");
+		bonjourInstance = new Bonjour();
 
 		browser = bonjourInstance.find({ type: "http" }, (service) => {
 			// Only interested in opencode services (published as "opencode-{port}")
-			if (!service.name.startsWith("opencode-")) return
+			if (!service.name.startsWith("opencode-")) return;
 
-			const host = service.host || "opencode.local"
-			const port = service.port
-			const id = makeId(host, port)
+			const host = service.host || "opencode.local";
+			const port = service.port;
+			const id = makeId(host, port);
 
-			if (discovered.has(id)) return
+			if (discovered.has(id)) return;
 
 			const entry: DiscoveredMdnsServer = {
 				id,
@@ -75,29 +75,40 @@ export async function startMdnsScanner(): Promise<void> {
 				host,
 				port,
 				addresses: service.addresses ?? [],
-			}
+			};
 
-			discovered.set(id, entry)
-			log.info("Discovered OpenCode server", { name: service.name, host, port })
-			broadcastToRenderers()
-		})
+			discovered.set(id, entry);
+			log.info("Discovered OpenCode server", {
+				name: service.name,
+				host,
+				port,
+			});
+			broadcastToRenderers();
+		});
 
 		// Also listen for service removals (goodbye packets)
-		browser.on("down" as string, (service: { name: string; host: string; port: number }) => {
-			if (!service.name.startsWith("opencode-")) return
-			const host = service.host || "opencode.local"
-			const id = makeId(host, service.port)
-			if (discovered.delete(id)) {
-				log.info("OpenCode server went away", { name: service.name, host, port: service.port })
-				broadcastToRenderers()
-			}
-		})
+		browser.on(
+			"down" as string,
+			(service: { name: string; host: string; port: number }) => {
+				if (!service.name.startsWith("opencode-")) return;
+				const host = service.host || "opencode.local";
+				const id = makeId(host, service.port);
+				if (discovered.delete(id)) {
+					log.info("OpenCode server went away", {
+						name: service.name,
+						host,
+						port: service.port,
+					});
+					broadcastToRenderers();
+				}
+			},
+		);
 
-		log.info("mDNS scanner started")
+		log.info("mDNS scanner started");
 	} catch (err) {
-		log.error("Failed to start mDNS scanner", err)
-		bonjourInstance = undefined
-		browser = undefined
+		log.error("Failed to start mDNS scanner", err);
+		bonjourInstance = undefined;
+		browser = undefined;
 	}
 }
 
@@ -107,29 +118,29 @@ export async function startMdnsScanner(): Promise<void> {
 export function stopMdnsScanner(): void {
 	if (browser) {
 		try {
-			browser.stop()
+			browser.stop();
 		} catch {
 			// Ignore cleanup errors
 		}
-		browser = undefined
+		browser = undefined;
 	}
 
 	if (bonjourInstance) {
 		try {
-			bonjourInstance.destroy()
+			bonjourInstance.destroy();
 		} catch {
 			// Ignore cleanup errors
 		}
-		bonjourInstance = undefined
+		bonjourInstance = undefined;
 	}
 
-	discovered.clear()
-	log.info("mDNS scanner stopped")
+	discovered.clear();
+	log.info("mDNS scanner stopped");
 }
 
 /**
  * Returns a snapshot of currently discovered servers.
  */
 export function getDiscoveredServers(): DiscoveredMdnsServer[] {
-	return Array.from(discovered.values())
+	return Array.from(discovered.values());
 }

@@ -10,10 +10,14 @@
  * 6. Stable memoized objects prevent @pierre/diffs re-parsing unchanged content
  * 7. Only the active theme (light/dark) is rendered, not both
  */
-import { cn } from "@palot/ui/lib/utils"
-import { MultiFileDiff, useWorkerPool, WorkerPoolContextProvider } from "@pierre/diffs/react"
-import { useVirtualizer } from "@tanstack/react-virtual"
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { cn } from "@palot/ui/lib/utils";
+import {
+	MultiFileDiff,
+	useWorkerPool,
+	WorkerPoolContextProvider,
+} from "@pierre/diffs/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertTriangleIcon,
 	ChevronDownIcon,
@@ -29,7 +33,7 @@ import {
 	PlusIcon,
 	RowsIcon,
 	XIcon,
-} from "lucide-react"
+} from "lucide-react";
 import {
 	memo,
 	type ReactNode,
@@ -39,16 +43,21 @@ import {
 	useMemo,
 	useRef,
 	useState,
-} from "react"
+} from "react";
+import { useTranslation } from "react-i18next";
 import {
 	type DiffStyle,
 	reviewPanelOpenAtom,
 	reviewPanelSelectedFileAtom,
 	reviewPanelSettingsAtom,
-} from "../../atoms/ui"
-import { useSessionDiff } from "../../hooks/use-session-diff"
-import type { FileDiff } from "../../lib/types"
-import { DiffCommentButton, ReviewPanelComments, useDiffComments } from "./review-comments"
+} from "../../atoms/ui";
+import { useSessionDiff } from "../../hooks/use-session-diff";
+import type { FileDiff } from "../../lib/types";
+import {
+	DiffCommentButton,
+	ReviewPanelComments,
+	useDiffComments,
+} from "./review-comments";
 
 // ============================================================
 // Constants
@@ -59,13 +68,13 @@ import { DiffCommentButton, ReviewPanelComments, useDiffComments } from "./revie
  * collapsed (header-only) to avoid mounting dozens of expensive
  * syntax-highlighted views on initial render.
  */
-const AUTO_COLLAPSE_THRESHOLD = 12
+const AUTO_COLLAPSE_THRESHOLD = 12;
 
 /** Max total lines changed before a diff shows a "Load diff" gate. */
-const LARGE_DIFF_LINE_THRESHOLD = 1500
+const LARGE_DIFF_LINE_THRESHOLD = 1500;
 
 /** Estimated height (px) of a collapsed diff section (header only). */
-const COLLAPSED_ROW_HEIGHT = 32
+const COLLAPSED_ROW_HEIGHT = 32;
 
 // ============================================================
 // Generated / vendor file detection
@@ -100,14 +109,14 @@ const GENERATED_FILE_PATTERNS: RegExp[] = [
 	/(?:^|\/)\.generated\./,
 	/\.g\.(ts|js)$/,
 	/\.gen\.(ts|js)$/,
-]
+];
 
 function isGeneratedFile(filePath: string): boolean {
-	return GENERATED_FILE_PATTERNS.some((p) => p.test(filePath))
+	return GENERATED_FILE_PATTERNS.some((p) => p.test(filePath));
 }
 
 function isLargeDiff(diff: FileDiff): boolean {
-	return diff.additions + diff.deletions > LARGE_DIFF_LINE_THRESHOLD
+	return diff.additions + diff.deletions > LARGE_DIFF_LINE_THRESHOLD;
 }
 
 // ============================================================
@@ -119,16 +128,19 @@ function isLargeDiff(diff: FileDiff): boolean {
  * Uses Vite's `?worker` import pattern for correct bundling.
  */
 function workerFactory(): Worker {
-	return new Worker(new URL("@pierre/diffs/worker/worker.js", import.meta.url), {
-		type: "module",
-	})
+	return new Worker(
+		new URL("@pierre/diffs/worker/worker.js", import.meta.url),
+		{
+			type: "module",
+		},
+	);
 }
 
 /** Stable pool options object (never changes, avoids provider re-renders). */
 const WORKER_POOL_OPTIONS = {
 	workerFactory,
 	poolSize: 4,
-} as const
+} as const;
 
 // ============================================================
 // Theme detection (render only one theme, not both)
@@ -139,21 +151,21 @@ function useIsDarkMode(): boolean {
 		() =>
 			document.documentElement.classList.contains("dark") ||
 			document.documentElement.dataset.theme === "dark",
-	)
+	);
 	useEffect(() => {
 		const observer = new MutationObserver(() => {
 			setDark(
 				document.documentElement.classList.contains("dark") ||
 					document.documentElement.dataset.theme === "dark",
-			)
-		})
+			);
+		});
 		observer.observe(document.documentElement, {
 			attributes: true,
 			attributeFilter: ["class", "data-theme"],
-		})
-		return () => observer.disconnect()
-	}, [])
-	return dark
+		});
+		return () => observer.disconnect();
+	}, []);
+	return dark;
 }
 
 // ============================================================
@@ -161,9 +173,9 @@ function useIsDarkMode(): boolean {
 // ============================================================
 
 interface ReviewPanelProps {
-	sessionId: string
-	directory: string
-	className?: string
+	sessionId: string;
+	directory: string;
+	className?: string;
 }
 
 export const ReviewPanel = memo(function ReviewPanel({
@@ -171,17 +183,19 @@ export const ReviewPanel = memo(function ReviewPanel({
 	directory,
 	className,
 }: ReviewPanelProps) {
-	const { diffs, stats, loading } = useSessionDiff(sessionId, directory)
-	const [settings, setSettings] = useAtom(reviewPanelSettingsAtom)
-	const setOpen = useAtom(reviewPanelOpenAtom)[1]
-	const [selectedFile, setSelectedFile] = useState<string | null>(null)
-	const { comments, addComment, removeComment, clearComments } = useDiffComments(sessionId)
+	const { t } = useTranslation();
+	const { diffs, stats, loading } = useSessionDiff(sessionId, directory);
+	const [settings, setSettings] = useAtom(reviewPanelSettingsAtom);
+	const setOpen = useAtom(reviewPanelOpenAtom)[1];
+	const [selectedFile, setSelectedFile] = useState<string | null>(null);
+	const { comments, addComment, removeComment, clearComments } =
+		useDiffComments(sessionId);
 
 	// --- External file selection (e.g. "View diff" button in tool cards) ---
-	const externalFile = useAtomValue(reviewPanelSelectedFileAtom)
-	const clearExternalFile = useSetAtom(reviewPanelSelectedFileAtom)
+	const externalFile = useAtomValue(reviewPanelSelectedFileAtom);
+	const clearExternalFile = useSetAtom(reviewPanelSelectedFileAtom);
 	useEffect(() => {
-		if (!externalFile || diffs.length === 0) return
+		if (!externalFile || diffs.length === 0) return;
 		// The tool card sends an absolute path; diff entries use relative paths.
 		// Match by suffix: find the diff whose relative path is a suffix of the
 		// absolute path (or vice versa).
@@ -190,32 +204,32 @@ export const ReviewPanel = memo(function ReviewPanel({
 				d.file === externalFile ||
 				externalFile.endsWith(`/${d.file}`) ||
 				d.file.endsWith(`/${externalFile}`),
-		)
+		);
 		if (match) {
-			setSelectedFile(match.file)
-			setUserToggles((prev) => ({ ...prev, [match.file]: true }))
+			setSelectedFile(match.file);
+			setUserToggles((prev) => ({ ...prev, [match.file]: true }));
 		}
-		clearExternalFile(null)
-	}, [externalFile, clearExternalFile, diffs])
+		clearExternalFile(null);
+	}, [externalFile, clearExternalFile, diffs]);
 
 	// --- Collapse state management ---
 	// Track which files the user has explicitly toggled (overrides auto-collapse).
 	// Key = file path, value = true (expanded) | false (collapsed).
-	const [userToggles, setUserToggles] = useState<Record<string, boolean>>({})
+	const [userToggles, setUserToggles] = useState<Record<string, boolean>>({});
 
-	const manyFiles = diffs.length > AUTO_COLLAPSE_THRESHOLD
+	const manyFiles = diffs.length > AUTO_COLLAPSE_THRESHOLD;
 
 	const getIsCollapsed = useCallback(
 		(diff: FileDiff): boolean => {
 			// User override takes priority
-			if (diff.file in userToggles) return !userToggles[diff.file]
+			if (diff.file in userToggles) return !userToggles[diff.file];
 			// Auto-collapse rules
-			if (manyFiles) return true
-			if (isGeneratedFile(diff.file)) return true
-			return false
+			if (manyFiles) return true;
+			if (isGeneratedFile(diff.file)) return true;
+			return false;
 		},
 		[userToggles, manyFiles],
-	)
+	);
 
 	const toggleFile = useCallback(
 		(file: string) => {
@@ -225,62 +239,70 @@ export const ReviewPanel = memo(function ReviewPanel({
 					file in prev
 						? prev[file]
 						: // Default: expanded unless auto-collapse rules apply
-							!(manyFiles || isGeneratedFile(file))
-				return { ...prev, [file]: !wasExpanded }
-			})
+							!(manyFiles || isGeneratedFile(file));
+				return { ...prev, [file]: !wasExpanded };
+			});
 		},
 		[manyFiles],
-	)
+	);
 
 	const collapseAll = useCallback(() => {
-		const next: Record<string, boolean> = {}
-		for (const d of diffs) next[d.file] = false
-		setUserToggles(next)
-	}, [diffs])
+		const next: Record<string, boolean> = {};
+		for (const d of diffs) next[d.file] = false;
+		setUserToggles(next);
+	}, [diffs]);
 
 	const expandAll = useCallback(() => {
-		const next: Record<string, boolean> = {}
-		for (const d of diffs) next[d.file] = true
-		setUserToggles(next)
-	}, [diffs])
+		const next: Record<string, boolean> = {};
+		for (const d of diffs) next[d.file] = true;
+		setUserToggles(next);
+	}, [diffs]);
 
 	// Reset user toggles when session changes
-	const prevSessionRef = useRef(sessionId)
+	const prevSessionRef = useRef(sessionId);
 	useEffect(() => {
 		if (prevSessionRef.current !== sessionId) {
-			prevSessionRef.current = sessionId
-			setUserToggles({})
+			prevSessionRef.current = sessionId;
+			setUserToggles({});
 		}
-	}, [sessionId])
+	}, [sessionId]);
 
 	// --- Handlers ---
-	const handleClose = useCallback(() => setOpen(false), [setOpen])
+	const handleClose = useCallback(() => setOpen(false), [setOpen]);
 	const handleToggleExpanded = useCallback(
 		() => setSettings((prev) => ({ ...prev, expanded: !prev.expanded })),
 		[setSettings],
-	)
+	);
 	const handleSetDiffStyle = useCallback(
-		(style: DiffStyle) => setSettings((prev) => ({ ...prev, diffStyle: style })),
+		(style: DiffStyle) =>
+			setSettings((prev) => ({ ...prev, diffStyle: style })),
 		[setSettings],
-	)
+	);
 
 	// Apply file selection filter
 	const displayedDiffs = useMemo(() => {
-		if (!selectedFile) return diffs
-		return diffs.filter((d) => d.file === selectedFile)
-	}, [diffs, selectedFile])
+		if (!selectedFile) return diffs;
+		return diffs.filter((d) => d.file === selectedFile);
+	}, [diffs, selectedFile]);
 
 	// Count how many are currently expanded (for the toggle icon)
 	const expandedCount = useMemo(() => {
-		return displayedDiffs.filter((d) => !getIsCollapsed(d)).length
-	}, [displayedDiffs, getIsCollapsed])
+		return displayedDiffs.filter((d) => !getIsCollapsed(d)).length;
+	}, [displayedDiffs, getIsCollapsed]);
 
 	return (
-		<div className={cn("flex h-full flex-col overflow-hidden bg-background", className)}>
+		<div
+			className={cn(
+				"flex h-full flex-col overflow-hidden bg-background",
+				className,
+			)}
+		>
 			{/* Panel header */}
 			<div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
 				<div className="flex items-center gap-2">
-					<h3 className="text-xs font-semibold text-foreground">Changes</h3>
+					<h3 className="text-xs font-semibold text-foreground">
+						{t("review.changes")}
+					</h3>
 					{stats.fileCount > 0 && (
 						<span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
 							<span className="flex items-center gap-0.5 text-green-500">
@@ -301,7 +323,11 @@ export const ReviewPanel = memo(function ReviewPanel({
 							type="button"
 							onClick={expandedCount > 0 ? collapseAll : expandAll}
 							className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-							title={expandedCount > 0 ? "Collapse all" : "Expand all"}
+							title={
+								expandedCount > 0
+									? t("review.collapseAll")
+									: t("review.expandAll")
+							}
 						>
 							{expandedCount > 0 ? (
 								<ChevronsDownUpIcon className="size-3.5" />
@@ -314,11 +340,15 @@ export const ReviewPanel = memo(function ReviewPanel({
 					<button
 						type="button"
 						onClick={() =>
-							handleSetDiffStyle(settings.diffStyle === "unified" ? "split" : "unified")
+							handleSetDiffStyle(
+								settings.diffStyle === "unified" ? "split" : "unified",
+							)
 						}
 						className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 						title={
-							settings.diffStyle === "unified" ? "Switch to split view" : "Switch to unified view"
+							settings.diffStyle === "unified"
+								? t("review.splitView")
+								: t("review.unifiedView")
 						}
 					>
 						{settings.diffStyle === "unified" ? (
@@ -332,7 +362,11 @@ export const ReviewPanel = memo(function ReviewPanel({
 						type="button"
 						onClick={handleToggleExpanded}
 						className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-						title={settings.expanded ? "Restore panel size" : "Expand to full width"}
+						title={
+							settings.expanded
+								? t("review.restorePanel")
+								: t("review.expandPanel")
+						}
 					>
 						{settings.expanded ? (
 							<MinimizeIcon className="size-3.5" />
@@ -354,13 +388,21 @@ export const ReviewPanel = memo(function ReviewPanel({
 			{/* File list */}
 			{diffs.length > 0 && (
 				<div className="shrink-0 border-b border-border">
-					<FileList diffs={diffs} selectedFile={selectedFile} onSelectFile={setSelectedFile} />
+					<FileList
+						diffs={diffs}
+						selectedFile={selectedFile}
+						onSelectFile={setSelectedFile}
+					/>
 				</div>
 			)}
 
 			{/* Comment pills */}
 			{comments.length > 0 && (
-				<ReviewPanelComments comments={comments} onRemove={removeComment} onClear={clearComments} />
+				<ReviewPanelComments
+					comments={comments}
+					onRemove={removeComment}
+					onClear={clearComments}
+				/>
 			)}
 
 			{/* Diff content -- virtualized */}
@@ -368,7 +410,9 @@ export const ReviewPanel = memo(function ReviewPanel({
 				{loading ? (
 					<div className="flex items-center justify-center py-12">
 						<Loader2Icon className="size-5 animate-spin text-muted-foreground" />
-						<span className="ml-2 text-sm text-muted-foreground">Loading changes...</span>
+						<span className="ml-2 text-sm text-muted-foreground">
+							{t("review.loading")}
+						</span>
 					</div>
 				) : diffs.length === 0 ? (
 					<EmptyState />
@@ -383,24 +427,24 @@ export const ReviewPanel = memo(function ReviewPanel({
 				)}
 			</div>
 		</div>
-	)
-})
+	);
+});
 
 // ============================================================
 // Virtualized diff list using TanStack Virtual
 // ============================================================
 
 interface VirtualizedDiffListProps {
-	diffs: FileDiff[]
-	diffStyle: DiffStyle
-	getIsCollapsed: (diff: FileDiff) => boolean
-	onToggle: (file: string) => void
+	diffs: FileDiff[];
+	diffStyle: DiffStyle;
+	getIsCollapsed: (diff: FileDiff) => boolean;
+	onToggle: (file: string) => void;
 	onAddComment: (comment: {
-		filePath: string
-		lineNumber: number
-		side: "additions" | "deletions"
-		content: string
-	}) => void
+		filePath: string;
+		lineNumber: number;
+		side: "additions" | "deletions";
+		content: string;
+	}) => void;
 }
 
 const VirtualizedDiffList = memo(function VirtualizedDiffList({
@@ -410,12 +454,12 @@ const VirtualizedDiffList = memo(function VirtualizedDiffList({
 	onToggle,
 	onAddComment,
 }: VirtualizedDiffListProps) {
-	const scrollRef = useRef<HTMLDivElement>(null)
-	const isDark = useIsDarkMode()
-	const [pinnedDiff, setPinnedDiff] = useState<FileDiff | null>(null)
-	const pinnedFileRef = useRef<string | null>(null)
+	const scrollRef = useRef<HTMLDivElement>(null);
+	const isDark = useIsDarkMode();
+	const [pinnedDiff, setPinnedDiff] = useState<FileDiff | null>(null);
+	const pinnedFileRef = useRef<string | null>(null);
 
-	const theme = isDark ? ("one-dark-pro" as const) : ("one-light" as const)
+	const theme = isDark ? ("one-dark-pro" as const) : ("one-light" as const);
 
 	// Stable highlighter options for the worker pool (theme + lineDiffType).
 	// When using the worker pool, these are controlled by the pool, not per-component.
@@ -425,74 +469,74 @@ const VirtualizedDiffList = memo(function VirtualizedDiffList({
 			lineDiffType: "word" as const,
 		}),
 		[theme],
-	)
+	);
 
 	const virtualizer = useVirtualizer({
 		count: diffs.length,
 		getScrollElement: () => scrollRef.current,
 		estimateSize: (index) => {
-			const diff = diffs[index]
-			if (getIsCollapsed(diff)) return COLLAPSED_ROW_HEIGHT
-			if (isLargeDiff(diff)) return COLLAPSED_ROW_HEIGHT + 80 // header + placeholder
+			const diff = diffs[index];
+			if (getIsCollapsed(diff)) return COLLAPSED_ROW_HEIGHT;
+			if (isLargeDiff(diff)) return COLLAPSED_ROW_HEIGHT + 80; // header + placeholder
 			// Rough estimate based on line count (collapsed unchanged hunks help)
-			const lines = Math.min(diff.additions + diff.deletions, 200)
-			return COLLAPSED_ROW_HEIGHT + lines * 20
+			const lines = Math.min(diff.additions + diff.deletions, 200);
+			return COLLAPSED_ROW_HEIGHT + lines * 20;
 		},
 		overscan: 3,
-	})
+	});
 
 	// --- Pinned header: detect which expanded file's header has scrolled past ---
 	useEffect(() => {
-		const el = scrollRef.current
-		if (!el) return
-		let rafId: number | null = null
+		const el = scrollRef.current;
+		if (!el) return;
+		let rafId: number | null = null;
 
 		const onScroll = () => {
-			if (rafId !== null) return
+			if (rafId !== null) return;
 			rafId = requestAnimationFrame(() => {
-				rafId = null
-				const scrollTop = el.scrollTop
+				rafId = null;
+				const scrollTop = el.scrollTop;
 				// Near the top -- nothing to pin
 				if (scrollTop < COLLAPSED_ROW_HEIGHT) {
 					if (pinnedFileRef.current !== null) {
-						pinnedFileRef.current = null
-						setPinnedDiff(null)
+						pinnedFileRef.current = null;
+						setPinnedDiff(null);
 					}
-					return
+					return;
 				}
 				// Find the expanded file whose header has fully scrolled out of view
 				// but whose body still extends below the viewport top
-				let found: FileDiff | null = null
+				let found: FileDiff | null = null;
 				for (const item of virtualizer.getVirtualItems()) {
-					const diff = diffs[item.index]
-					if (getIsCollapsed(diff)) continue
-					const headerBottom = item.start + COLLAPSED_ROW_HEIGHT
+					const diff = diffs[item.index];
+					if (getIsCollapsed(diff)) continue;
+					const headerBottom = item.start + COLLAPSED_ROW_HEIGHT;
 					if (
 						headerBottom <= scrollTop &&
 						item.start + item.size > scrollTop + COLLAPSED_ROW_HEIGHT
 					) {
-						found = diff
-						break
+						found = diff;
+						break;
 					}
 				}
-				const foundFile = found?.file ?? null
+				const foundFile = found?.file ?? null;
 				if (pinnedFileRef.current !== foundFile) {
-					pinnedFileRef.current = foundFile
-					setPinnedDiff(found)
+					pinnedFileRef.current = foundFile;
+					setPinnedDiff(found);
 				}
-			})
-		}
+			});
+		};
 
-		el.addEventListener("scroll", onScroll, { passive: true })
+		el.addEventListener("scroll", onScroll, { passive: true });
 		return () => {
-			el.removeEventListener("scroll", onScroll)
-			if (rafId !== null) cancelAnimationFrame(rafId)
-		}
-	}, [diffs, getIsCollapsed]) // virtualizer accessed via closure, always current
+			el.removeEventListener("scroll", onScroll);
+			if (rafId !== null) cancelAnimationFrame(rafId);
+		};
+	}, [diffs, getIsCollapsed]); // virtualizer accessed via closure, always current
 
 	const handlePinnedToggle = useCallback(() => {
-		if (pinnedDiff) onToggle(pinnedDiff.file)
-	}, [pinnedDiff, onToggle])
+		if (pinnedDiff) onToggle(pinnedDiff.file);
+	}, [pinnedDiff, onToggle]);
 
 	return (
 		<WorkerPoolContextProvider
@@ -527,8 +571,8 @@ const VirtualizedDiffList = memo(function VirtualizedDiffList({
 						}}
 					>
 						{virtualizer.getVirtualItems().map((virtualRow) => {
-							const diff = diffs[virtualRow.index]
-							const collapsed = getIsCollapsed(diff)
+							const diff = diffs[virtualRow.index];
+							const collapsed = getIsCollapsed(diff);
 							return (
 								<div
 									key={diff.file}
@@ -550,14 +594,14 @@ const VirtualizedDiffList = memo(function VirtualizedDiffList({
 										onAddComment={onAddComment}
 									/>
 								</div>
-							)
+							);
 						})}
 					</div>
 				</div>
 			</div>
 		</WorkerPoolContextProvider>
-	)
-})
+	);
+});
 
 // ============================================================
 // Worker pool theme syncer
@@ -568,19 +612,19 @@ const VirtualizedDiffList = memo(function VirtualizedDiffList({
  * Lives inside WorkerPoolContextProvider so it can call useWorkerPool().
  */
 function DiffThemeSyncer() {
-	const pool = useWorkerPool()
-	const isDark = useIsDarkMode()
-	const prevThemeRef = useRef<string | null>(null)
+	const pool = useWorkerPool();
+	const isDark = useIsDarkMode();
+	const prevThemeRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!pool) return
-		const theme = isDark ? "one-dark-pro" : "one-light"
-		if (prevThemeRef.current === theme) return
-		prevThemeRef.current = theme
-		pool.setRenderOptions({ theme })
-	}, [pool, isDark])
+		if (!pool) return;
+		const theme = isDark ? "one-dark-pro" : "one-light";
+		if (prevThemeRef.current === theme) return;
+		prevThemeRef.current = theme;
+		pool.setRenderOptions({ theme });
+	}, [pool, isDark]);
 
-	return null
+	return null;
 }
 
 // ============================================================
@@ -592,10 +636,11 @@ const FileList = memo(function FileList({
 	selectedFile,
 	onSelectFile,
 }: {
-	diffs: FileDiff[]
-	selectedFile: string | null
-	onSelectFile: (file: string | null) => void
+	diffs: FileDiff[];
+	selectedFile: string | null;
+	onSelectFile: (file: string | null) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="max-h-32 overflow-auto px-1 py-1">
 			<button
@@ -608,8 +653,10 @@ const FileList = memo(function FileList({
 						: "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
 				)}
 			>
-				<span className="font-medium">All files</span>
-				<span className="ml-auto text-[10px] text-muted-foreground/70">{diffs.length}</span>
+				<span className="font-medium">{t("review.allFiles")}</span>
+				<span className="ml-auto text-[10px] text-muted-foreground/70">
+					{diffs.length}
+				</span>
 			</button>
 			{diffs.map((diff) => (
 				<FileListItem
@@ -624,8 +671,8 @@ const FileList = memo(function FileList({
 				/>
 			))}
 		</div>
-	)
-})
+	);
+});
 
 const FileListItem = memo(function FileListItem({
 	file,
@@ -636,18 +683,18 @@ const FileListItem = memo(function FileListItem({
 	isGenerated,
 	onSelect,
 }: {
-	file: string
-	additions: number
-	deletions: number
-	isSelected: boolean
-	isLarge: boolean
-	isGenerated: boolean
-	onSelect: (file: string | null) => void
+	file: string;
+	additions: number;
+	deletions: number;
+	isSelected: boolean;
+	isLarge: boolean;
+	isGenerated: boolean;
+	onSelect: (file: string | null) => void;
 }) {
 	const handleClick = useCallback(
 		() => onSelect(isSelected ? null : file),
 		[file, isSelected, onSelect],
-	)
+	);
 	return (
 		<button
 			type="button"
@@ -662,7 +709,12 @@ const FileListItem = memo(function FileListItem({
 			)}
 		>
 			<FileIcon className="size-3 shrink-0" aria-hidden="true" />
-			<span className={cn("min-w-0 flex-1 truncate font-mono", isGenerated && "italic")}>
+			<span
+				className={cn(
+					"min-w-0 flex-1 truncate font-mono",
+					isGenerated && "italic",
+				)}
+			>
 				{file}
 			</span>
 			<span className="flex shrink-0 items-center gap-1.5 text-[10px]">
@@ -673,31 +725,34 @@ const FileListItem = memo(function FileListItem({
 				)}
 				{isLarge && (
 					<span title="Large diff">
-						<AlertTriangleIcon className="size-3 text-amber-500" aria-hidden="true" />
+						<AlertTriangleIcon
+							className="size-3 text-amber-500"
+							aria-hidden="true"
+						/>
 					</span>
 				)}
 				{additions > 0 && <span className="text-green-500">+{additions}</span>}
 				{deletions > 0 && <span className="text-red-500">-{deletions}</span>}
 			</span>
 		</button>
-	)
-})
+	);
+});
 
 // ============================================================
 // Per-file diff section
 // ============================================================
 
 interface FileDiffSectionProps {
-	diff: FileDiff
-	diffStyle: DiffStyle
-	collapsed: boolean
-	onToggle: (file: string) => void
+	diff: FileDiff;
+	diffStyle: DiffStyle;
+	collapsed: boolean;
+	onToggle: (file: string) => void;
 	onAddComment: (comment: {
-		filePath: string
-		lineNumber: number
-		side: "additions" | "deletions"
-		content: string
-	}) => void
+		filePath: string;
+		lineNumber: number;
+		side: "additions" | "deletions";
+		content: string;
+	}) => void;
 }
 
 const FileDiffSection = memo(function FileDiffSection({
@@ -707,9 +762,9 @@ const FileDiffSection = memo(function FileDiffSection({
 	onToggle,
 	onAddComment,
 }: FileDiffSectionProps) {
-	const generated = isGeneratedFile(diff.file)
-	const large = isLargeDiff(diff)
-	const [loadLargeDiff, setLoadLargeDiff] = useState(!large)
+	const generated = isGeneratedFile(diff.file);
+	const large = isLargeDiff(diff);
+	const [loadLargeDiff, setLoadLargeDiff] = useState(!large);
 
 	// Per-component options (only non-pool-controlled settings).
 	// theme and lineDiffType are managed by the WorkerPoolManager.
@@ -720,19 +775,23 @@ const FileDiffSection = memo(function FileDiffSection({
 			expandUnchanged: false,
 		}),
 		[diffStyle],
-	)
+	);
 
 	const oldFile = useMemo(
 		() => ({ name: diff.file, contents: diff.before }),
 		[diff.file, diff.before],
-	)
+	);
 	const newFile = useMemo(
 		() => ({ name: diff.file, contents: diff.after }),
 		[diff.file, diff.after],
-	)
+	);
 
 	const renderHoverUtility = useCallback(
-		(getHoveredLine: () => { lineNumber: number; side: "additions" | "deletions" } | undefined) => (
+		(
+			getHoveredLine: () =>
+				| { lineNumber: number; side: "additions" | "deletions" }
+				| undefined,
+		) => (
 			<DiffCommentButton
 				filePath={diff.file}
 				getHoveredLine={getHoveredLine}
@@ -740,15 +799,18 @@ const FileDiffSection = memo(function FileDiffSection({
 			/>
 		),
 		[diff.file, onAddComment],
-	)
+	);
 
-	const handleToggle = useCallback(() => onToggle(diff.file), [diff.file, onToggle])
+	const handleToggle = useCallback(
+		() => onToggle(diff.file),
+		[diff.file, onToggle],
+	);
 	const handleLoadLarge = useCallback(() => {
-		startTransition(() => setLoadLargeDiff(true))
-	}, [])
+		startTransition(() => setLoadLargeDiff(true));
+	}, []);
 
 	// Determine what body content to show
-	let body: ReactNode = null
+	let body: ReactNode = null;
 	if (!collapsed) {
 		if (!loadLargeDiff) {
 			body = (
@@ -757,7 +819,7 @@ const FileDiffSection = memo(function FileDiffSection({
 					deletions={diff.deletions}
 					onLoad={handleLoadLarge}
 				/>
-			)
+			);
 		} else {
 			// Worker pool renders plain text synchronously, then streams in
 			// syntax highlighting from the background -- no manual queue needed.
@@ -770,7 +832,7 @@ const FileDiffSection = memo(function FileDiffSection({
 						renderHoverUtility={renderHoverUtility}
 					/>
 				</div>
-			)
+			);
 		}
 	}
 
@@ -788,8 +850,8 @@ const FileDiffSection = memo(function FileDiffSection({
 			/>
 			{body}
 		</div>
-	)
-})
+	);
+});
 
 // ============================================================
 // Large diff placeholder
@@ -800,26 +862,29 @@ function LargeDiffPlaceholder({
 	deletions,
 	onLoad,
 }: {
-	additions: number
-	deletions: number
-	onLoad: () => void
+	additions: number;
+	deletions: number;
+	onLoad: () => void;
 }) {
-	const totalLines = additions + deletions
+	const { t } = useTranslation();
+	const totalLines = additions + deletions;
 	return (
 		<div className="flex flex-col items-center justify-center gap-2 bg-muted/10 px-4 py-6">
 			<div className="flex items-center gap-1.5 text-xs text-amber-500">
 				<AlertTriangleIcon className="size-3.5" />
-				<span>Large diff ({totalLines.toLocaleString()} lines changed) not shown</span>
+				<span>
+					{t("review.largeDiff", { lines: totalLines.toLocaleString() })}
+				</span>
 			</div>
 			<button
 				type="button"
 				onClick={onLoad}
 				className="rounded-md border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:bg-muted"
 			>
-				Load diff
+				{t("review.loadDiff")}
 			</button>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -837,15 +902,15 @@ const FileDiffHeader = memo(function FileDiffHeader({
 	isGenerated,
 	loading,
 }: {
-	file: string
-	additions: number
-	deletions: number
-	status?: "added" | "deleted" | "modified"
-	collapsed: boolean
-	onToggle: () => void
-	isLarge?: boolean
-	isGenerated?: boolean
-	loading?: boolean
+	file: string;
+	additions: number;
+	deletions: number;
+	status?: "added" | "deleted" | "modified";
+	collapsed: boolean;
+	onToggle: () => void;
+	isLarge?: boolean;
+	isGenerated?: boolean;
+	loading?: boolean;
 }) {
 	return (
 		<button
@@ -890,8 +955,8 @@ const FileDiffHeader = memo(function FileDiffHeader({
 				{status && <StatusBadge status={status} />}
 			</span>
 		</button>
-	)
-})
+	);
+});
 
 // ============================================================
 // Status badge
@@ -901,10 +966,10 @@ const STATUS_CONFIG = {
 	added: { label: "A", className: "bg-green-500/15 text-green-500" },
 	deleted: { label: "D", className: "bg-red-500/15 text-red-500" },
 	modified: { label: "M", className: "bg-blue-500/15 text-blue-500" },
-} as const
+} as const;
 
 function StatusBadge({ status }: { status: "added" | "deleted" | "modified" }) {
-	const c = STATUS_CONFIG[status]
+	const c = STATUS_CONFIG[status];
 	return (
 		<span
 			className={cn(
@@ -914,7 +979,7 @@ function StatusBadge({ status }: { status: "added" | "deleted" | "modified" }) {
 		>
 			{c.label}
 		</span>
-	)
+	);
 }
 
 // ============================================================
@@ -922,17 +987,20 @@ function StatusBadge({ status }: { status: "added" | "deleted" | "modified" }) {
 // ============================================================
 
 function EmptyState() {
+	const { t } = useTranslation();
 	return (
 		<div className="flex flex-col items-center justify-center gap-3 py-16">
 			<div className="flex size-10 items-center justify-center rounded-lg border border-border/50 bg-muted/30">
 				<FileIcon className="size-4 text-muted-foreground" />
 			</div>
 			<div className="text-center">
-				<p className="text-sm font-medium text-foreground">No changes yet</p>
+				<p className="text-sm font-medium text-foreground">
+					{t("review.noChangesYet")}
+				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
 					File changes will appear here as the agent works
 				</p>
 			</div>
 		</div>
-	)
+	);
 }

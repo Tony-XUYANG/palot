@@ -1,14 +1,21 @@
-import { Button } from "@palot/ui/components/button"
-import { type ErrorComponentProps, useRouter } from "@tanstack/react-router"
-import { AlertTriangleIcon, ChevronDownIcon, RefreshCwIcon } from "lucide-react"
-import { useState } from "react"
+import { Button } from "@palot/ui/components/button";
+import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
+import {
+	AlertTriangleIcon,
+	ChevronDownIcon,
+	RefreshCwIcon,
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function ErrorPage({ error, reset }: ErrorComponentProps) {
-	const router = useRouter()
-	const [showDetails, setShowDetails] = useState(false)
+	const router = useRouter();
+	const { t } = useTranslation();
+	const [showDetails, setShowDetails] = useState(false);
 
-	const message = error instanceof Error ? error.message : "An unexpected error occurred"
-	const stack = error instanceof Error ? error.stack : undefined
+	const message =
+		error instanceof Error ? error.message : t("common.errors.unexpected");
+	const stack = error instanceof Error ? error.stack : undefined;
 
 	return (
 		<div className="flex h-full items-center justify-center p-6">
@@ -22,8 +29,12 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
 
 				{/* Title + message */}
 				<div className="text-center">
-					<h1 className="text-lg font-semibold text-foreground">Something went wrong</h1>
-					<p className="mt-2 text-sm leading-relaxed text-muted-foreground">{message}</p>
+					<h1 className="text-lg font-semibold text-foreground">
+						{t("common.errors.genericTitle")}
+					</h1>
+					<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+						{message}
+					</p>
 				</div>
 
 				{/* Actions */}
@@ -32,14 +43,18 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
 						variant="outline"
 						size="sm"
 						onClick={() => {
-							reset()
-							router.invalidate()
+							reset();
+							router.invalidate();
 						}}
 					>
 						<RefreshCwIcon />
 						Try again
 					</Button>
-					<Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => router.navigate({ to: "/" })}
+					>
 						Go home
 					</Button>
 				</div>
@@ -69,5 +84,5 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
 				)}
 			</div>
 		</div>
-	)
+	);
 }

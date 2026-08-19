@@ -6,10 +6,10 @@
  * path + filename, agents show with a brain icon.
  */
 
-import { ScrollArea } from "@palot/ui/components/scroll-area"
-import { cn } from "@palot/ui/lib/utils"
-import fuzzysort from "fuzzysort"
-import { BrainIcon, FileIcon, FolderIcon, SearchIcon } from "lucide-react"
+import { ScrollArea } from "@palot/ui/components/scroll-area";
+import { cn } from "@palot/ui/lib/utils";
+import fuzzysort from "fuzzysort";
+import { BrainIcon, FileIcon, FolderIcon, SearchIcon } from "lucide-react";
 import {
 	forwardRef,
 	memo,
@@ -19,9 +19,9 @@ import {
 	useMemo,
 	useRef,
 	useState,
-} from "react"
-import { useFileSearch } from "../../hooks/use-file-search"
-import type { SdkAgent } from "../../hooks/use-opencode-data"
+} from "react";
+import { useFileSearch } from "../../hooks/use-file-search";
+import type { SdkAgent } from "../../hooks/use-opencode-data";
 
 // ============================================================
 // Types
@@ -29,26 +29,26 @@ import type { SdkAgent } from "../../hooks/use-opencode-data"
 
 export type MentionOption =
 	| { type: "agent"; name: string; display: string }
-	| { type: "file"; path: string; display: string }
+	| { type: "file"; path: string; display: string };
 
 export interface MentionPopoverHandle {
 	/** Handle keyboard events from the parent textarea. Returns true if consumed. */
-	handleKeyDown: (e: React.KeyboardEvent) => boolean
+	handleKeyDown: (e: React.KeyboardEvent) => boolean;
 }
 
 interface MentionPopoverProps {
 	/** The query text after `@` */
-	query: string
+	query: string;
 	/** Whether the popover is visible */
-	open: boolean
+	open: boolean;
 	/** Project directory for file search */
-	directory: string | null
+	directory: string | null;
 	/** Available agents */
-	agents: SdkAgent[]
+	agents: SdkAgent[];
 	/** Called when a mention is selected */
-	onSelect: (option: MentionOption) => void
+	onSelect: (option: MentionOption) => void;
 	/** Called when Escape is pressed */
-	onClose: () => void
+	onClose: () => void;
 }
 
 // ============================================================
@@ -56,18 +56,18 @@ interface MentionPopoverProps {
 // ============================================================
 
 function getFileName(path: string): string {
-	const parts = path.split("/")
-	return parts[parts.length - 1] || path
+	const parts = path.split("/");
+	return parts[parts.length - 1] || path;
 }
 
 function getDirectory(path: string): string {
-	const idx = path.lastIndexOf("/")
-	if (idx <= 0) return ""
-	return path.slice(0, idx + 1)
+	const idx = path.lastIndexOf("/");
+	if (idx <= 0) return "";
+	return path.slice(0, idx + 1);
 }
 
 function isDirectory(path: string): boolean {
-	return path.endsWith("/")
+	return path.endsWith("/");
 }
 
 // ============================================================
@@ -79,103 +79,112 @@ export const MentionPopover = memo(
 		{ query, open, directory, agents, onSelect, onClose },
 		ref,
 	) {
-		const [activeIndex, setActiveIndex] = useState(0)
-		const listRef = useRef<HTMLDivElement>(null)
+		const [activeIndex, setActiveIndex] = useState(0);
+		const listRef = useRef<HTMLDivElement>(null);
 
 		// --- Data: agents ---
 		const agentOptions = useMemo<MentionOption[]>(
 			() =>
 				agents
 					.filter((a) => !a.hidden && a.mode !== "primary")
-					.map((a) => ({ type: "agent" as const, name: a.name, display: a.name })),
+					.map((a) => ({
+						type: "agent" as const,
+						name: a.name,
+						display: a.name,
+					})),
 			[agents],
-		)
+		);
 
 		// --- Data: file search (enabled whenever popover is open, even with empty query) ---
-		const { files } = useFileSearch(directory, query, open)
+		const { files } = useFileSearch(directory, query, open);
 		const fileOptions = useMemo<MentionOption[]>(
-			() => files.slice(0, 20).map((f) => ({ type: "file" as const, path: f, display: f })),
+			() =>
+				files
+					.slice(0, 20)
+					.map((f) => ({ type: "file" as const, path: f, display: f })),
 			[files],
-		)
+		);
 
 		// --- Merge and filter ---
 		const allOptions = useMemo<MentionOption[]>(() => {
 			if (!query) {
 				// No query — show agents + initial files from the server
-				return [...agentOptions, ...fileOptions]
+				return [...agentOptions, ...fileOptions];
 			}
 
 			// Fuzzy filter agents
 			const agentResults = fuzzysort
 				.go(query, agentOptions, { key: "display", threshold: 0.3 })
-				.map((r) => r.obj)
+				.map((r) => r.obj);
 
 			// Files come pre-filtered from the server
-			return [...agentResults, ...fileOptions]
-		}, [query, agentOptions, fileOptions])
+			return [...agentResults, ...fileOptions];
+		}, [query, agentOptions, fileOptions]);
 
 		// Reset active index when options or query change
 		// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on options/query change
 		useEffect(() => {
-			setActiveIndex(0)
-		}, [allOptions.length, query])
+			setActiveIndex(0);
+		}, [allOptions.length, query]);
 
 		// Scroll active item into view
 		// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — scroll when active index changes
 		useEffect(() => {
-			const list = listRef.current
-			if (!list) return
-			const active = list.querySelector("[data-active=true]")
+			const list = listRef.current;
+			if (!list) return;
+			const active = list.querySelector("[data-active=true]");
 			if (active) {
-				active.scrollIntoView({ block: "nearest" })
+				active.scrollIntoView({ block: "nearest" });
 			}
-		}, [activeIndex])
+		}, [activeIndex]);
 
 		// --- Keyboard handler ---
 		const handleKeyDown = useCallback(
 			(e: React.KeyboardEvent): boolean => {
-				if (!open || allOptions.length === 0) return false
+				if (!open || allOptions.length === 0) return false;
 
 				switch (e.key) {
 					case "ArrowDown": {
-						e.preventDefault()
-						setActiveIndex((i) => (i + 1) % allOptions.length)
-						return true
+						e.preventDefault();
+						setActiveIndex((i) => (i + 1) % allOptions.length);
+						return true;
 					}
 					case "ArrowUp": {
-						e.preventDefault()
-						setActiveIndex((i) => (i - 1 + allOptions.length) % allOptions.length)
-						return true
+						e.preventDefault();
+						setActiveIndex(
+							(i) => (i - 1 + allOptions.length) % allOptions.length,
+						);
+						return true;
 					}
 					case "Tab":
 					case "Enter": {
-						e.preventDefault()
-						const selected = allOptions[activeIndex]
-						if (selected) onSelect(selected)
-						return true
+						e.preventDefault();
+						const selected = allOptions[activeIndex];
+						if (selected) onSelect(selected);
+						return true;
 					}
 					case "Escape": {
-						e.preventDefault()
-						onClose()
-						return true
+						e.preventDefault();
+						onClose();
+						return true;
 					}
 					default:
-						return false
+						return false;
 				}
 			},
 			[open, allOptions, activeIndex, onSelect, onClose],
-		)
+		);
 
-		useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown])
+		useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown]);
 
-		if (!open) return null
+		if (!open) return null;
 
 		// --- Group options ---
-		const agentItems = allOptions.filter((o) => o.type === "agent")
-		const fileItems = allOptions.filter((o) => o.type === "file")
-		const hasResults = allOptions.length > 0
+		const agentItems = allOptions.filter((o) => o.type === "agent");
+		const fileItems = allOptions.filter((o) => o.type === "file");
+		const hasResults = allOptions.length > 0;
 
-		let globalIndex = 0
+		let globalIndex = 0;
 
 		return (
 			<div
@@ -207,7 +216,7 @@ export const MentionPopover = memo(
 									Agents
 								</div>
 								{agentItems.map((option) => {
-									const idx = globalIndex++
+									const idx = globalIndex++;
 									return (
 										<MentionItem
 											key={`agent:${option.type === "agent" ? option.name : ""}`}
@@ -216,7 +225,7 @@ export const MentionPopover = memo(
 											onSelect={() => onSelect(option)}
 											onHover={() => setActiveIndex(idx)}
 										/>
-									)
+									);
 								})}
 							</div>
 						)}
@@ -228,8 +237,8 @@ export const MentionPopover = memo(
 									Files
 								</div>
 								{fileItems.map((option) => {
-									const idx = globalIndex++
-									const path = option.type === "file" ? option.path : ""
+									const idx = globalIndex++;
+									const path = option.type === "file" ? option.path : "";
 									return (
 										<MentionItem
 											key={`file:${path}`}
@@ -238,16 +247,16 @@ export const MentionPopover = memo(
 											onSelect={() => onSelect(option)}
 											onHover={() => setActiveIndex(idx)}
 										/>
-									)
+									);
 								})}
 							</div>
 						)}
 					</div>
 				</ScrollArea>
 			</div>
-		)
+		);
 	}),
-)
+);
 
 // ============================================================
 // MentionItem
@@ -259,10 +268,10 @@ const MentionItem = memo(function MentionItem({
 	onSelect,
 	onHover,
 }: {
-	option: MentionOption
-	isActive: boolean
-	onSelect: () => void
-	onHover: () => void
+	option: MentionOption;
+	isActive: boolean;
+	onSelect: () => void;
+	onHover: () => void;
 }) {
 	if (option.type === "agent") {
 		return (
@@ -279,13 +288,13 @@ const MentionItem = memo(function MentionItem({
 				<BrainIcon className="size-4 shrink-0 text-blue-400" />
 				<span className="font-medium">@{option.name}</span>
 			</button>
-		)
+		);
 	}
 
-	const path = option.path
-	const dir = getDirectory(path)
-	const name = getFileName(path)
-	const isDir = isDirectory(path)
+	const path = option.path;
+	const dir = getDirectory(path);
+	const name = getFileName(path);
+	const isDir = isDirectory(path);
 
 	return (
 		<button
@@ -305,8 +314,10 @@ const MentionItem = memo(function MentionItem({
 			)}
 			<div className="flex min-w-0 items-center">
 				<span className="font-medium">{name}</span>
-				{dir && <span className="ml-1.5 truncate text-muted-foreground">{dir}</span>}
+				{dir && (
+					<span className="ml-1.5 truncate text-muted-foreground">{dir}</span>
+				)}
 			</div>
 		</button>
-	)
-})
+	);
+});

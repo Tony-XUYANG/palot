@@ -4,15 +4,17 @@
  * Brief introduction to Palot and what the setup will cover.
  */
 
-import { Button } from "@palot/ui/components/button"
-import { ArrowRightIcon } from "lucide-react"
-import { PalotWordmark } from "../../palot-wordmark"
+import { Button } from "@palot/ui/components/button";
+import { ArrowRightIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { PalotWordmark } from "../../palot-wordmark";
 
 interface WelcomeStepProps {
-	onContinue: () => void
+	onContinue: () => void;
 }
 
 export function WelcomeStep({ onContinue }: WelcomeStepProps) {
+	const { t } = useTranslation("onboarding");
 	return (
 		<div className="flex h-full flex-col items-center justify-center px-6">
 			<div className="w-full max-w-md space-y-8 text-center">
@@ -23,22 +25,25 @@ export function WelcomeStep({ onContinue }: WelcomeStepProps) {
 
 				{/* Description */}
 				<div className="space-y-3">
-					<p className="text-lg text-muted-foreground">Your desktop companion for OpenCode.</p>
+					<p className="text-lg text-muted-foreground">
+						{t("welcome.tagline")}
+					</p>
 					<p className="text-sm leading-relaxed text-muted-foreground/70">
-						Palot gives you a native experience for managing OpenCode sessions across all your
-						projects, with real-time streaming, native notifications, and multi-session support.
+						{t("welcome.body")}
 					</p>
 				</div>
 
 				{/* CTA */}
 				<div className="space-y-3">
 					<Button size="lg" onClick={onContinue} className="gap-2">
-						Get Started
+						{t("welcome.getStarted")}
 						<ArrowRightIcon aria-hidden="true" className="size-4" />
 					</Button>
-					<p className="text-xs text-muted-foreground/50">This takes less than a minute.</p>
+					<p className="text-xs text-muted-foreground/50">
+						{t("welcome.lessThanMinute")}
+					</p>
 				</div>
 			</div>
 		</div>
-	)
+	);
 }

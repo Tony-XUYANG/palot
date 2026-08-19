@@ -9,16 +9,34 @@
  * on demand via a quick fetch to /global/health.
  */
 
-import { Popover, PopoverContent, PopoverTrigger } from "@palot/ui/components/popover"
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@palot/ui/components/sidebar"
-import { useNavigate } from "@tanstack/react-router"
-import { useAtomValue } from "jotai"
-import { CheckIcon, GlobeIcon, MonitorIcon, RadarIcon, SettingsIcon } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { ServerConfig } from "../../preload/api"
-import { serverConnectedAtom } from "../atoms/connection"
-import { useServerActions, useServers } from "../hooks/use-servers"
-import { isElectron, resolveAuthHeader, resolveServerUrl } from "../services/backend"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@palot/ui/components/popover";
+import {
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+} from "@palot/ui/components/sidebar";
+import { useNavigate } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
+import {
+	CheckIcon,
+	GlobeIcon,
+	MonitorIcon,
+	RadarIcon,
+	SettingsIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ServerConfig } from "../../preload/api";
+import { serverConnectedAtom } from "../atoms/connection";
+import { useServerActions, useServers } from "../hooks/use-servers";
+import {
+	isElectron,
+	resolveAuthHeader,
+	resolveServerUrl,
+} from "../services/backend";
 
 // ============================================================
 // Health probe helper
@@ -30,13 +48,13 @@ import { isElectron, resolveAuthHeader, resolveServerUrl } from "../services/bac
  */
 async function probeServerHealth(server: ServerConfig): Promise<boolean> {
 	try {
-		const url = await resolveServerUrl(server)
-		const headers: Record<string, string> = {}
-		const auth = await resolveAuthHeader(server)
-		if (auth) headers.Authorization = auth
+		const url = await resolveServerUrl(server);
+		const headers: Record<string, string> = {};
+		const auth = await resolveAuthHeader(server);
+		if (auth) headers.Authorization = auth;
 
-		const controller = new AbortController()
-		const timeout = setTimeout(() => controller.abort(), 3000)
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 3000);
 
 		if (isElectron && "palot" in window) {
 			// Use IPC fetch to bypass connection limits
@@ -45,19 +63,19 @@ async function probeServerHealth(server: ServerConfig): Promise<boolean> {
 				method: "GET",
 				headers,
 				body: null,
-			})
-			clearTimeout(timeout)
-			return result.status === 200
+			});
+			clearTimeout(timeout);
+			return result.status === 200;
 		}
 
 		const response = await fetch(`${url}/global/health`, {
 			headers,
 			signal: controller.signal,
-		})
-		clearTimeout(timeout)
-		return response.ok
+		});
+		clearTimeout(timeout);
+		return response.ok;
 	} catch {
-		return false
+		return false;
 	}
 }
 
@@ -65,22 +83,28 @@ async function probeServerHealth(server: ServerConfig): Promise<boolean> {
 // Status dot component
 // ============================================================
 
-type HealthState = boolean | null
+type HealthState = boolean | null;
 
-function StatusDot({ health, className }: { health: HealthState; className?: string }) {
+function StatusDot({
+	health,
+	className,
+}: {
+	health: HealthState;
+	className?: string;
+}) {
 	if (health === null) {
 		// Still checking: pulsing neutral dot
 		return (
 			<span
 				className={`size-1.5 shrink-0 rounded-full bg-muted-foreground/40 animate-pulse ${className ?? ""}`}
 			/>
-		)
+		);
 	}
 	return (
 		<span
 			className={`size-1.5 shrink-0 rounded-full ${health ? "bg-green-500" : "bg-red-500"} ${className ?? ""}`}
 		/>
-	)
+	);
 }
 
 // ============================================================
@@ -88,63 +112,65 @@ function StatusDot({ health, className }: { health: HealthState; className?: str
 // ============================================================
 
 export function ServerIndicator() {
-	const { servers, activeServer, discoveredMdns } = useServers()
-	const connected = useAtomValue(serverConnectedAtom)
-	const { switchServer, saveDiscoveredServer } = useServerActions()
-	const navigate = useNavigate()
-	const [open, setOpen] = useState(false)
+	const { servers, activeServer, discoveredMdns } = useServers();
+	const connected = useAtomValue(serverConnectedAtom);
+	const { switchServer, saveDiscoveredServer } = useServerActions();
+	const navigate = useNavigate();
+	const [open, setOpen] = useState(false);
 
 	// Health state for non-active servers, probed when popover opens.
 	// Map<serverId, boolean | null>  (null = still checking)
-	const [healthMap, setHealthMap] = useState<Map<string, HealthState>>(new Map())
-	const probeGeneration = useRef(0)
+	const [healthMap, setHealthMap] = useState<Map<string, HealthState>>(
+		new Map(),
+	);
+	const probeGeneration = useRef(0);
 
 	// Probe non-active servers when popover opens
 	useEffect(() => {
-		if (!open) return
+		if (!open) return;
 
-		const gen = ++probeGeneration.current
-		const nonActive = servers.filter((s) => s.id !== activeServer.id)
-		if (nonActive.length === 0) return
+		const gen = ++probeGeneration.current;
+		const nonActive = servers.filter((s) => s.id !== activeServer.id);
+		if (nonActive.length === 0) return;
 
 		// Initialize all to null (checking)
 		setHealthMap((prev) => {
-			const next = new Map(prev)
-			for (const s of nonActive) next.set(s.id, null)
-			return next
-		})
+			const next = new Map(prev);
+			for (const s of nonActive) next.set(s.id, null);
+			return next;
+		});
 
 		// Fire probes in parallel
 		for (const server of nonActive) {
 			probeServerHealth(server).then((healthy) => {
-				if (gen !== probeGeneration.current) return // stale
-				setHealthMap((prev) => new Map(prev).set(server.id, healthy))
-			})
+				if (gen !== probeGeneration.current) return; // stale
+				setHealthMap((prev) => new Map(prev).set(server.id, healthy));
+			});
 		}
-	}, [open, servers, activeServer.id])
+	}, [open, servers, activeServer.id]);
 
 	const handleSwitch = useCallback(
 		(serverId: string) => {
-			switchServer(serverId)
-			setOpen(false)
+			switchServer(serverId);
+			setOpen(false);
 		},
 		[switchServer],
-	)
+	);
 
 	const handleSettings = useCallback(() => {
-		setOpen(false)
-		navigate({ to: "/settings/servers" })
-	}, [navigate])
+		setOpen(false);
+		navigate({ to: "/settings/servers" });
+	}, [navigate]);
 
 	const handleSaveDiscovered = useCallback(
 		async (mdnsId: string) => {
-			const mdnsServer = discoveredMdns.find((s) => s.id === mdnsId)
-			if (!mdnsServer) return
-			await saveDiscoveredServer(mdnsServer)
-			setOpen(false)
+			const mdnsServer = discoveredMdns.find((s) => s.id === mdnsId);
+			if (!mdnsServer) return;
+			await saveDiscoveredServer(mdnsServer);
+			setOpen(false);
 		},
 		[discoveredMdns, saveDiscoveredServer],
-	)
+	);
 
 	// Filter out discovered servers that are already saved as configured servers
 	// by matching on host:port
@@ -154,28 +180,28 @@ export function ServerIndicator() {
 				.filter((s) => s.type === "remote")
 				.map((s) => {
 					try {
-						const u = new URL(s.url)
-						return `${u.hostname}:${u.port || (u.protocol === "https:" ? "443" : "80")}`
+						const u = new URL(s.url);
+						return `${u.hostname}:${u.port || (u.protocol === "https:" ? "443" : "80")}`;
 					} catch {
-						return null
+						return null;
 					}
 				})
 				.filter(Boolean),
-		)
+		);
 
 		return discoveredMdns.filter((d) => {
 			// Check if any address matches a saved server
-			const hostPort = `${d.host}:${d.port}`
-			if (savedUrls.has(hostPort)) return false
+			const hostPort = `${d.host}:${d.port}`;
+			if (savedUrls.has(hostPort)) return false;
 			for (const addr of d.addresses) {
-				if (savedUrls.has(`${addr}:${d.port}`)) return false
+				if (savedUrls.has(`${addr}:${d.port}`)) return false;
 			}
-			return true
-		})
-	}, [servers, discoveredMdns])
+			return true;
+		});
+	}, [servers, discoveredMdns]);
 
-	const isLocal = activeServer.type === "local"
-	const ServerIcon = isLocal ? MonitorIcon : GlobeIcon
+	const isLocal = activeServer.type === "local";
+	const ServerIcon = isLocal ? MonitorIcon : GlobeIcon;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -207,7 +233,9 @@ export function ServerIndicator() {
 							/>
 						</div>
 						<span className="truncate">{activeServer.name}</span>
-						{!connected && <span className="text-[10px] text-red-500/70">(offline)</span>}
+						{!connected && (
+							<span className="text-[10px] text-red-500/70">(offline)</span>
+						)}
 					</PopoverTrigger>
 				</SidebarMenuItem>
 			</SidebarMenu>
@@ -217,9 +245,11 @@ export function ServerIndicator() {
 					<p className="text-xs font-medium text-muted-foreground">Servers</p>
 				</div>
 				{servers.map((server) => {
-					const isActive = server.id === activeServer.id
-					const Icon = server.type === "local" ? MonitorIcon : GlobeIcon
-					const health: HealthState = isActive ? connected : (healthMap.get(server.id) ?? null)
+					const isActive = server.id === activeServer.id;
+					const Icon = server.type === "local" ? MonitorIcon : GlobeIcon;
+					const health: HealthState = isActive
+						? connected
+						: (healthMap.get(server.id) ?? null);
 
 					return (
 						<button
@@ -227,17 +257,25 @@ export function ServerIndicator() {
 							type="button"
 							onClick={() => !isActive && handleSwitch(server.id)}
 							className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors ${
-								isActive ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/50"
+								isActive
+									? "bg-accent text-accent-foreground"
+									: "text-foreground hover:bg-accent/50"
 							}`}
 						>
-							<Icon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+							<Icon
+								aria-hidden="true"
+								className="size-3.5 shrink-0 text-muted-foreground"
+							/>
 							<span className="min-w-0 flex-1 truncate">{server.name}</span>
 							<StatusDot health={health} />
 							{isActive && (
-								<CheckIcon aria-hidden="true" className="size-3.5 shrink-0 text-primary" />
+								<CheckIcon
+									aria-hidden="true"
+									className="size-3.5 shrink-0 text-primary"
+								/>
 							)}
 						</button>
-					)
+					);
 				})}
 
 				{/* mDNS discovered servers */}
@@ -257,7 +295,10 @@ export function ServerIndicator() {
 								onClick={() => handleSaveDiscovered(mdns.id)}
 								className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent/50"
 							>
-								<RadarIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+								<RadarIcon
+									aria-hidden="true"
+									className="size-3.5 shrink-0 text-muted-foreground"
+								/>
 								<span className="min-w-0 flex-1 truncate">{mdns.name}</span>
 								<span className="shrink-0 text-[10px] text-muted-foreground">
 									{mdns.addresses[0] || mdns.host}:{mdns.port}
@@ -278,5 +319,5 @@ export function ServerIndicator() {
 				</button>
 			</PopoverContent>
 		</Popover>
-	)
+	);
 }

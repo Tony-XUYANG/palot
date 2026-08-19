@@ -5,9 +5,9 @@
  * Uses `atomFamily` keyed by session ID so each session computes its metrics
  * independently. Only re-evaluates when the session's message list or parts change.
  */
-import { atom } from "jotai"
-import { atomFamily } from "jotai-family"
-import { getToolCategory } from "../../components/chat/tool-card"
+import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
+import { getToolCategory } from "../../components/chat/tool-card";
 import {
 	computeSessionMetricsExtended,
 	formatCost,
@@ -18,12 +18,12 @@ import {
 	type SessionMetricsExtended,
 	shortModelName,
 	type ToolBreakdown,
-} from "../../lib/session-metrics"
-import type { Part } from "../../lib/types"
-import { messagesFamily } from "../messages"
-import { partsFamily } from "../parts"
-import { appStore } from "../store"
-import { viewedSessionIdAtom } from "../ui"
+} from "../../lib/session-metrics";
+import type { Part } from "../../lib/types";
+import { messagesFamily } from "../messages";
+import { partsFamily } from "../parts";
+import { appStore } from "../store";
+import { viewedSessionIdAtom } from "../ui";
 
 // ============================================================
 // Types
@@ -31,57 +31,60 @@ import { viewedSessionIdAtom } from "../ui"
 
 export interface SessionMetricsValue {
 	/** Raw metrics (for computation) */
-	raw: SessionMetricsExtended
+	raw: SessionMetricsExtended;
 	/** Formatted work duration string, e.g. "1m 34s" */
-	workTime: string
+	workTime: string;
 	/** Formatted cost string, e.g. "$0.45" */
-	cost: string
+	cost: string;
 	/** Formatted total token string, e.g. "12.3k" */
-	tokens: string
+	tokens: string;
 	/** Raw work time in ms (for live-ticking in the sidebar) */
-	workTimeMs: number
+	workTimeMs: number;
 	/** Work time from completed messages only (for live-ticking base) */
-	completedWorkTimeMs: number
+	completedWorkTimeMs: number;
 	/** Start time (epoch ms) of in-progress assistant message, or null if idle */
-	activeStartMs: number | null
+	activeStartMs: number | null;
 	/** Raw cost number (for comparisons) */
-	costRaw: number
+	costRaw: number;
 	/** Raw total token count (for comparisons) */
-	tokensRaw: number
+	tokensRaw: number;
 	/** Number of exchanges (user message + all assistant responses) */
-	exchangeCount: number
+	exchangeCount: number;
 	/** Number of user messages */
-	userMessageCount: number
+	userMessageCount: number;
 	/** Number of assistant messages (LLM invocations) */
-	assistantMessageCount: number
+	assistantMessageCount: number;
 	/** Model distribution: short model name -> count */
-	modelDistribution: ModelDistribution
+	modelDistribution: ModelDistribution;
 	/** Model distribution with short names for display */
-	modelDistributionDisplay: Array<{ name: string; count: number }>
+	modelDistributionDisplay: Array<{ name: string; count: number }>;
 	/** Cache efficiency percentage (0-100) */
-	cacheEfficiency: number
+	cacheEfficiency: number;
 	/** Formatted cache efficiency, e.g. "42%" */
-	cacheEfficiencyFormatted: string
+	cacheEfficiencyFormatted: string;
 	/** Number of errors */
-	errorCount: number
+	errorCount: number;
 	/** Number of retries */
-	retryCount: number
+	retryCount: number;
 	/** Total tool calls */
-	toolCallCount: number
+	toolCallCount: number;
 	/** Tool calls by category */
-	toolBreakdown: ToolBreakdown
+	toolBreakdown: ToolBreakdown;
 	/** Average cost per exchange, formatted */
-	avgExchangeCost: string
+	avgExchangeCost: string;
 	/** Average work time per exchange, formatted */
-	avgExchangeTime: string
+	avgExchangeTime: string;
 }
 
 // ============================================================
 // Structural equality
 // ============================================================
 
-function metricsEqual(prev: SessionMetricsValue | null, next: SessionMetricsValue): boolean {
-	if (!prev) return false
+function metricsEqual(
+	prev: SessionMetricsValue | null,
+	next: SessionMetricsValue,
+): boolean {
+	if (!prev) return false;
 	return (
 		prev.workTime === next.workTime &&
 		prev.cost === next.cost &&
@@ -102,27 +105,27 @@ function metricsEqual(prev: SessionMetricsValue | null, next: SessionMetricsValu
 		prev.avgExchangeTime === next.avgExchangeTime &&
 		modelDistEqual(prev.modelDistribution, next.modelDistribution) &&
 		toolBreakdownEqual(prev.toolBreakdown, next.toolBreakdown)
-	)
+	);
 }
 
 function modelDistEqual(a: ModelDistribution, b: ModelDistribution): boolean {
-	const aKeys = Object.keys(a)
-	const bKeys = Object.keys(b)
-	if (aKeys.length !== bKeys.length) return false
+	const aKeys = Object.keys(a);
+	const bKeys = Object.keys(b);
+	if (aKeys.length !== bKeys.length) return false;
 	for (const key of aKeys) {
-		if (a[key] !== b[key]) return false
+		if (a[key] !== b[key]) return false;
 	}
-	return true
+	return true;
 }
 
 function toolBreakdownEqual(a: ToolBreakdown, b: ToolBreakdown): boolean {
-	const aKeys = Object.keys(a) as Array<keyof ToolBreakdown>
-	const bKeys = Object.keys(b) as Array<keyof ToolBreakdown>
-	if (aKeys.length !== bKeys.length) return false
+	const aKeys = Object.keys(a) as Array<keyof ToolBreakdown>;
+	const bKeys = Object.keys(b) as Array<keyof ToolBreakdown>;
+	if (aKeys.length !== bKeys.length) return false;
 	for (const key of aKeys) {
-		if (a[key] !== b[key]) return false
+		if (a[key] !== b[key]) return false;
 	}
-	return true
+	return true;
 }
 
 // ============================================================
@@ -146,32 +149,38 @@ function toolBreakdownEqual(a: ToolBreakdown, b: ToolBreakdown): boolean {
  * that don't push the duration past the next second boundary).
  */
 export const sessionMetricsFamily = atomFamily((sessionId: string) => {
-	let prev: SessionMetricsValue | null = null
+	let prev: SessionMetricsValue | null = null;
 	return atom((get): SessionMetricsValue => {
-		const messages = get(messagesFamily(sessionId))
-		const viewedSessionId = get(viewedSessionIdAtom)
-		const isViewed = viewedSessionId === sessionId
+		const messages = get(messagesFamily(sessionId));
+		const viewedSessionId = get(viewedSessionIdAtom);
+		const isViewed = viewedSessionId === sessionId;
 
 		// Collect all parts across all messages for tool breakdown / retry counting.
 		// For the viewed session, use reactive `get()` to subscribe to part changes.
 		// For background sessions, use non-reactive `appStore.get()` to avoid
 		// creating subscriptions that would trigger recomputation on every part update.
-		const allParts: Part[] = []
+		const allParts: Part[] = [];
 		for (const msg of messages) {
-			const parts = isViewed ? get(partsFamily(msg.id)) : appStore.get(partsFamily(msg.id))
+			const parts = isViewed
+				? get(partsFamily(msg.id))
+				: appStore.get(partsFamily(msg.id));
 			if (parts.length > 0) {
 				for (const p of parts) {
-					allParts.push(p)
+					allParts.push(p);
 				}
 			}
 		}
 
-		const raw = computeSessionMetricsExtended(messages, allParts, getToolCategory)
+		const raw = computeSessionMetricsExtended(
+			messages,
+			allParts,
+			getToolCategory,
+		);
 
 		// Build display-friendly model distribution with short names
 		const modelDistributionDisplay = Object.entries(raw.modelDistribution)
 			.map(([modelID, count]) => ({ name: shortModelName(modelID), count }))
-			.sort((a, b) => b.count - a.count)
+			.sort((a, b) => b.count - a.count);
 
 		const next: SessionMetricsValue = {
 			raw,
@@ -196,10 +205,10 @@ export const sessionMetricsFamily = atomFamily((sessionId: string) => {
 			toolBreakdown: raw.toolBreakdown,
 			avgExchangeCost: formatCost(raw.avgExchangeCost),
 			avgExchangeTime: formatWorkDuration(raw.avgExchangeTimeMs),
-		}
+		};
 
-		if (metricsEqual(prev, next)) return prev!
-		prev = next
-		return next
-	})
-})
+		if (metricsEqual(prev, next)) return prev!;
+		prev = next;
+		return next;
+	});
+});

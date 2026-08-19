@@ -2,7 +2,7 @@
 import type {
 	PermissionRequest as SdkPermissionRequest,
 	QuestionRequest as SdkQuestionRequest,
-} from "@opencode-ai/sdk/v2/client"
+} from "@opencode-ai/sdk/v2/client";
 
 // Re-export all SDK types from v2
 export type {
@@ -36,7 +36,7 @@ export type {
 	ToolState,
 	ToolStateCompleted,
 	UserMessage,
-} from "@opencode-ai/sdk/v2/client"
+} from "@opencode-ai/sdk/v2/client";
 
 // ============================================================
 // File attachment types
@@ -47,10 +47,10 @@ export type {
  * PromptInput's onSubmit callback (FileUIPart from the `ai` package).
  */
 export interface FileAttachment {
-	type: "file"
-	url: string
-	mediaType?: string
-	filename?: string
+	type: "file";
+	url: string;
+	mediaType?: string;
+	filename?: string;
 }
 
 // ============================================================
@@ -60,50 +60,56 @@ export interface FileAttachment {
 /** An OpenCode server instance we're managing */
 export interface ServerInstance {
 	/** Unique ID for this server */
-	id: string
+	id: string;
 	/** The project directory this server is for */
-	directory: string
+	directory: string;
 	/** URL of the running server */
-	url: string
+	url: string;
 	/** Whether the server is healthy */
-	connected: boolean
+	connected: boolean;
 }
 
 /** Where an agent runs */
-export type EnvironmentType = "local" | "cloud" | "vm"
+export type EnvironmentType = "local" | "cloud" | "vm";
 
 /** Derived agent status for UI display, mapped from SessionStatus */
-export type AgentStatus = "running" | "waiting" | "paused" | "completed" | "failed" | "idle"
+export type AgentStatus =
+	| "running"
+	| "waiting"
+	| "paused"
+	| "completed"
+	| "failed"
+	| "idle";
 
 /** Project in the sidebar — aggregates from OpenCode projects */
 export interface ProjectInfo {
-	id: string
-	name: string
-	directory: string
-	agentCount: number
+	id: string;
+	name: string;
+	directory: string;
+	agentCount: number;
 }
 
 /** Enriched project for the unified sidebar (includes directory for auto-start) */
 export interface SidebarProject {
 	/** OpenCode project ID (root commit hash) or hash of directory as fallback */
-	id: string
+	id: string;
 	/** URL-safe slug: always `{name}-{id.slice(0,12)}` for stability */
-	slug: string
-	name: string
-	directory: string
-	agentCount: number
-	lastActiveAt: number
+	slug: string;
+	name: string;
+	directory: string;
+	agentCount: number;
+	lastActiveAt: number;
 	/** Whether at least one agent in this project is running or waiting for input */
-	hasActiveAgent: boolean
+	hasActiveAgent: boolean;
 }
 
 /** Activity entry for the detail panel — derived from message parts */
 export interface Activity {
-	id: string
-	timestamp: string
-	type: "read" | "search" | "edit" | "run" | "think" | "write" | "tool"
-	description: string
-	detail?: string
+	id: string;
+	timestamp: string;
+	type: "read" | "search" | "edit" | "run" | "think" | "write" | "tool";
+	description: string;
+	detail?: string;
 }
 
 /**
@@ -116,38 +122,38 @@ export interface Activity {
  * subscribe to `sessionMetricsFamily` directly.
  */
 export interface Agent {
-	id: string
-	name: string
-	status: AgentStatus
-	environment: EnvironmentType
-	project: string
+	id: string;
+	name: string;
+	status: AgentStatus;
+	environment: EnvironmentType;
+	project: string;
 	/** URL slug for the project (for router navigation) */
-	projectSlug: string
+	projectSlug: string;
 	/** Full project directory path (for auto-starting servers) */
-	directory: string
+	directory: string;
 	/** The root project directory. For worktree sessions this is the parent project,
 	 *  for regular sessions it equals `directory`. Use this as the target for
 	 *  apply-to-project and other operations that should target the main checkout. */
-	projectDirectory: string
-	branch: string
+	projectDirectory: string;
+	branch: string;
 	/** Relative "last active" time, e.g. "5m" */
-	duration: string
-	currentActivity?: string
-	activities: Activity[]
+	duration: string;
+	currentActivity?: string;
+	activities: Activity[];
 	/** The underlying OpenCode session ID */
-	sessionId: string
+	sessionId: string;
 	/** Pending permission requests for this agent */
-	permissions: SdkPermissionRequest[]
+	permissions: SdkPermissionRequest[];
 	/** Pending question requests for this agent */
-	questions: SdkQuestionRequest[]
+	questions: SdkQuestionRequest[];
 	/** If set, this is a sub-agent spawned by the parent session */
-	parentId?: string
+	parentId?: string;
 	/** If set, the session runs in a git worktree at this root path */
-	worktreePath?: string
+	worktreePath?: string;
 	/** The branch name auto-created for the worktree (e.g. "palot/fix-auth-bug") */
-	worktreeBranch?: string
+	worktreeBranch?: string;
 	/** Timestamp (ms) of session creation — stable, never changes */
-	createdAt: number
+	createdAt: number;
 	/** Timestamp (ms) of last activity — for sorting and relative time display */
-	lastActiveAt: number
+	lastActiveAt: number;
 }

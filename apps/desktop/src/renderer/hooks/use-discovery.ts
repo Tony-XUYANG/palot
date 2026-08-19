@@ -1,33 +1,36 @@
-import { useAtomValue } from "jotai"
-import { useEffect } from "react"
-import { activeServerConfigAtom, serverConnectedAtom } from "../atoms/connection"
-import { discoveryAtom } from "../atoms/discovery"
-import { isMockModeAtom } from "../atoms/mock-mode"
-import { appStore } from "../atoms/store"
-import { createLogger } from "../lib/logger"
-import { resolveAuthHeader, resolveServerUrl } from "../services/backend"
+import { useAtomValue } from "jotai";
+import { useEffect } from "react";
+import {
+	activeServerConfigAtom,
+	serverConnectedAtom,
+} from "../atoms/connection";
+import { discoveryAtom } from "../atoms/discovery";
+import { isMockModeAtom } from "../atoms/mock-mode";
+import { appStore } from "../atoms/store";
+import { createLogger } from "../lib/logger";
+import { resolveAuthHeader, resolveServerUrl } from "../services/backend";
 import {
 	connectToOpenCode,
 	loadAllProjects,
 	loadProjectSessions,
-} from "../services/connection-manager"
+} from "../services/connection-manager";
 
-const log = createLogger("discovery")
+const log = createLogger("discovery");
 
 // Module-level guard to prevent concurrent discovery runs.
 // The Jotai atom guard (loaded/loading) depends on a React re-render
 // to propagate, which can race with React Strict Mode double-effects
 // or fast re-mounts.
-let discoveryInFlight = false
+let discoveryInFlight = false;
 
 /** Reset the discovery guard so discovery can re-run (used when switching servers or exiting mock mode). */
 export function resetDiscoveryGuard(): void {
-	discoveryInFlight = false
+	discoveryInFlight = false;
 }
 
 /** Helper to update the discovery phase without touching other fields. */
 function setPhase(phase: import("../atoms/discovery").DiscoveryPhase): void {
-	appStore.set(discoveryAtom, (prev) => ({ ...prev, phase }))
+	appStore.set(discoveryAtom, (prev) => ({ ...prev, phase }));
 }
 
 /**
@@ -45,16 +48,16 @@ function setPhase(phase: import("../atoms/discovery").DiscoveryPhase): void {
  * Active sessions also arrive in real-time via SSE events.
  */
 export function useDiscovery() {
-	const discovery = useAtomValue(discoveryAtom)
-	const isMockMode = useAtomValue(isMockModeAtom)
-	const activeServer = useAtomValue(activeServerConfigAtom)
-	const { loaded, loading } = discovery
+	const discovery = useAtomValue(discoveryAtom);
+	const isMockMode = useAtomValue(isMockModeAtom);
+	const activeServer = useAtomValue(activeServerConfigAtom);
+	const { loaded, loading } = discovery;
 
 	useEffect(() => {
 		// In mock mode, atoms are hydrated by useMockMode() -- skip real discovery
-		if (isMockMode) return
-		if (loaded || loading || discoveryInFlight) return
-		discoveryInFlight = true
+		if (isMockMode) return;
+		if (loaded || loading || discoveryInFlight) return;
+		discoveryInFlight = true;
 
 		// Set loading
 		appStore.set(discoveryAtom, (prev) => ({
@@ -62,28 +65,28 @@ export function useDiscovery() {
 			loading: true,
 			error: null,
 			phase: "starting-server",
-		}))
+		}));
 
-		;(async () => {
+		(async () => {
 			try {
 				// --- Step 1: Resolve the server URL ---
 				log.info("Resolving server URL...", {
 					server: activeServer.name,
 					type: activeServer.type,
-				})
-				const url = await resolveServerUrl(activeServer)
+				});
+				const url = await resolveServerUrl(activeServer);
 
 				// --- Step 2: Resolve auth if needed ---
-				const authHeader = await resolveAuthHeader(activeServer)
+				const authHeader = await resolveAuthHeader(activeServer);
 
 				// --- Step 3: Connect to the server (starts SSE event loop) ---
-				setPhase("connecting")
+				setPhase("connecting");
 				log.info("Connecting to OpenCode server", {
 					url,
 					server: activeServer.name,
 					authenticated: !!authHeader,
-				})
-				await connectToOpenCode(url, authHeader)
+				});
+				await connectToOpenCode(url, authHeader);
 
 				// --- Step 3b: Bail if server is unreachable ---
 				// connectToOpenCode runs a health check and sets serverConnectedAtom.
@@ -94,21 +97,21 @@ export function useDiscovery() {
 				if (!appStore.get(serverConnectedAtom)) {
 					log.warn("Server is unreachable, skipping project discovery", {
 						server: activeServer.name,
-					})
+					});
 					appStore.set(discoveryAtom, (prev) => ({
 						...prev,
 						loading: false,
 						error: "Server offline",
 						phase: "error",
-					}))
-					return
+					}));
+					return;
 				}
 
 				// --- Step 4: Discover projects from the API ---
-				setPhase("loading-projects")
-				log.info("Loading projects from API...")
-				const projects = await loadAllProjects()
-				log.info("Discovered projects via API", { count: projects.length })
+				setPhase("loading-projects");
+				log.info("Loading projects from API...");
+				const projects = await loadAllProjects();
+				log.info("Discovered projects via API", { count: projects.length });
 
 				// Store projects and mark discovery as complete.
 				// Remaining sessions are loaded lazily when the user expands a project.
@@ -118,39 +121,39 @@ export function useDiscovery() {
 					error: null,
 					phase: "ready",
 					projects,
-				})
+				});
 
 				// --- Step 5: Pre-fetch sessions for the most recent projects ---
 				// Load sessions from the top N most-recently-active projects so the
 				// "Recent" and "Active Now" sidebar sections are populated at boot.
 				// This replaces the previous approach of loading ALL projects (80+ calls)
 				// with just a few calls for the projects the user likely cares about.
-				const PREFETCH_COUNT = 3
+				const PREFETCH_COUNT = 3;
 				const sortedByActivity = [...projects]
 					.filter((p) => p.worktree)
 					.sort((a, b) => (b.time.updated ?? 0) - (a.time.updated ?? 0))
-					.slice(0, PREFETCH_COUNT)
+					.slice(0, PREFETCH_COUNT);
 
 				if (sortedByActivity.length > 0) {
 					// Build sandbox lookup for worktree metadata restoration
-					const projectSandboxMap = new Map<string, Set<string>>()
+					const projectSandboxMap = new Map<string, Set<string>>();
 					for (const project of projects) {
-						if (!project.worktree || !project.sandboxes?.length) continue
-						const sandboxSet = new Set<string>()
-						for (const s of project.sandboxes) sandboxSet.add(s)
-						projectSandboxMap.set(project.worktree, sandboxSet)
+						if (!project.worktree || !project.sandboxes?.length) continue;
+						const sandboxSet = new Set<string>();
+						for (const s of project.sandboxes) sandboxSet.add(s);
+						projectSandboxMap.set(project.worktree, sandboxSet);
 					}
 
 					await Promise.allSettled(
 						sortedByActivity.map((project) => {
-							const sandboxDirs = projectSandboxMap.get(project.worktree!)
+							const sandboxDirs = projectSandboxMap.get(project.worktree!);
 							return loadProjectSessions(
 								project.worktree!,
 								sandboxDirs?.size ? sandboxDirs : undefined,
 								{ limit: 5, roots: true },
-							)
+							);
 						}),
-					)
+					);
 				}
 
 				log.info("Discovery complete", {
@@ -158,17 +161,17 @@ export function useDiscovery() {
 					url,
 					projects: projects.length,
 					prefetched: sortedByActivity.length,
-				})
+				});
 			} catch (err) {
-				log.error("Discovery failed", err)
-				discoveryInFlight = false
+				log.error("Discovery failed", err);
+				discoveryInFlight = false;
 				appStore.set(discoveryAtom, (prev) => ({
 					...prev,
 					loading: false,
 					error: err instanceof Error ? err.message : "Discovery failed",
 					phase: "error",
-				}))
+				}));
 			}
-		})()
-	}, [loaded, loading, isMockMode, activeServer])
+		})();
+	}, [loaded, loading, isMockMode, activeServer]);
 }

@@ -1,4 +1,4 @@
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,7 +6,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@palot/ui/components/dialog"
+} from "@palot/ui/components/dialog";
 import {
 	SearchableListPopover,
 	SearchableListPopoverContent,
@@ -17,7 +17,7 @@ import {
 	SearchableListPopoverSearch,
 	SearchableListPopoverTrigger,
 	useSearchableListPopoverSearch,
-} from "@palot/ui/components/searchable-list-popover"
+} from "@palot/ui/components/searchable-list-popover";
 import {
 	AlertTriangleIcon,
 	CheckIcon,
@@ -26,21 +26,22 @@ import {
 	GlobeIcon,
 	Loader2Icon,
 	SearchIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
 	GitBranchInfo,
 	GitCheckoutResult,
 	GitStashResult,
 	GitStatusInfo,
-} from "../../preload/api"
+} from "../../preload/api";
 import {
 	fetchGitBranches,
 	fetchGitStatus,
 	gitCheckout,
 	gitStashAndCheckout,
 	isElectron,
-} from "../services/backend"
+} from "../services/backend";
 
 // ============================================================
 // Types
@@ -48,13 +49,13 @@ import {
 
 interface BranchPickerProps {
 	/** Project directory to operate on */
-	directory: string
+	directory: string;
 	/** Current branch from VCS (display-only fallback) */
-	currentBranch?: string
+	currentBranch?: string;
 	/** Called after a successful branch switch */
-	onBranchChanged?: (branch: string) => void
+	onBranchChanged?: (branch: string) => void;
 	/** Number of active sessions on this directory (for warnings) */
-	activeSessionCount?: number
+	activeSessionCount?: number;
 }
 
 // ============================================================
@@ -67,76 +68,77 @@ export function BranchPicker({
 	onBranchChanged,
 	activeSessionCount = 0,
 }: BranchPickerProps) {
-	const [open, setOpen] = useState(false)
-	const [branches, setBranches] = useState<GitBranchInfo | null>(null)
-	const [loading, setLoading] = useState(false)
+	const { t } = useTranslation();
+	const [open, setOpen] = useState(false);
+	const [branches, setBranches] = useState<GitBranchInfo | null>(null);
+	const [loading, setLoading] = useState(false);
 
 	// Dirty state dialog
 	const [dirtyDialog, setDirtyDialog] = useState<{
-		open: boolean
-		targetBranch: string
-		status: GitStatusInfo | null
-	}>({ open: false, targetBranch: "", status: null })
-	const [switching, setSwitching] = useState(false)
-	const [switchError, setSwitchError] = useState<string | null>(null)
+		open: boolean;
+		targetBranch: string;
+		status: GitStatusInfo | null;
+	}>({ open: false, targetBranch: "", status: null });
+	const [switching, setSwitching] = useState(false);
+	const [switchError, setSwitchError] = useState<string | null>(null);
 
 	// Active session warning dialog
 	const [sessionWarning, setSessionWarning] = useState<{
-		open: boolean
-		targetBranch: string
-		needsStash: boolean
-	}>({ open: false, targetBranch: "", needsStash: false })
+		open: boolean;
+		targetBranch: string;
+		needsStash: boolean;
+	}>({ open: false, targetBranch: "", needsStash: false });
 
 	// Load branches when popover opens
 	const loadBranches = useCallback(async () => {
-		if (!directory || !isElectron) return
-		setLoading(true)
+		if (!directory || !isElectron) return;
+		setLoading(true);
 		try {
-			const result = await fetchGitBranches(directory)
-			setBranches(result)
+			const result = await fetchGitBranches(directory);
+			setBranches(result);
 		} catch (err) {
-			console.error("Failed to load branches:", err)
+			console.error("Failed to load branches:", err);
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
-	}, [directory])
+	}, [directory]);
 
 	useEffect(() => {
 		if (open) {
-			loadBranches()
+			loadBranches();
 		}
-	}, [open, loadBranches])
+	}, [open, loadBranches]);
 
-	const effectiveCurrent = branches?.current || currentBranch || ""
+	const effectiveCurrent = branches?.current || currentBranch || "";
 
 	// Perform the actual checkout
 	const performCheckout = useCallback(
 		async (branch: string, stash: boolean) => {
-			setSwitching(true)
-			setSwitchError(null)
+			setSwitching(true);
+			setSwitchError(null);
 			try {
-				let result: GitCheckoutResult | GitStashResult
+				let result: GitCheckoutResult | GitStashResult;
 
 				if (stash) {
-					result = await gitStashAndCheckout(directory, branch)
+					result = await gitStashAndCheckout(directory, branch);
 				} else {
-					result = await gitCheckout(directory, branch)
+					result = await gitCheckout(directory, branch);
 				}
 
 				if (!result.success) {
-					setSwitchError(result.error ?? "Checkout failed")
-					return
+					setSwitchError(result.error ?? "Checkout failed");
+					return;
 				}
 
-				onBranchChanged?.(branch)
+				onBranchChanged?.(branch);
 			} catch (err) {
-				setSwitchError(err instanceof Error ? err.message : "Checkout failed")
+				setSwitchError(err instanceof Error ? err.message : "Checkout failed");
 			} finally {
-				setSwitching(false)
+				setSwitching(false);
 			}
 		},
 		[directory, onBranchChanged],
-	)
+	);
 
 	// Handle branch selection
 	const handleSelectBranch = useCallback(
@@ -145,71 +147,87 @@ export function BranchPicker({
 			const localName =
 				branch.includes("/") && !branches?.local.includes(branch)
 					? branch.replace(/^[^/]+\//, "")
-					: branch
+					: branch;
 
 			if (localName === effectiveCurrent) {
-				setOpen(false)
-				return
+				setOpen(false);
+				return;
 			}
 
-			setSwitchError(null)
-			setOpen(false)
+			setSwitchError(null);
+			setOpen(false);
 
 			// Check git status first
 			try {
-				const status = await fetchGitStatus(directory)
+				const status = await fetchGitStatus(directory);
 
 				if (!status.isClean) {
 					// Show dirty state dialog
-					setDirtyDialog({ open: true, targetBranch: localName, status })
-					return
+					setDirtyDialog({ open: true, targetBranch: localName, status });
+					return;
 				}
 
 				// Check for active sessions
 				if (activeSessionCount > 0) {
-					setSessionWarning({ open: true, targetBranch: localName, needsStash: false })
-					return
+					setSessionWarning({
+						open: true,
+						targetBranch: localName,
+						needsStash: false,
+					});
+					return;
 				}
 
 				// Clean and no active sessions — switch directly
-				await performCheckout(localName, false)
+				await performCheckout(localName, false);
 			} catch (err) {
-				setSwitchError(err instanceof Error ? err.message : "Failed to check status")
+				setSwitchError(
+					err instanceof Error ? err.message : "Failed to check status",
+				);
 			}
 		},
-		[directory, effectiveCurrent, branches, activeSessionCount, performCheckout],
-	)
+		[
+			directory,
+			effectiveCurrent,
+			branches,
+			activeSessionCount,
+			performCheckout,
+		],
+	);
 
 	// Handle dirty dialog actions
 	const handleStashAndSwitch = useCallback(async () => {
-		setDirtyDialog((d) => ({ ...d, open: false }))
+		setDirtyDialog((d) => ({ ...d, open: false }));
 
 		// If there are active sessions, show that warning next
 		if (activeSessionCount > 0) {
-			setSessionWarning({ open: true, targetBranch: dirtyDialog.targetBranch, needsStash: true })
-			return
+			setSessionWarning({
+				open: true,
+				targetBranch: dirtyDialog.targetBranch,
+				needsStash: true,
+			});
+			return;
 		}
 
-		await performCheckout(dirtyDialog.targetBranch, true)
-	}, [dirtyDialog.targetBranch, activeSessionCount, performCheckout])
+		await performCheckout(dirtyDialog.targetBranch, true);
+	}, [dirtyDialog.targetBranch, activeSessionCount, performCheckout]);
 
 	const handleDirtyCancel = useCallback(() => {
-		setDirtyDialog({ open: false, targetBranch: "", status: null })
-	}, [])
+		setDirtyDialog({ open: false, targetBranch: "", status: null });
+	}, []);
 
 	// Handle session warning actions
 	const handleSessionWarningProceed = useCallback(async () => {
-		const { targetBranch, needsStash } = sessionWarning
-		setSessionWarning({ open: false, targetBranch: "", needsStash: false })
-		await performCheckout(targetBranch, needsStash)
-	}, [sessionWarning, performCheckout])
+		const { targetBranch, needsStash } = sessionWarning;
+		setSessionWarning({ open: false, targetBranch: "", needsStash: false });
+		await performCheckout(targetBranch, needsStash);
+	}, [sessionWarning, performCheckout]);
 
 	const handleSessionWarningCancel = useCallback(() => {
-		setSessionWarning({ open: false, targetBranch: "", needsStash: false })
-	}, [])
+		setSessionWarning({ open: false, targetBranch: "", needsStash: false });
+	}, []);
 
 	// Don't render in browser mode
-	if (!isElectron) return null
+	if (!isElectron) return null;
 
 	return (
 		<>
@@ -235,7 +253,7 @@ export function BranchPicker({
 				</SearchableListPopoverTrigger>
 				<SearchableListPopoverContent align="end" side="top">
 					<SearchableListPopoverSearch
-						placeholder="Search branches..."
+						placeholder={t("branch.search")}
 						icon={<SearchIcon className="size-4" />}
 					/>
 
@@ -259,7 +277,7 @@ export function BranchPicker({
 					<div className="flex items-start gap-2">
 						<AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
 						<div>
-							<p className="font-medium">Branch switch failed</p>
+							<p className="font-medium">{t("branch.switchFailed")}</p>
 							<p className="mt-1 text-xs opacity-80">{switchError}</p>
 						</div>
 						<button
@@ -291,7 +309,7 @@ export function BranchPicker({
 				onCancel={handleSessionWarningCancel}
 			/>
 		</>
-	)
+	);
 }
 
 // ============================================================
@@ -303,29 +321,29 @@ function BranchList({
 	effectiveCurrent,
 	onSelectBranch,
 }: {
-	branches: GitBranchInfo | null
-	effectiveCurrent: string
-	onSelectBranch: (branch: string) => void
+	branches: GitBranchInfo | null;
+	effectiveCurrent: string;
+	onSelectBranch: (branch: string) => void;
 }) {
-	const search = useSearchableListPopoverSearch()
+	const search = useSearchableListPopoverSearch();
 
 	const filteredLocal = useMemo(() => {
-		if (!branches) return []
-		const term = search.toLowerCase()
-		return branches.local.filter((b: string) => b.toLowerCase().includes(term))
-	}, [branches, search])
+		if (!branches) return [];
+		const term = search.toLowerCase();
+		return branches.local.filter((b: string) => b.toLowerCase().includes(term));
+	}, [branches, search]);
 
 	const filteredRemote = useMemo(() => {
-		if (!branches) return []
-		const term = search.toLowerCase()
-		const localSet = new Set(branches.local)
+		if (!branches) return [];
+		const term = search.toLowerCase();
+		const localSet = new Set(branches.local);
 		return branches.remote
 			.filter((b: string) => {
-				const localName = b.replace(/^[^/]+\//, "")
-				return !localSet.has(localName)
+				const localName = b.replace(/^[^/]+\//, "");
+				return !localSet.has(localName);
 			})
-			.filter((b: string) => b.toLowerCase().includes(term))
-	}, [branches, search])
+			.filter((b: string) => b.toLowerCase().includes(term));
+	}, [branches, search]);
 
 	return (
 		<SearchableListPopoverList maxHeight="max-h-[300px]">
@@ -362,7 +380,7 @@ function BranchList({
 				</SearchableListPopoverEmpty>
 			)}
 		</SearchableListPopoverList>
-	)
+	);
 }
 
 // ============================================================
@@ -375,11 +393,12 @@ function BranchItem({
 	isRemote,
 	onSelect,
 }: {
-	name: string
-	isCurrent: boolean
-	isRemote?: boolean
-	onSelect: () => void
+	name: string;
+	isCurrent: boolean;
+	isRemote?: boolean;
+	onSelect: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<SearchableListPopoverItem onSelect={onSelect} isActive={isCurrent}>
 			{isCurrent ? (
@@ -390,9 +409,13 @@ function BranchItem({
 				<GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
 			)}
 			<span className="min-w-0 flex-1 truncate">{name}</span>
-			{isCurrent && <span className="shrink-0 text-[10px] text-muted-foreground">current</span>}
+			{isCurrent && (
+				<span className="shrink-0 text-[10px] text-muted-foreground">
+					{t("branch.current")}
+				</span>
+			)}
 		</SearchableListPopoverItem>
-	)
+	);
 }
 
 // ============================================================
@@ -400,11 +423,11 @@ function BranchItem({
 // ============================================================
 
 interface DirtyStateDialogProps {
-	open: boolean
-	status: GitStatusInfo | null
-	targetBranch: string
-	onStashAndSwitch: () => void
-	onCancel: () => void
+	open: boolean;
+	status: GitStatusInfo | null;
+	targetBranch: string;
+	onStashAndSwitch: () => void;
+	onCancel: () => void;
 }
 
 function DirtyStateDialog({
@@ -414,17 +437,21 @@ function DirtyStateDialog({
 	onStashAndSwitch,
 	onCancel,
 }: DirtyStateDialogProps) {
+	const { t } = useTranslation();
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
 			<DialogContent showCloseButton={false} className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<AlertTriangleIcon className="size-5 text-yellow-500" />
-						Uncommitted Changes
+						{t("branch.uncommittedChanges")}
 					</DialogTitle>
 					<DialogDescription>
-						You have uncommitted changes that need to be handled before switching to{" "}
-						<code className="rounded bg-muted px-1.5 py-0.5 text-foreground">{targetBranch}</code>.
+						{t("branch.uncommittedDescription")}{" "}
+						<code className="rounded bg-muted px-1.5 py-0.5 text-foreground">
+							{targetBranch}
+						</code>
+						.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -432,15 +459,23 @@ function DirtyStateDialog({
 				{status && (
 					<div className="rounded-md border bg-muted/50 px-3 py-2">
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-							{status.staged > 0 && <span className="text-green-500">{status.staged} staged</span>}
+							{status.staged > 0 && (
+								<span className="text-green-500">{status.staged} staged</span>
+							)}
 							{status.modified > 0 && (
-								<span className="text-yellow-500">{status.modified} modified</span>
+								<span className="text-yellow-500">
+									{status.modified} modified
+								</span>
 							)}
 							{status.untracked > 0 && (
-								<span className="text-muted-foreground">{status.untracked} untracked</span>
+								<span className="text-muted-foreground">
+									{status.untracked} untracked
+								</span>
 							)}
 							{status.conflicted > 0 && (
-								<span className="text-red-500">{status.conflicted} conflicted</span>
+								<span className="text-red-500">
+									{status.conflicted} conflicted
+								</span>
 							)}
 						</div>
 					</div>
@@ -448,13 +483,13 @@ function DirtyStateDialog({
 
 				<DialogFooter>
 					<Button variant="outline" onClick={onCancel}>
-						Cancel
+						{t("common.actions.cancel")}
 					</Button>
-					<Button onClick={onStashAndSwitch}>Stash & Switch</Button>
+					<Button onClick={onStashAndSwitch}>{t("branch.stashSwitch")}</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }
 
 // ============================================================
@@ -462,11 +497,11 @@ function DirtyStateDialog({
 // ============================================================
 
 interface ActiveSessionWarningDialogProps {
-	open: boolean
-	targetBranch: string
-	sessionCount: number
-	onProceed: () => void
-	onCancel: () => void
+	open: boolean;
+	targetBranch: string;
+	sessionCount: number;
+	onProceed: () => void;
+	onCancel: () => void;
 }
 
 function ActiveSessionWarningDialog({
@@ -485,9 +520,13 @@ function ActiveSessionWarningDialog({
 						Active Sessions
 					</DialogTitle>
 					<DialogDescription>
-						There {sessionCount === 1 ? "is" : "are"} <strong>{sessionCount}</strong> active{" "}
-						{sessionCount === 1 ? "session" : "sessions"} on this project. Switching to{" "}
-						<code className="rounded bg-muted px-1.5 py-0.5 text-foreground">{targetBranch}</code>{" "}
+						There {sessionCount === 1 ? "is" : "are"}{" "}
+						<strong>{sessionCount}</strong> active{" "}
+						{sessionCount === 1 ? "session" : "sessions"} on this project.
+						Switching to{" "}
+						<code className="rounded bg-muted px-1.5 py-0.5 text-foreground">
+							{targetBranch}
+						</code>{" "}
 						will change the working directory for all of them.
 					</DialogDescription>
 				</DialogHeader>
@@ -502,5 +541,5 @@ function ActiveSessionWarningDialog({
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }

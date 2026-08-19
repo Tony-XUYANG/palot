@@ -1,15 +1,18 @@
-import { atom } from "jotai"
-import { atomFamily } from "jotai-family"
+import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
 import type {
 	Agent,
 	AgentStatus,
 	OpenCodeProject,
 	SessionStatus,
 	SidebarProject,
-} from "../../lib/types"
-import { discoveryAtom } from "../discovery"
-import { sessionFamily, sessionIdsAtom } from "../sessions"
-import { effectivePermissionFamily, effectiveQuestionFamily } from "./session-requests"
+} from "../../lib/types";
+import { discoveryAtom } from "../discovery";
+import { sessionFamily, sessionIdsAtom } from "../sessions";
+import {
+	effectivePermissionFamily,
+	effectiveQuestionFamily,
+} from "./session-requests";
 
 // ============================================================
 // Structural equality for Agent objects
@@ -22,8 +25,8 @@ import { effectivePermissionFamily, effectiveQuestionFamily } from "./session-re
  * wholesale on updates.
  */
 function agentEqual(prev: Agent | null, next: Agent | null): boolean {
-	if (prev === next) return true
-	if (!prev || !next) return false
+	if (prev === next) return true;
+	if (!prev || !next) return false;
 	return (
 		prev.id === next.id &&
 		prev.name === next.name &&
@@ -46,7 +49,7 @@ function agentEqual(prev: Agent | null, next: Agent | null): boolean {
 		prev.questions.length === next.questions.length &&
 		prev.permissions[0] === next.permissions[0] &&
 		prev.questions[0] === next.questions[0]
-	)
+	);
 }
 
 // ============================================================
@@ -58,45 +61,45 @@ function deriveAgentStatus(
 	hasPermissions: boolean,
 	hasQuestions: boolean,
 ): AgentStatus {
-	if (hasPermissions || hasQuestions) return "waiting"
+	if (hasPermissions || hasQuestions) return "waiting";
 	switch (status.type) {
 		case "busy":
-			return "running"
+			return "running";
 		case "retry":
-			return "running"
+			return "running";
 		case "idle":
-			return "idle"
+			return "idle";
 		default:
-			return "idle"
+			return "idle";
 	}
 }
 
 export function formatRelativeTime(timestampMs: number): string {
-	const seconds = Math.max(0, Math.floor((Date.now() - timestampMs) / 1000))
-	if (seconds < 60) return "now"
-	const minutes = Math.floor(seconds / 60)
-	if (minutes < 60) return `${minutes}m`
-	const hours = Math.floor(minutes / 60)
-	if (hours < 24) return `${hours}h`
-	const days = Math.floor(hours / 24)
-	if (days < 30) return `${days}d`
-	const months = Math.floor(days / 30)
-	return `${months}mo`
+	const seconds = Math.max(0, Math.floor((Date.now() - timestampMs) / 1000));
+	if (seconds < 60) return "now";
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h`;
+	const days = Math.floor(hours / 24);
+	if (days < 30) return `${days}d`;
+	const months = Math.floor(days / 30);
+	return `${months}mo`;
 }
 
 export function formatElapsed(startMs: number): string {
-	const seconds = Math.max(0, Math.floor((Date.now() - startMs) / 1000))
-	if (seconds < 60) return `${seconds}s`
-	const minutes = Math.floor(seconds / 60)
-	const remainingSeconds = seconds % 60
-	if (minutes < 60) return `${minutes}m ${remainingSeconds}s`
-	const hours = Math.floor(minutes / 60)
-	const remainingMinutes = minutes % 60
-	return `${hours}h ${remainingMinutes}m`
+	const seconds = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+	if (seconds < 60) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60);
+	const remainingSeconds = seconds % 60;
+	if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+	const hours = Math.floor(minutes / 60);
+	const remainingMinutes = minutes % 60;
+	return `${hours}h ${remainingMinutes}m`;
 }
 
 function projectNameFromDir(directory: string): string {
-	return directory.split("/").pop() || "/"
+	return directory.split("/").pop() || "/";
 }
 
 // ============================================================
@@ -104,26 +107,31 @@ function projectNameFromDir(directory: string): string {
 // ============================================================
 
 interface ProjectEntry {
-	id: string
-	name: string
-	directory: string
+	id: string;
+	name: string;
+	directory: string;
 }
 
-function buildProjectSlugMap(projects: ProjectEntry[]): Map<string, { id: string; slug: string }> {
-	const byDir = new Map<string, ProjectEntry>()
+function buildProjectSlugMap(
+	projects: ProjectEntry[],
+): Map<string, { id: string; slug: string }> {
+	const byDir = new Map<string, ProjectEntry>();
 	for (const p of projects) {
-		const existing = byDir.get(p.directory)
-		if (!existing || (existing.id.startsWith("dir-") && !p.id.startsWith("dir-"))) {
-			byDir.set(p.directory, p)
+		const existing = byDir.get(p.directory);
+		if (
+			!existing ||
+			(existing.id.startsWith("dir-") && !p.id.startsWith("dir-"))
+		) {
+			byDir.set(p.directory, p);
 		}
 	}
 
-	const result = new Map<string, { id: string; slug: string }>()
+	const result = new Map<string, { id: string; slug: string }>();
 	for (const entry of byDir.values()) {
-		const slug = `${entry.name}-${entry.id.slice(0, 12)}`
-		result.set(entry.directory, { id: entry.id, slug })
+		const slug = `${entry.name}-${entry.id.slice(0, 12)}`;
+		result.set(entry.directory, { id: entry.id, slug });
 	}
-	return result
+	return result;
 }
 
 // ============================================================
@@ -136,91 +144,97 @@ function buildProjectSlugMap(projects: ProjectEntry[]): Map<string, { id: string
  * These should not appear as top-level projects in the sidebar.
  */
 function buildSandboxDirSet(projects: OpenCodeProject[]): Set<string> {
-	const sandboxDirs = new Set<string>()
+	const sandboxDirs = new Set<string>();
 	for (const project of projects) {
 		if (project.sandboxes) {
 			for (const dir of project.sandboxes) {
-				sandboxDirs.add(dir)
+				sandboxDirs.add(dir);
 			}
 		}
 	}
-	return sandboxDirs
+	return sandboxDirs;
 }
 
 /**
  * Builds a map from sandbox directory -> parent project worktree directory.
  * Used to remap sessions running in a sandbox back to their parent project.
  */
-function buildSandboxToParentMap(projects: OpenCodeProject[]): Map<string, string> {
-	const map = new Map<string, string>()
+function buildSandboxToParentMap(
+	projects: OpenCodeProject[],
+): Map<string, string> {
+	const map = new Map<string, string>();
 	for (const project of projects) {
-		if (!project.worktree || !project.sandboxes) continue
+		if (!project.worktree || !project.sandboxes) continue;
 		for (const dir of project.sandboxes) {
-			map.set(dir, project.worktree)
+			map.set(dir, project.worktree);
 		}
 	}
-	return map
+	return map;
 }
 
 /**
  * Builds a map from parent project directory -> set of its sandbox directories.
  * Used by projectSessionIdsFamily to include sandbox sessions under the parent.
  */
-function buildParentToSandboxesMap(projects: OpenCodeProject[]): Map<string, Set<string>> {
-	const map = new Map<string, Set<string>>()
+function buildParentToSandboxesMap(
+	projects: OpenCodeProject[],
+): Map<string, Set<string>> {
+	const map = new Map<string, Set<string>>();
 	for (const project of projects) {
-		if (!project.worktree || !project.sandboxes?.length) continue
-		map.set(project.worktree, new Set(project.sandboxes))
+		if (!project.worktree || !project.sandboxes?.length) continue;
+		map.set(project.worktree, new Set(project.sandboxes));
 	}
-	return map
+	return map;
 }
 
 function collectAllProjects(
 	liveSessionDirs: Map<string, string>,
 	discovery: {
-		loaded: boolean
-		projects: OpenCodeProject[]
+		loaded: boolean;
+		projects: OpenCodeProject[];
 	},
 ): ProjectEntry[] {
-	const entries: ProjectEntry[] = []
-	const seenDirs = new Set<string>()
+	const entries: ProjectEntry[] = [];
+	const seenDirs = new Set<string>();
 
 	// Build sandbox set to filter out worktree projects
-	const sandboxDirs = discovery.loaded ? buildSandboxDirSet(discovery.projects) : new Set<string>()
+	const sandboxDirs = discovery.loaded
+		? buildSandboxDirSet(discovery.projects)
+		: new Set<string>();
 
 	// Discovery projects (from API), excluding sandboxes
 	if (discovery.loaded) {
 		for (const project of discovery.projects) {
-			if (!project.worktree || seenDirs.has(project.worktree)) continue
-			if (sandboxDirs.has(project.worktree)) continue
-			seenDirs.add(project.worktree)
+			if (!project.worktree || seenDirs.has(project.worktree)) continue;
+			if (sandboxDirs.has(project.worktree)) continue;
+			seenDirs.add(project.worktree);
 			entries.push({
 				id: project.id,
 				name: project.name ?? projectNameFromDir(project.worktree),
 				directory: project.worktree,
-			})
+			});
 		}
 	}
 
 	// Live session directories (may include directories not in any project).
 	// Skip directories that are sandboxes of a known project.
 	for (const [, directory] of liveSessionDirs) {
-		if (seenDirs.has(directory)) continue
-		if (!directory) continue
-		if (sandboxDirs.has(directory)) continue
-		seenDirs.add(directory)
-		let hash = 0
+		if (seenDirs.has(directory)) continue;
+		if (!directory) continue;
+		if (sandboxDirs.has(directory)) continue;
+		seenDirs.add(directory);
+		let hash = 0;
 		for (let i = 0; i < directory.length; i++) {
-			hash = (hash * 31 + directory.charCodeAt(i)) | 0
+			hash = (hash * 31 + directory.charCodeAt(i)) | 0;
 		}
 		entries.push({
 			id: `dir-${Math.abs(hash).toString(16).padStart(8, "0")}`,
 			name: projectNameFromDir(directory),
 			directory,
-		})
+		});
 	}
 
-	return entries
+	return entries;
 }
 
 // ============================================================
@@ -238,18 +252,18 @@ function collectAllProjects(
  * and agentFamily (to remap project name/slug for sandbox sessions).
  */
 export const sandboxMappingsAtom = atom((get) => {
-	const discovery = get(discoveryAtom)
+	const discovery = get(discoveryAtom);
 	if (!discovery.loaded) {
 		return {
 			sandboxToParent: new Map<string, string>(),
 			parentToSandboxes: new Map<string, Set<string>>(),
-		}
+		};
 	}
 	return {
 		sandboxToParent: buildSandboxToParentMap(discovery.projects),
 		parentToSandboxes: buildParentToSandboxesMap(discovery.projects),
-	}
-})
+	};
+});
 
 /**
  * Lightweight derived atom that maps directory -> { id, slug }.
@@ -257,19 +271,19 @@ export const sandboxMappingsAtom = atom((get) => {
  * (loaded once). This avoids recomputing slugs when session status/permissions change.
  */
 const projectSlugMapAtom = atom((get) => {
-	const sessionIds = get(sessionIdsAtom)
-	const discovery = get(discoveryAtom)
+	const sessionIds = get(sessionIdsAtom);
+	const discovery = get(discoveryAtom);
 
-	const liveSessionDirs = new Map<string, string>()
+	const liveSessionDirs = new Map<string, string>();
 	for (const id of sessionIds) {
-		const entry = get(sessionFamily(id))
-		if (!entry) continue
-		liveSessionDirs.set(id, entry.directory)
+		const entry = get(sessionFamily(id));
+		if (!entry) continue;
+		liveSessionDirs.set(id, entry.directory);
 	}
 
-	const allProjects = collectAllProjects(liveSessionDirs, discovery)
-	return buildProjectSlugMap(allProjects)
-})
+	const allProjects = collectAllProjects(liveSessionDirs, discovery);
+	return buildProjectSlugMap(allProjects);
+});
 
 // ============================================================
 // Per-session agent selector (reads ONE sessionFamily atom)
@@ -281,39 +295,45 @@ const projectSlugMapAtom = atom((get) => {
  * changes on OTHER sessions do not trigger re-derivation.
  */
 export const agentFamily = atomFamily((sessionId: string) => {
-	let prev: Agent | null = null
+	let prev: Agent | null = null;
 	return atom((get) => {
-		const entry = get(sessionFamily(sessionId))
+		const entry = get(sessionFamily(sessionId));
 		if (!entry) {
-			prev = null
-			return null
+			prev = null;
+			return null;
 		}
 
-		const slugMap = get(projectSlugMapAtom)
-		const { sandboxToParent } = get(sandboxMappingsAtom)
-		const { session, status, directory } = entry
+		const slugMap = get(projectSlugMapAtom);
+		const { sandboxToParent } = get(sandboxMappingsAtom);
+		const { session, status, directory } = entry;
 
 		// Use tree-scoped requests to determine blocking status so the parent
 		// session shows "waiting" when any descendant sub-agent has a pending
 		// permission or question — not just its own.
-		const hasTreePermission = get(effectivePermissionFamily(session.id)) !== undefined
-		const hasTreeQuestion = get(effectiveQuestionFamily(session.id)) !== undefined
-		const agentStatus = deriveAgentStatus(status, hasTreePermission, hasTreeQuestion)
+		const hasTreePermission =
+			get(effectivePermissionFamily(session.id)) !== undefined;
+		const hasTreeQuestion =
+			get(effectiveQuestionFamily(session.id)) !== undefined;
+		const agentStatus = deriveAgentStatus(
+			status,
+			hasTreePermission,
+			hasTreeQuestion,
+		);
 
-		const { permissions, questions } = entry
-		const created = session.time.created
-		const lastActiveAt = session.time.updated ?? session.time.created
+		const { permissions, questions } = entry;
+		const created = session.time.created;
+		const lastActiveAt = session.time.updated ?? session.time.created;
 
 		// If this session's directory is a sandbox (worktree), resolve the parent
 		// project directory for name/slug display so it groups visually under the parent.
-		const parentDir = sandboxToParent.get(directory)
-		const displayDir = parentDir ?? directory
-		const projectInfo = slugMap.get(displayDir)
+		const parentDir = sandboxToParent.get(directory);
+		const displayDir = parentDir ?? directory;
+		const projectInfo = slugMap.get(displayDir);
 
 		// Derive currentActivity from tree-scoped requests first, then own status.
 		// This ensures "waiting for approval" shows even when the permission is from a sub-agent.
-		const effectivePerm = get(effectivePermissionFamily(session.id))
-		const effectiveQ = get(effectiveQuestionFamily(session.id))
+		const effectivePerm = get(effectivePermissionFamily(session.id));
+		const effectiveQ = get(effectiveQuestionFamily(session.id));
 
 		const next: Agent = {
 			id: session.id,
@@ -342,15 +362,15 @@ export const agentFamily = atomFamily((sessionId: string) => {
 			worktreeBranch: entry.worktreeBranch,
 			createdAt: created,
 			lastActiveAt,
-		}
+		};
 
 		// Return the previous reference if structurally equal to avoid
 		// downstream memo() invalidation in SessionItem and friends.
-		if (agentEqual(prev, next)) return prev!
-		prev = next
-		return next
-	})
-})
+		if (agentEqual(prev, next)) return prev!;
+		prev = next;
+		return next;
+	});
+});
 
 /**
  * Reads just the session title for a given session ID.
@@ -359,11 +379,11 @@ export const agentFamily = atomFamily((sessionId: string) => {
  */
 export const sessionNameFamily = atomFamily((sessionId: string) =>
 	atom((get) => {
-		const entry = get(sessionFamily(sessionId))
-		if (!entry) return undefined
-		return entry.session.title || "Untitled"
+		const entry = get(sessionFamily(sessionId));
+		if (!entry) return undefined;
+		return entry.session.title || "Untitled";
 	}),
-)
+);
 
 // ============================================================
 // Derived atom: agents list
@@ -379,25 +399,28 @@ export const sessionNameFamily = atomFamily((sessionId: string) =>
  * references are stable.
  */
 export const agentsAtom = (() => {
-	let prevAgents: Agent[] = []
+	let prevAgents: Agent[] = [];
 	return atom((get) => {
-		const sessionIds = get(sessionIdsAtom)
-		const agents: Agent[] = []
+		const sessionIds = get(sessionIdsAtom);
+		const agents: Agent[] = [];
 
 		for (const id of sessionIds) {
-			const agent = get(agentFamily(id))
-			if (agent) agents.push(agent)
+			const agent = get(agentFamily(id));
+			if (agent) agents.push(agent);
 		}
 
 		// Return the previous array if every element is referentially identical.
 		// This is cheap because agentFamily already stabilizes references.
-		if (agents.length === prevAgents.length && agents.every((a, i) => a === prevAgents[i])) {
-			return prevAgents
+		if (
+			agents.length === prevAgents.length &&
+			agents.every((a, i) => a === prevAgents[i])
+		) {
+			return prevAgents;
 		}
-		prevAgents = agents
-		return agents
-	})
-})()
+		prevAgents = agents;
+		return agents;
+	});
+})();
 
 // ============================================================
 // Per-project session IDs for granular sidebar subscriptions
@@ -415,46 +438,47 @@ export const agentsAtom = (() => {
  * when the same set of IDs is returned.
  */
 export const projectSessionIdsFamily = atomFamily((directory: string) => {
-	let prev: string[] = []
+	let prev: string[] = [];
 	return atom((get) => {
-		const sessionIds = get(sessionIdsAtom)
-		const { parentToSandboxes } = get(sandboxMappingsAtom)
+		const sessionIds = get(sessionIdsAtom);
+		const { parentToSandboxes } = get(sandboxMappingsAtom);
 
 		// Directories that belong to this project: the project dir itself + its sandboxes
-		const sandboxes = parentToSandboxes.get(directory)
+		const sandboxes = parentToSandboxes.get(directory);
 
-		const ids: string[] = []
+		const ids: string[] = [];
 		for (const id of sessionIds) {
-			const entry = get(sessionFamily(id))
-			if (!entry) continue
+			const entry = get(sessionFamily(id));
+			if (!entry) continue;
 			// Hide sub-agent sessions in the sidebar (they still exist in the store
 			// for message/part lookups and direct navigation)
-			if (entry.session.parentID) continue
+			if (entry.session.parentID) continue;
 			// Match the project directory itself, or any of its sandbox directories
-			if (entry.directory !== directory && !sandboxes?.has(entry.directory)) continue
-			ids.push(id)
+			if (entry.directory !== directory && !sandboxes?.has(entry.directory))
+				continue;
+			ids.push(id);
 		}
 		// Structural equality: return previous array if contents are the same
 		if (ids.length === prev.length && ids.every((id, i) => id === prev[i])) {
-			return prev
+			return prev;
 		}
-		prev = ids
-		return ids
-	})
-})
+		prev = ids;
+		return ids;
+	});
+});
 
 // ============================================================
 // Derived atom: project list for sidebar
 // ============================================================
 
 export const projectListAtom = (() => {
-	let prevProjects: SidebarProject[] = []
+	let prevProjects: SidebarProject[] = [];
 
 	function projectListEqual(a: SidebarProject[], b: SidebarProject[]): boolean {
-		if (a.length !== b.length) return false
+		if (a.length !== b.length) return false;
 		for (let i = 0; i < a.length; i++) {
-			const pa = a[i]
-			const pb = b[i]
+			const pa = a[i];
+			const pb = b[i];
 			if (
 				pa.id !== pb.id ||
 				pa.slug !== pb.slug ||
@@ -464,19 +488,19 @@ export const projectListAtom = (() => {
 				pa.lastActiveAt !== pb.lastActiveAt ||
 				pa.hasActiveAgent !== pb.hasActiveAgent
 			) {
-				return false
+				return false;
 			}
 		}
-		return true
+		return true;
 	}
 
 	return atom((get) => {
-		const sessionIds = get(sessionIdsAtom)
-		const discovery = get(discoveryAtom)
-		const slugMap = get(projectSlugMapAtom)
-		const { sandboxToParent } = get(sandboxMappingsAtom)
+		const sessionIds = get(sessionIdsAtom);
+		const discovery = get(discoveryAtom);
+		const slugMap = get(projectSlugMapAtom);
+		const { sandboxToParent } = get(sandboxMappingsAtom);
 
-		const projects = new Map<string, SidebarProject>()
+		const projects = new Map<string, SidebarProject>();
 
 		// Live sessions grouped by directory.
 		// Sessions in sandbox directories are counted under their parent project.
@@ -487,29 +511,31 @@ export const projectListAtom = (() => {
 		// API, which is volatile and changes from server metadata operations, causing
 		// random reordering even when no user activity occurs).
 		for (const id of sessionIds) {
-			const entry = get(sessionFamily(id))
-			if (!entry) continue
-			if (entry.session.parentID) continue
-			if (!entry.directory) continue
+			const entry = get(sessionFamily(id));
+			if (!entry) continue;
+			if (entry.session.parentID) continue;
+			if (!entry.directory) continue;
 
 			// Remap sandbox directories to their parent project
-			const parentDir = sandboxToParent.get(entry.directory)
-			const dir = parentDir ?? entry.directory
-			const projectInfo = slugMap.get(dir)
-			const name = projectNameFromDir(dir)
-			const sessionTime = entry.session.time.updated ?? entry.session.time.created ?? 0
+			const parentDir = sandboxToParent.get(entry.directory);
+			const dir = parentDir ?? entry.directory;
+			const projectInfo = slugMap.get(dir);
+			const name = projectNameFromDir(dir);
+			const sessionTime =
+				entry.session.time.updated ?? entry.session.time.created ?? 0;
 
 			// A session is "active" if it is busy or has pending permissions/questions
 			const isActive =
 				entry.status.type === "busy" ||
 				entry.permissions.length > 0 ||
-				entry.questions.length > 0
+				entry.questions.length > 0;
 
-			const existing = projects.get(dir)
+			const existing = projects.get(dir);
 			if (existing) {
-				existing.agentCount += 1
-				if (sessionTime > existing.lastActiveAt) existing.lastActiveAt = sessionTime
-				if (isActive) existing.hasActiveAgent = true
+				existing.agentCount += 1;
+				if (sessionTime > existing.lastActiveAt)
+					existing.lastActiveAt = sessionTime;
+				if (isActive) existing.hasActiveAgent = true;
 			} else {
 				projects.set(dir, {
 					id: projectInfo?.id ?? dir,
@@ -519,14 +545,14 @@ export const projectListAtom = (() => {
 					agentCount: 1,
 					lastActiveAt: sessionTime,
 					hasActiveAgent: isActive,
-				})
+				});
 			}
 		}
 
 		// Build sandbox set to filter out worktree projects from discovery
 		const sandboxDirs = discovery.loaded
 			? buildSandboxDirSet(discovery.projects)
-			: new Set<string>()
+			: new Set<string>();
 
 		// Discovered projects from API that have no live sessions yet
 		// (show them in sidebar so users can start new agents).
@@ -535,12 +561,12 @@ export const projectListAtom = (() => {
 		// (tier 3), avoiding instability from volatile project.time.updated.
 		if (discovery.loaded) {
 			for (const project of discovery.projects) {
-				if (!project.worktree) continue
-				if (projects.has(project.worktree)) continue
-				if (sandboxDirs.has(project.worktree)) continue
+				if (!project.worktree) continue;
+				if (projects.has(project.worktree)) continue;
+				if (sandboxDirs.has(project.worktree)) continue;
 
-				const projectInfo = slugMap.get(project.worktree)
-				const name = project.name ?? projectNameFromDir(project.worktree)
+				const projectInfo = slugMap.get(project.worktree);
+				const name = project.name ?? projectNameFromDir(project.worktree);
 
 				projects.set(project.worktree, {
 					id: projectInfo?.id ?? project.id,
@@ -550,7 +576,7 @@ export const projectListAtom = (() => {
 					agentCount: 0,
 					lastActiveAt: 0,
 					hasActiveAgent: false,
-				})
+				});
 			}
 		}
 
@@ -560,22 +586,22 @@ export const projectListAtom = (() => {
 		//   Tier 3: Projects with no sessions — alphabetical by name
 		// Within each tier, ties are broken by name for deterministic ordering.
 		const next = Array.from(projects.values()).sort((a, b) => {
-			const tierA = a.hasActiveAgent ? 0 : a.agentCount > 0 ? 1 : 2
-			const tierB = b.hasActiveAgent ? 0 : b.agentCount > 0 ? 1 : 2
-			if (tierA !== tierB) return tierA - tierB
+			const tierA = a.hasActiveAgent ? 0 : a.agentCount > 0 ? 1 : 2;
+			const tierB = b.hasActiveAgent ? 0 : b.agentCount > 0 ? 1 : 2;
+			if (tierA !== tierB) return tierA - tierB;
 
 			// Within tiers 0 and 1: sort by most recent activity, then name
 			if (tierA < 2) {
-				const timeDiff = b.lastActiveAt - a.lastActiveAt
-				if (timeDiff !== 0) return timeDiff
+				const timeDiff = b.lastActiveAt - a.lastActiveAt;
+				if (timeDiff !== 0) return timeDiff;
 			}
 
 			// Tier 2 (no sessions) or tie-breaker: alphabetical by name
-			return a.name.localeCompare(b.name)
-		})
+			return a.name.localeCompare(b.name);
+		});
 
-		if (projectListEqual(prevProjects, next)) return prevProjects
-		prevProjects = next
-		return next
-	})
-})()
+		if (projectListEqual(prevProjects, next)) return prevProjects;
+		prevProjects = next;
+		return next;
+	});
+})();

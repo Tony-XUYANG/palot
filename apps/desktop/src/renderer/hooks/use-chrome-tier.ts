@@ -1,17 +1,25 @@
-import { useAtomValue, useSetAtom } from "jotai"
-import { useEffect } from "react"
-import type { WindowChromeTier } from "../../preload/api"
-import { chromeTierAtom, isTransparentAtom, opaqueWindowsAtom } from "../atoms/preferences"
+import { useAtomValue, useSetAtom } from "jotai";
+import { useEffect } from "react";
+import type { WindowChromeTier } from "../../preload/api";
+import {
+	chromeTierAtom,
+	isTransparentAtom,
+	opaqueWindowsAtom,
+} from "../atoms/preferences";
 
 /**
  * Detect whether we're running inside Electron (preload injects `window.palot`).
  */
 function isElectron(): boolean {
-	return typeof window !== "undefined" && "palot" in window
+	return typeof window !== "undefined" && "palot" in window;
 }
 
 /** All glass-related CSS classes that we toggle on <html>. */
-const GLASS_CLASSES = ["electron-transparent", "electron-vibrancy", "electron-opaque"] as const
+const GLASS_CLASSES = [
+	"electron-transparent",
+	"electron-vibrancy",
+	"electron-opaque",
+] as const;
 
 /**
  * Subscribes to the chrome tier from the main process and syncs it to the Jotai store.
@@ -31,67 +39,67 @@ const GLASS_CLASSES = ["electron-transparent", "electron-vibrancy", "electron-op
  * Call this once in the root layout.
  */
 export function useChromeTier() {
-	const setChromeTier = useSetAtom(chromeTierAtom)
-	const chromeTier = useAtomValue(chromeTierAtom)
-	const isTransparent = useAtomValue(isTransparentAtom)
-	const isOpaque = useAtomValue(opaqueWindowsAtom)
+	const setChromeTier = useSetAtom(chromeTierAtom);
+	const chromeTier = useAtomValue(chromeTierAtom);
+	const isTransparent = useAtomValue(isTransparentAtom);
+	const isOpaque = useAtomValue(opaqueWindowsAtom);
 
 	// Pull the chrome tier immediately on mount (avoids race with push event)
 	useEffect(() => {
-		if (!isElectron()) return
+		if (!isElectron()) return;
 
 		window.palot.getChromeTier().then((tier) => {
-			setChromeTier(tier)
-		})
-	}, [setChromeTier])
+			setChromeTier(tier);
+		});
+	}, [setChromeTier]);
 
 	// Also listen for the push event (backup / future tier changes)
 	useEffect(() => {
-		if (!isElectron()) return
+		if (!isElectron()) return;
 
 		const unsubscribe = window.palot.onChromeTier((tier: string) => {
-			setChromeTier(tier as WindowChromeTier)
-		})
+			setChromeTier(tier as WindowChromeTier);
+		});
 
-		return unsubscribe
-	}, [setChromeTier])
+		return unsubscribe;
+	}, [setChromeTier]);
 
 	// Sync CSS class on <html> — three mutually exclusive states
 	useEffect(() => {
-		const root = document.documentElement
+		const root = document.documentElement;
 
 		// Remove all glass classes first
 		for (const cls of GLASS_CLASSES) {
-			root.classList.remove(cls)
+			root.classList.remove(cls);
 		}
 
 		// In browser mode, don't add any class — all glass CSS is inert
-		if (!isElectron()) return
+		if (!isElectron()) return;
 
 		if (isOpaque || chromeTier === "opaque") {
-			root.classList.add("electron-opaque")
+			root.classList.add("electron-opaque");
 		} else if (chromeTier === "liquid-glass") {
-			root.classList.add("electron-transparent")
+			root.classList.add("electron-transparent");
 		} else if (chromeTier === "vibrancy") {
-			root.classList.add("electron-vibrancy")
+			root.classList.add("electron-vibrancy");
 		} else {
-			root.classList.add("electron-opaque")
+			root.classList.add("electron-opaque");
 		}
-	}, [chromeTier, isOpaque])
+	}, [chromeTier, isOpaque]);
 
 	// Set data-platform on <html> so CSS can apply platform-specific styles
 	// (e.g. disabling hover states on macOS to match native sidebar behavior)
 	useEffect(() => {
-		if (!isElectron()) return
-		document.documentElement.dataset.platform = window.palot.platform
-	}, [])
+		if (!isElectron()) return;
+		document.documentElement.dataset.platform = window.palot.platform;
+	}, []);
 
-	return { isTransparent, isOpaque, chromeTier }
+	return { isTransparent, isOpaque, chromeTier };
 }
 
 /**
  * Read-only hook to get whether the window is currently transparent.
  */
 export function useIsTransparent(): boolean {
-	return useAtomValue(isTransparentAtom)
+	return useAtomValue(isTransparentAtom);
 }

@@ -9,7 +9,7 @@
  * instead of opening this dialog.
  */
 
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	Dialog,
 	DialogClose,
@@ -18,80 +18,90 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@palot/ui/components/dialog"
-import { Input } from "@palot/ui/components/input"
-import { Label } from "@palot/ui/components/label"
-import { useAtomValue } from "jotai"
-import { FolderOpenIcon, Loader2Icon } from "lucide-react"
-import { useCallback, useState } from "react"
-import { activeServerConfigAtom } from "../atoms/connection"
-import { loadProjectSessions } from "../services/connection-manager"
+} from "@palot/ui/components/dialog";
+import { Input } from "@palot/ui/components/input";
+import { Label } from "@palot/ui/components/label";
+import { useAtomValue } from "jotai";
+import { FolderOpenIcon, Loader2Icon } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { activeServerConfigAtom } from "../atoms/connection";
+import { loadProjectSessions } from "../services/connection-manager";
 
 interface AddProjectDialogProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	/** Called after a project directory is successfully added. */
-	onAdded?: (directory: string) => void
+	onAdded?: (directory: string) => void;
 }
 
 /**
  * Dialog for entering a remote project directory path.
  * Only renders when connected to a non-local server.
  */
-export function AddProjectDialog({ open, onOpenChange, onAdded }: AddProjectDialogProps) {
-	const activeServer = useAtomValue(activeServerConfigAtom)
+export function AddProjectDialog({
+	open,
+	onOpenChange,
+	onAdded,
+}: AddProjectDialogProps) {
+	const { t } = useTranslation();
+	const activeServer = useAtomValue(activeServerConfigAtom);
 
-	const [remotePath, setRemotePath] = useState("")
-	const [loading, setLoading] = useState(false)
-	const [error, setError] = useState<string | null>(null)
+	const [remotePath, setRemotePath] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
 			if (nextOpen) {
-				setRemotePath("")
-				setError(null)
-				setLoading(false)
+				setRemotePath("");
+				setError(null);
+				setLoading(false);
 			}
-			onOpenChange(nextOpen)
+			onOpenChange(nextOpen);
 		},
 		[onOpenChange],
-	)
+	);
 
 	const handleAdd = useCallback(async () => {
-		const trimmed = remotePath.trim()
-		if (!trimmed) return
+		const trimmed = remotePath.trim();
+		if (!trimmed) return;
 
-		setLoading(true)
-		setError(null)
+		setLoading(true);
+		setError(null);
 		try {
-			await loadProjectSessions(trimmed)
-			onAdded?.(trimmed)
-			onOpenChange(false)
+			await loadProjectSessions(trimmed);
+			onAdded?.(trimmed);
+			onOpenChange(false);
 		} catch (err) {
 			setError(
 				err instanceof Error
 					? err.message
 					: "Failed to load project. Check that the path exists on the remote server.",
-			)
+			);
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
-	}, [remotePath, onAdded, onOpenChange])
+	}, [remotePath, onAdded, onOpenChange]);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle>Add Remote Project</DialogTitle>
+					<DialogTitle>{t("projects.addRemote")}</DialogTitle>
 					<DialogDescription>
 						Enter the absolute path to a project directory on{" "}
-						<span className="font-medium text-foreground">{activeServer.name}</span>
+						<span className="font-medium text-foreground">
+							{activeServer.name}
+						</span>
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-4">
 					<div className="space-y-2">
-						<Label htmlFor="remote-project-path">Directory Path</Label>
+						<Label htmlFor="remote-project-path">
+							{t("projects.directoryPath")}
+						</Label>
 						<div className="relative">
 							<FolderOpenIcon
 								aria-hidden="true"
@@ -99,15 +109,15 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: AddProjectDial
 							/>
 							<Input
 								id="remote-project-path"
-								placeholder="/home/user/projects/my-app"
+								placeholder={t("automations.pathPlaceholder")}
 								value={remotePath}
 								onChange={(e) => {
-									setRemotePath(e.target.value)
-									setError(null)
+									setRemotePath(e.target.value);
+									setError(null);
 								}}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" && remotePath.trim()) {
-										handleAdd()
+										handleAdd();
 									}
 								}}
 								className="pl-9"
@@ -115,8 +125,8 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: AddProjectDial
 							/>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							The path must exist on the remote server. Sessions and project data will be loaded
-							from this directory.
+							The path must exist on the remote server. Sessions and project
+							data will be loaded from this directory.
 						</p>
 					</div>
 
@@ -128,13 +138,20 @@ export function AddProjectDialog({ open, onOpenChange, onAdded }: AddProjectDial
 				</div>
 
 				<DialogFooter>
-					<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+					<DialogClose render={<Button variant="outline" />}>
+						{t("common.actions.cancel")}
+					</DialogClose>
 					<Button disabled={!remotePath.trim() || loading} onClick={handleAdd}>
-						{loading && <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />}
+						{loading && (
+							<Loader2Icon
+								aria-hidden="true"
+								className="size-3.5 animate-spin"
+							/>
+						)}
 						Add Project
 					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }
