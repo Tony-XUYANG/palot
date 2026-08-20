@@ -1,145 +1,201 @@
-import { app, BrowserWindow, shell } from "electron";
-import type { AppUpdater, UpdateInfo } from "electron-updater";
-
 /**
- * Auto-updater module.
- *
- * Uses electron-updater to check for new releases on GitHub Releases.
- * Downloads updates in the background and notifies the renderer via IPC
- * so it can show a non-intrusive "update available" banner.
- *
- * The electron-updater module is lazily imported to avoid loading ~500KB+
- * of code during startup (especially in dev where the updater is a no-op).
- *
- * On macOS, Squirrel.Mac requires the app to be code-signed for in-place
- * updates. When the app is unsigned (CI builds with CSC_IDENTITY_AUTO_DISCOVERY=false),
- * we detect this and fall back to opening the GitHub release page so the user
- * can download the new version manually. Windows and Linux are unaffected.
+ * Auto-updater with a Windows China mirror and GitHub fallback.
  */
 
-let _autoUpdater: AppUpdater | null = null;
+import { app, BrowserWindow, shell } from "electron"
+import type { AppUpdater, UpdateCheckResult, UpdateInfo } from "electron-updater"
+import {
+	createUpdateSources,
+	getEmbeddedUpdateConfiguration,
+	getReleasePageUrl,
+	GITHUB_UPDATE_SOURCE,
+	runWithUpdateSourceFallback,
+	type UpdateSource,
+	type UpdateSourceId,
+} from "./update-sources"
+
+let autoUpdaterInstance: AppUpdater | null = null
 
 async function getAutoUpdater(): Promise<AppUpdater> {
-	if (!_autoUpdater) {
-		// electron-updater is CJS — the destructuring workaround is required
-		// for ESM compatibility. See electron-builder#7976.
-		const electronUpdater = await import("electron-updater");
-		_autoUpdater = electronUpdater.default.autoUpdater;
+	if (!autoUpdaterInstance) {
+		// electron-updater is CJS; this shape keeps the lazy import ESM-compatible.
+		const electronUpdater = await import("electron-updater")
+		autoUpdaterInstance = electronUpdater.default.autoUpdater
 	}
-	return _autoUpdater;
+	return autoUpdaterInstance
 }
 
 // ============================================================
 // Signing detection
 // ============================================================
 
-/**
- * Detect whether the running macOS .app bundle is properly code-signed
- * (i.e. signed with a real Apple Developer ID, not ad-hoc or unsigned).
- * Returns true on non-macOS platforms since signing isn't required there.
- */
 function detectCanAutoInstall(): boolean {
-	if (process.platform !== "darwin") return true;
-	if (!app.isPackaged) return true;
+	if (process.platform !== "darwin" || !app.isPackaged) return true
 
 	try {
-		const { execSync } = require("node:child_process");
-		// codesign --verify exits 0 if valid signature, non-zero otherwise
-		execSync(`codesign --verify --deep --strict "${app.getPath("exe")}"`, {
+		const { execFileSync } = require("node:child_process")
+		execFileSync("codesign", ["--verify", "--deep", "--strict", app.getPath("exe")], {
 			encoding: "utf8",
 			stdio: "pipe",
-		});
-		return true;
+		})
+		return true
 	} catch {
-		// Unsigned or ad-hoc signed — Squirrel.Mac will reject the install
-		return false;
+		return false
 	}
 }
 
-/** Whether the current build supports automatic in-place updates. */
-let canAutoInstall = true;
+let canAutoInstall = true
 
 // ============================================================
-// State
+// Sources and state
 // ============================================================
 
-/** Current update state, queryable by the renderer. */
-export interface UpdateState {
-	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error";
-	version?: string;
-	releaseNotes?: string;
-	progress?: {
-		percent: number;
-		bytesPerSecond: number;
-		transferred: number;
-		total: number;
-	};
-	error?: string;
-	/** Whether the app can auto-install updates (false on unsigned macOS builds). */
-	canAutoInstall: boolean;
+function resolveUpdateSources(): UpdateSource[] {
+	try {
+		return createUpdateSources(process.platform, getEmbeddedUpdateConfiguration())
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "invalid configuration"
+		console.error(`[auto-updater] China update configuration disabled: ${message}`)
+		return [GITHUB_UPDATE_SOURCE]
+	}
 }
 
-let state: UpdateState = { status: "idle", canAutoInstall: true };
-let checkInterval: ReturnType<typeof setInterval> | null = null;
+const updateSources = resolveUpdateSources()
+let activeSource = updateSources[0] ?? GITHUB_UPDATE_SOURCE
+
+export interface UpdateState {
+	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error"
+	version?: string
+	releaseNotes?: string
+	progress?: {
+		percent: number
+		bytesPerSecond: number
+		transferred: number
+		total: number
+	}
+	error?: string
+	/** Whether the app can auto-install updates (false on unsigned macOS builds). */
+	canAutoInstall: boolean
+	/** The source currently used for update metadata and downloads. */
+	source: UpdateSourceId
+	/** Whether GitHub was selected after the China mirror failed. */
+	fallbackUsed: boolean
+}
+
+let state: UpdateState = {
+	status: "idle",
+	canAutoInstall: true,
+	source: activeSource.id,
+	fallbackUsed: false,
+}
+let checkInterval: ReturnType<typeof setInterval> | null = null
+let checkOperation: Promise<UpdateCheckResult | null> | null = null
+let downloadOperation: Promise<void> | null = null
+let managedOperationCount = 0
 
 function getMainWindow(): BrowserWindow | null {
-	return BrowserWindow.getAllWindows()[0] ?? null;
+	return BrowserWindow.getAllWindows()[0] ?? null
 }
 
 function setState(next: Partial<UpdateState>): void {
-	state = { ...state, ...next };
-	getMainWindow()?.webContents.send("updater:state-changed", state);
+	state = { ...state, ...next }
+	getMainWindow()?.webContents.send("updater:state-changed", state)
 }
 
-// ============================================================
-// GitHub release URL
-// ============================================================
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : "Update operation failed"
+}
 
-const GITHUB_REPO_URL = "https://github.com/Tony-XUYANG/palot";
+async function setActiveSource(
+	autoUpdater: AppUpdater,
+	source: UpdateSource,
+	fallbackUsed: boolean,
+): Promise<void> {
+	activeSource = source
+	autoUpdater.setFeedURL(source.feed)
+	setState({
+		source: source.id,
+		fallbackUsed,
+		error: undefined,
+		progress: undefined,
+	})
+}
 
-/** Build the GitHub release URL for a specific version tag. */
-function getReleaseUrl(version?: string): string {
-	if (version) {
-		return `${GITHUB_REPO_URL}/releases/tag/v${version}`;
+async function performCheck(
+	autoUpdater: AppUpdater,
+	sources: UpdateSource[],
+	fallbackAlreadyUsed = false,
+): Promise<UpdateCheckResult | null> {
+	const result = await runWithUpdateSourceFallback(
+		sources,
+		async (source, attemptUsedFallback) => {
+			const fallbackUsed = fallbackAlreadyUsed || attemptUsedFallback
+			await setActiveSource(autoUpdater, source, fallbackUsed)
+			return await autoUpdater.checkForUpdates()
+		},
+	)
+
+	return result.value
+}
+
+async function runManagedOperation<T>(operation: () => Promise<T>): Promise<T> {
+	managedOperationCount++
+	try {
+		return await operation()
+	} finally {
+		managedOperationCount--
 	}
-	return `${GITHUB_REPO_URL}/releases/latest`;
+}
+
+async function performDownload(autoUpdater: AppUpdater): Promise<void> {
+	try {
+		await autoUpdater.downloadUpdate()
+		return
+	} catch (primaryError) {
+		const sourceIndex = updateSources.findIndex((source) => source.id === activeSource.id)
+		const fallbackSources = sourceIndex >= 0 ? updateSources.slice(sourceIndex + 1) : []
+		if (fallbackSources.length === 0) throw primaryError
+
+		console.warn(
+			`[auto-updater] Download from ${activeSource.id} failed; retrying with fallback`,
+		)
+		const result = await performCheck(autoUpdater, fallbackSources, true)
+		if (!result?.isUpdateAvailable) {
+			throw new Error("The fallback update source does not contain the requested update")
+		}
+		await autoUpdater.downloadUpdate()
+	}
+}
+
+function setFinalError(error: unknown): void {
+	const message = getErrorMessage(error)
+	console.error(`[auto-updater] Operation failed: ${message}`)
+	setState({ status: "error", error: message, progress: undefined })
 }
 
 // ============================================================
 // Public API
 // ============================================================
 
-/**
- * Initialises the auto-updater. Call once after the main window is created.
- * In development (unpackaged), this is a no-op.
- */
 export async function initAutoUpdater(): Promise<void> {
-	if (!app.isPackaged) return;
+	if (!app.isPackaged) return
 
-	canAutoInstall = detectCanAutoInstall();
-	state = { ...state, canAutoInstall };
+	canAutoInstall = detectCanAutoInstall()
+	state = { ...state, canAutoInstall }
 
 	console.log(
-		`[auto-updater] platform=${process.platform}, canAutoInstall=${canAutoInstall}`,
-	);
+		`[auto-updater] platform=${process.platform}, source=${activeSource.id}, canAutoInstall=${canAutoInstall}`,
+	)
 
-	const autoUpdater = await getAutoUpdater();
-
-	// Logging
-	autoUpdater.logger = console;
-
-	// Don't auto-download — let the user trigger it, or download silently
-	// after they've been notified.
-	autoUpdater.autoDownload = false;
-
-	// Install on quit by default (only effective when canAutoInstall is true)
-	autoUpdater.autoInstallOnAppQuit = canAutoInstall;
-
-	// ── Events ──────────────────────────────────────────────────
+	const autoUpdater = await getAutoUpdater()
+	autoUpdater.logger = console
+	autoUpdater.autoDownload = false
+	autoUpdater.autoInstallOnAppQuit = canAutoInstall
+	await setActiveSource(autoUpdater, activeSource, false)
 
 	autoUpdater.on("checking-for-update", () => {
-		setState({ status: "checking" });
-	});
+		setState({ status: "checking", error: undefined })
+	})
 
 	autoUpdater.on("update-available", (info: UpdateInfo) => {
 		setState({
@@ -149,14 +205,14 @@ export async function initAutoUpdater(): Promise<void> {
 				typeof info.releaseNotes === "string"
 					? info.releaseNotes
 					: Array.isArray(info.releaseNotes)
-						? info.releaseNotes.map((n) => n.note).join("\n")
+						? info.releaseNotes.map((note) => note.note).join("\n")
 						: undefined,
-		});
-	});
+		})
+	})
 
 	autoUpdater.on("update-not-available", () => {
-		setState({ status: "idle" });
-	});
+		setState({ status: "idle", version: undefined, releaseNotes: undefined })
+	})
 
 	autoUpdater.on("download-progress", (progress) => {
 		setState({
@@ -167,80 +223,97 @@ export async function initAutoUpdater(): Promise<void> {
 				transferred: progress.transferred,
 				total: progress.total,
 			},
-		});
-	});
+		})
+	})
 
 	autoUpdater.on("update-downloaded", () => {
-		setState({ status: "ready", progress: undefined });
-	});
+		setState({ status: "ready", progress: undefined })
+	})
 
-	autoUpdater.on("error", (err) => {
-		console.error("[auto-updater] Error:", err.message);
-		setState({ status: "error", error: err.message });
-	});
-
-	// ── Initial check (10s after launch) + periodic (every 4 hours) ──
+	autoUpdater.on("error", (error) => {
+		if (managedOperationCount > 0) {
+			console.warn(`[auto-updater] Source attempt failed: ${getErrorMessage(error)}`)
+			return
+		}
+		setFinalError(error)
+	})
 
 	setTimeout(() => {
-		autoUpdater.checkForUpdates().catch(() => {});
-	}, 10_000);
+		void checkForUpdates().catch(() => {})
+	}, 10_000)
 
 	checkInterval = setInterval(
 		() => {
-			autoUpdater.checkForUpdates().catch(() => {});
+			void checkForUpdates().catch(() => {})
 		},
 		4 * 60 * 60 * 1000,
-	);
+	)
 }
 
-/** Returns the current update state (for IPC handler). */
 export function getUpdateState(): UpdateState {
-	return state;
+	return state
 }
 
-/** Manually triggers an update check. */
 export async function checkForUpdates(): Promise<void> {
-	if (!app.isPackaged) return;
-	const autoUpdater = await getAutoUpdater();
-	await autoUpdater.checkForUpdates();
+	if (!app.isPackaged) return
+	if (checkOperation) {
+		await checkOperation
+		return
+	}
+
+	const autoUpdater = await getAutoUpdater()
+	checkOperation = runManagedOperation(async () => {
+		try {
+			return await performCheck(autoUpdater, updateSources)
+		} catch (error) {
+			setFinalError(error)
+			throw error
+		}
+	})
+
+	try {
+		await checkOperation
+	} finally {
+		checkOperation = null
+	}
 }
 
-/** Starts downloading the available update. */
 export async function downloadUpdate(): Promise<void> {
-	const autoUpdater = await getAutoUpdater();
-	await autoUpdater.downloadUpdate();
+	if (downloadOperation) return await downloadOperation
+
+	const autoUpdater = await getAutoUpdater()
+	downloadOperation = runManagedOperation(async () => {
+		try {
+			await performDownload(autoUpdater)
+		} catch (error) {
+			setFinalError(error)
+			throw error
+		}
+	})
+
+	try {
+		await downloadOperation
+	} finally {
+		downloadOperation = null
+	}
 }
 
-/**
- * Quits and installs the downloaded update.
- * Only works when canAutoInstall is true (signed macOS builds, Windows, Linux).
- */
 export async function installUpdate(): Promise<void> {
 	if (!canAutoInstall) {
-		// Fallback: open release page instead of attempting Squirrel install
-		await openReleasePage();
-		return;
+		await openReleasePage()
+		return
 	}
-	const autoUpdater = await getAutoUpdater();
-	// Windows NSIS must run silently here. Passing false opens the installer wizard and leaves the
-	// update blocked until the user manually completes it.
-	autoUpdater.quitAndInstall(true, true);
+	const autoUpdater = await getAutoUpdater()
+	autoUpdater.quitAndInstall(true, true)
 }
 
-/**
- * Opens the GitHub release page for the current update version in the
- * user's default browser. Used as a fallback on unsigned macOS builds
- * where Squirrel.Mac cannot perform in-place updates.
- */
 export async function openReleasePage(): Promise<void> {
-	const url = getReleaseUrl(state.version);
-	await shell.openExternal(url);
+	await shell.openExternal(getReleasePageUrl(activeSource, state.version))
 }
 
-/** Cleanup — call on app quit. */
 export function stopAutoUpdater(): void {
 	if (checkInterval) {
-		clearInterval(checkInterval);
-		checkInterval = null;
+		clearInterval(checkInterval)
+		checkInterval = null
 	}
 }

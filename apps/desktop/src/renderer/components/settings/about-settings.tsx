@@ -17,6 +17,22 @@ export function AboutSettings() {
 	const [cliError, setCliError] = useState<string | null>(null);
 
 	const updater = useUpdater();
+	const updateSource = updater.fallbackUsed
+		? t("about.sourceGithubFallback")
+		: updater.source === "china"
+			? t("about.sourceChina")
+			: t("about.sourceGithub");
+	const updateStatus =
+		updater.status === "available"
+			? t("about.versionAvailable", { version: updater.version })
+			: updater.status === "ready"
+				? t("about.updateReady")
+				: updater.status === "error"
+					? (updater.error ?? t("about.updateFailed"))
+					: undefined;
+	const updateDescription = updateStatus
+		? `${updateStatus} · ${t("about.updateSource", { source: updateSource })}`
+		: t("about.updateSource", { source: updateSource });
 
 	useEffect(() => {
 		if (!isElectron) return;
@@ -76,15 +92,7 @@ export function AboutSettings() {
 				</SettingsRow>
 				<SettingsRow
 					label={t("about.updates")}
-					description={
-						updater.status === "available"
-							? t("about.versionAvailable", { version: updater.version })
-							: updater.status === "ready"
-								? t("about.updateReady")
-								: updater.status === "error"
-									? (updater.error ?? t("about.updateFailed"))
-									: undefined
-					}
+					description={updateDescription}
 				>
 					{updater.status === "idle" && (
 						<Button

@@ -26,6 +26,14 @@ function copyDrizzleMigrations(): Plugin {
 
 export default defineConfig({
 	main: {
+		define: {
+			__PALOT_CN_UPDATE_BASE_URL__: JSON.stringify(
+				process.env.PALOT_CN_UPDATE_BASE_URL ?? "",
+			),
+			__PALOT_CN_DOWNLOAD_PAGE_URL__: JSON.stringify(
+				process.env.PALOT_CN_DOWNLOAD_PAGE_URL ?? "",
+			),
+		},
 		plugins: [
 			externalizeDepsPlugin({ exclude: ["@palot/configconv", "drizzle-orm"] }),
 			copyDrizzleMigrations(),
