@@ -1,5 +1,19 @@
 # @palot/desktop
 
+## 0.12.0-beta.5
+
+### Patch Changes
+
+- [`3383af3`](https://github.com/Tony-XUYANG/palot/commit/3383af30af670399eec15be754176990a6be1a85) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Feature additional official domestic coding providers for Alibaba, Tencent, StepFun, and LongCat while keeping recommendations synchronized with the live OpenCode catalog.
+
+- [`6a23f65`](https://github.com/Tony-XUYANG/palot/commit/6a23f65ddaa166a3e03ca2d2769c2b8f2f8c7d5d) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add first-class Tencent Token Plan support with the official OpenAI-compatible endpoint, Hy3 model metadata, isolated API-key storage, and bilingual credential guidance.
+
+- [`7265ab1`](https://github.com/Tony-XUYANG/palot/commit/7265ab13016454537d5bfd16641a8b70cf8702b3) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add complete Simplified Chinese and English desktop localization with mandatory first-launch language selection, instant switching, localized native UI, model errors, automation schedules, and core coding workflows.
+
+- [`03fc9ef`](https://github.com/Tony-XUYANG/palot/commit/03fc9efdb9daa7945e7405d8fd1b79f05230c843) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Promote Alibaba Model Studio with Qwen3 Coder Plus to the verified domestic provider group after completing a real code-edit, diff-review, and automated-test acceptance run.
+
+- [`a9f29d2`](https://github.com/Tony-XUYANG/palot/commit/a9f29d22c246064b8b956acab05d624ee3c2d5e3) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Promote Tencent Token Plan with Hy3 to the verified domestic provider group after completing an official-endpoint request, real agent code edit, diff review, and automated-test acceptance run.
+
 ## 0.12.0-beta.4
 
 ### Patch Changes
