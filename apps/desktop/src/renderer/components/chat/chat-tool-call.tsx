@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { BundledLanguage } from "shiki";
 import { getPartFirstSeenAt } from "../../atoms/parts";
 import { viewFileInDiffPanelAtom } from "../../atoms/ui";
@@ -411,6 +412,7 @@ export function getToolDuration(part: ToolPart): string | undefined {
  * behaviour of the OpenCode TUI and web UI.
  */
 function BashContent({ part }: { part: ToolPart }) {
+	const { t } = useTranslation();
 	const command = part.state.input?.command as string | undefined;
 
 	// During "running", live output arrives in state.metadata.output.
@@ -464,7 +466,9 @@ function BashContent({ part }: { part: ToolPart }) {
 					)}
 				>
 					<TerminalHeader className="py-1.5 px-3">
-						<TerminalTitle className="text-[11px]">Output</TerminalTitle>
+						<TerminalTitle className="text-[11px]">
+							{t("chat.tool.output")}
+						</TerminalTitle>
 						<TerminalCopyButton className="size-6" />
 					</TerminalHeader>
 					<TerminalContent className="max-h-48 p-3 text-[11px] leading-relaxed" />

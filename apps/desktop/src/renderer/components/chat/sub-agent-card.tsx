@@ -13,6 +13,7 @@ import {
 	ZapIcon,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { messagesFamily } from "../../atoms/messages";
 import { partsFamily } from "../../atoms/parts";
 import { sessionFamily } from "../../atoms/sessions";
@@ -84,6 +85,7 @@ interface SubAgentCardProps {
 export const SubAgentCard = memo(function SubAgentCard({
 	part: propPart,
 }: SubAgentCardProps) {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { projectSlug } = useParams({ strict: false }) as {
 		projectSlug?: string;
@@ -359,7 +361,9 @@ export const SubAgentCard = memo(function SubAgentCard({
 								: "text-muted-foreground",
 						)}
 					/>
-					<span className="text-xs font-medium text-foreground/80">Agent</span>
+					<span className="text-xs font-medium text-foreground/80">
+						{t("common.terms.agent")}
+					</span>
 					<span className="shrink-0 text-xs text-muted-foreground/60">
 						({agentType})
 					</span>
@@ -374,7 +378,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 					{childIsWaiting && childHasPendingPermission && (
 						<span className="flex items-center gap-1 text-[11px] font-medium text-amber-400">
 							<ShieldAlertIcon className="size-3 shrink-0" aria-hidden="true" />
-							Needs approval
+							{t("chat.subAgent.needsApproval")}
 						</span>
 					)}
 					{childIsWaiting &&
@@ -385,7 +389,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 									className="size-3 shrink-0"
 									aria-hidden="true"
 								/>
-								Asking a question
+								{t("chat.subAgent.askingQuestion")}
 							</span>
 						)}
 					{isRunning && !childIsWaiting && childStatus && (
@@ -415,7 +419,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 							onClick={handleNavigate}
 							className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
 						>
-							Open
+							{t("common.actions.open")}
 							<ArrowRightIcon className="size-3" />
 						</button>
 					)}
@@ -434,7 +438,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 							onClick={handleShowMore}
 							className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary/70 transition-colors hover:text-primary"
 						>
-							Show more
+							{t("chat.subAgent.showMore")}
 							<ChevronDownIcon className="size-3" />
 						</button>
 					)}
@@ -524,7 +528,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 					{isCompleted && !latestToolParts.length && !latestText && (
 						<div className="border-t border-border/30 px-3.5 py-2">
 							<span className="text-[11px] text-muted-foreground/50">
-								Completed
+								{t("chat.tool.completed")}
 							</span>
 						</div>
 					)}
