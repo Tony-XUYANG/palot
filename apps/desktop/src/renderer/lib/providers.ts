@@ -2,6 +2,11 @@
  * Provider constants and metadata shared across onboarding, settings, and dialogs.
  */
 
+import {
+	TENCENT_TOKEN_PLAN_DOCS_URL,
+	TENCENT_TOKEN_PLAN_PROVIDER_ID,
+} from "./tencent-token-plan-provider-config";
+
 // ============================================================
 // Provider ordering
 // ============================================================
@@ -17,6 +22,7 @@ export const CHINA_PROVIDER_IDS = [
 	"minimax-cn",
 	"modelscope",
 	"alibaba-coding-plan-cn",
+	TENCENT_TOKEN_PLAN_PROVIDER_ID,
 	"tencent-coding-plan",
 	"stepfun-step-plan",
 	"longcat",
@@ -117,6 +123,12 @@ export const CHINA_MODEL_REGISTRY = [
 	{
 		providerID: "alibaba-coding-plan-cn",
 		modelID: "qwen3-coder-next",
+		tier: "candidate",
+		firstTier: false,
+	},
+	{
+		providerID: TENCENT_TOKEN_PLAN_PROVIDER_ID,
+		modelID: "hy3",
 		tier: "candidate",
 		firstTier: false,
 	},
@@ -313,6 +325,10 @@ export const PROVIDER_KEY_URLS: Record<string, { label: string; url: string }> =
 		"tencent-coding-plan": {
 			label: "Get API key",
 			url: "https://console.cloud.tencent.com/lkeap",
+		},
+		[TENCENT_TOKEN_PLAN_PROVIDER_ID]: {
+			label: "Get API key",
+			url: TENCENT_TOKEN_PLAN_DOCS_URL,
 		},
 		"stepfun-step-plan": {
 			label: "Get API key",

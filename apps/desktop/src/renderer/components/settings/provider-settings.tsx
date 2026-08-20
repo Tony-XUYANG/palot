@@ -79,6 +79,8 @@ import {
 	ZEN_PROVIDER_ID,
 	ZEN_SIGNUP_URL,
 } from "../../lib/providers";
+import { disableTencentTokenPlanProvider } from "../../lib/tencent-token-plan";
+import { TENCENT_TOKEN_PLAN_PROVIDER_ID } from "../../lib/tencent-token-plan-provider-config";
 import { getBaseClient } from "../../services/connection-manager";
 import { ConnectProviderDialog } from "./connect-provider-dialog";
 import { PalotCloudSettings } from "./palot-cloud-settings";
@@ -382,7 +384,9 @@ function ConnectedProviderRow({
 	const source = sourceInfo?.source ?? "api";
 	const isEnvConnected = source === "env";
 	const hasManualAuth = source === "api" || source === "custom";
-	const canManageConfigApiKey = provider.id === "openai" && source === "config";
+	const isTencentTokenPlan = provider.id === TENCENT_TOKEN_PLAN_PROVIDER_ID;
+	const canManageConfigApiKey =
+		(provider.id === "openai" || isTencentTokenPlan) && source === "config";
 
 	const isZen = provider.id === ZEN_PROVIDER_ID;
 	const zenFree = isZen && isZenFreeTier(provider.models);
@@ -392,7 +396,11 @@ function ConnectedProviderRow({
 		try {
 			const client = getBaseClient();
 			if (!client) throw new Error("Not connected to server");
-			await client.auth.remove({ providerID: provider.id });
+			if (provider.id === TENCENT_TOKEN_PLAN_PROVIDER_ID) {
+				await disableTencentTokenPlanProvider(client);
+			} else {
+				await client.auth.remove({ providerID: provider.id });
+			}
 			await client.global.dispose();
 			queryClient.invalidateQueries({ queryKey: queryKeys.allProviders });
 			queryClient.invalidateQueries({ queryKey: queryKeys.connectedProviders });
@@ -417,7 +425,7 @@ function ConnectedProviderRow({
 	const subscriptionLabel = SUBSCRIPTION_LABELS[provider.id];
 
 	// Subscription users can always disconnect (remove OAuth tokens from auth.json)
-	const canDisconnect = hasManualAuth || isSubscription;
+	const canDisconnect = hasManualAuth || isSubscription || isTencentTokenPlan;
 
 	const sourceLabels: Record<string, string> = {
 		env: t("providers.sourceEnvironment"),
@@ -536,31 +544,31 @@ function ConnectedProviderRow({
 								</Tooltip>
 							)}
 
-							{canDisconnect && (
-								<Tooltip>
-									<TooltipTrigger
-										render={
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={handleRemoveAuth}
-												disabled={disconnecting}
-												className="text-muted-foreground hover:text-destructive"
-											/>
-										}
-									>
-										<UnlinkIcon className="size-4" aria-hidden="true" />
-									</TooltipTrigger>
-									<TooltipContent>
-										<p>
-											{t("providers.disconnectProvider", {
-												provider: provider.name,
-											})}
-										</p>
-									</TooltipContent>
-								</Tooltip>
-							)}
 						</>
+					)}
+					{canDisconnect && (
+						<Tooltip>
+							<TooltipTrigger
+								render={
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={handleRemoveAuth}
+										disabled={disconnecting}
+										className="text-muted-foreground hover:text-destructive"
+									/>
+								}
+							>
+								<UnlinkIcon className="size-4" aria-hidden="true" />
+							</TooltipTrigger>
+							<TooltipContent>
+								<p>
+									{t("providers.disconnectProvider", {
+										provider: provider.name,
+									})}
+								</p>
+							</TooltipContent>
+						</Tooltip>
 					)}
 				</TooltipProvider>
 			</div>

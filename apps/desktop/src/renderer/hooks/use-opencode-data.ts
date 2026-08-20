@@ -13,6 +13,7 @@ import { sanitizeOpenCodeProviderPayload } from "../../shared/opencode-provider-
 import { serverConnectedAtom } from "../atoms/connection";
 import { isMockModeAtom } from "../atoms/mock-mode";
 import { MOCK_AGENTS, MOCK_CONFIG, MOCK_PROVIDERS } from "../lib/mock-data";
+import { createTencentTokenPlanProviderConfig } from "../lib/tencent-token-plan-provider-config";
 import { fetchModelState, updateModelRecent } from "../services/backend";
 import {
 	getBaseClient,
@@ -506,13 +507,33 @@ export interface ConnectedProviderInfo {
 	env: string[];
 }
 
+function includeTencentTokenPlanProvider(
+	providers: CatalogProvider[],
+): CatalogProvider[] {
+	const config = createTencentTokenPlanProviderConfig();
+	if (providers.some((provider) => provider.id === config.id)) return providers;
+	return [
+		...providers,
+		{
+			id: config.id!,
+			name: config.name!,
+			api: config.api,
+			npm: config.npm,
+			env: config.env ?? [],
+			models: config.models ?? {},
+		},
+	];
+}
+
 const MOCK_ALL_PROVIDERS: AllProvidersData = {
-	all: MOCK_PROVIDERS.providers.map((provider) => ({
-		id: provider.id,
-		name: provider.name,
-		env: Object.keys(provider.env),
-		models: provider.models,
-	})),
+	all: includeTencentTokenPlanProvider(
+		MOCK_PROVIDERS.providers.map((provider) => ({
+			id: provider.id,
+			name: provider.name,
+			env: Object.keys(provider.env),
+			models: provider.models,
+		})),
+	),
 	defaults: MOCK_PROVIDERS.defaults,
 	connected: ["bedrock"],
 };
@@ -561,7 +582,7 @@ export function useAllProviders(): {
 				connected: string[];
 			};
 			return {
-				all: raw.all ?? [],
+				all: includeTencentTokenPlanProvider(raw.all ?? []),
 				defaults: raw.default ?? {},
 				connected: raw.connected ?? [],
 			};

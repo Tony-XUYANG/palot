@@ -45,6 +45,8 @@ import {
 	ZEN_PROVIDER_ID,
 	ZEN_SIGNUP_URL,
 } from "../../lib/providers";
+import { applyTencentTokenPlanProvider } from "../../lib/tencent-token-plan";
+import { TENCENT_TOKEN_PLAN_PROVIDER_ID } from "../../lib/tencent-token-plan-provider-config";
 import { getBaseClient } from "../../services/connection-manager";
 import { ProviderIcon } from "./provider-icon";
 
@@ -430,10 +432,14 @@ export function ConnectProviderDialog({
 							try {
 								const client = getBaseClient();
 								if (!client) throw new Error("Not connected to server");
-								await client.auth.set({
-									providerID: provider.id,
-									auth: { type: "api", key: apiKey },
-								});
+								if (provider.id === TENCENT_TOKEN_PLAN_PROVIDER_ID) {
+									await applyTencentTokenPlanProvider(client, apiKey);
+								} else {
+									await client.auth.set({
+										providerID: provider.id,
+										auth: { type: "api", key: apiKey },
+									});
+								}
 								const modelCount = await refreshProviderCatalog(
 									client,
 									provider.id,
@@ -830,10 +836,12 @@ function ApiKeyView({
 	const { t } = useTranslation("settings");
 	const [apiKey, setApiKey] = useState("");
 	const isLoading = state.status === "loading";
-	const providerKeyHint =
-		provider.id === "tencent-coding-plan"
-			? t("connect.tencentCodingPlanKeyHint")
-			: null;
+	let providerKeyHint: string | null = null;
+	if (provider.id === "tencent-coding-plan") {
+		providerKeyHint = t("connect.tencentCodingPlanKeyHint");
+	} else if (provider.id === TENCENT_TOKEN_PLAN_PROVIDER_ID) {
+		providerKeyHint = t("connect.tencentTokenPlanKeyHint");
+	}
 
 	const handleSubmit = useCallback(
 		(e: React.FormEvent) => {
@@ -853,7 +861,7 @@ function ApiKeyView({
 					<Input
 						id="api-key"
 						type="password"
-						placeholder="sk-..."
+						placeholder={t("connect.apiKeyPlaceholder")}
 						value={apiKey}
 						onChange={(e) => setApiKey(e.target.value)}
 						disabled={isLoading}

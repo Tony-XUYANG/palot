@@ -464,6 +464,7 @@ export const enUSResources = {
 			serverUnavailable: "Not connected to the local server",
 			chooseMethod: "Choose an authentication method:",
 			enterApiKey: "Enter your API key",
+			apiKeyPlaceholder: "Paste API key",
 			signInBrowser: "Sign in via your browser",
 			envRequired: "Environment variable setup required",
 			envDescription:
@@ -483,6 +484,8 @@ export const enUSResources = {
 			envAlternative: "You can also set the {{variable}} environment variable.",
 			tencentCodingPlanKeyHint:
 				"Use the API key issued by Tencent Cloud Coding Plan. Tencent Cloud SecretId/SecretKey and Token Plan keys are not accepted.",
+			tencentTokenPlanKeyHint:
+				"Use the API key issued by Tencent Cloud Token Plan. Coding Plan keys and Tencent Cloud SecretId/SecretKey are not accepted.",
 			browserOpened:
 				"A browser window has been opened. Sign in and paste the authorization code below.",
 			authorizationCode: "Authorization code",
@@ -1547,6 +1550,7 @@ export const zhCNResources = {
 			serverUnavailable: "未连接到本地服务器",
 			chooseMethod: "选择认证方式：",
 			enterApiKey: "输入 API Key",
+			apiKeyPlaceholder: "粘贴 API Key",
 			signInBrowser: "通过浏览器登录",
 			envRequired: "需要配置环境变量",
 			envDescription: "{{provider}} 的凭证必须在启动 Palot 前设置为环境变量。",
@@ -1565,6 +1569,8 @@ export const zhCNResources = {
 			envAlternative: "也可以通过 {{variable}} 环境变量进行设置。",
 			tencentCodingPlanKeyHint:
 				"请使用腾讯云 Coding Plan 签发的专用 API Key。腾讯云 SecretId/SecretKey 和 Token Plan Key 均不能用于此入口。",
+			tencentTokenPlanKeyHint:
+				"请使用腾讯云 Token Plan 签发的专用 API Key。Coding Plan Key 和腾讯云 SecretId/SecretKey 均不能用于此入口。",
 			browserOpened: "浏览器窗口已打开。请完成登录，然后在下方粘贴授权码。",
 			authorizationCode: "授权码",
 			pasteCode: "在此粘贴授权码...",
