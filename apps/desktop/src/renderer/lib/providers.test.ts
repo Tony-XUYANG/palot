@@ -44,6 +44,7 @@ describe("provider recommendations", () => {
 			"deepseek",
 			"zhipuai",
 			"alibaba-cn",
+			"tencent-token-plan",
 		]);
 		assert.equal(FIRST_TIER_CHINA_PROVIDER_IDS, VERIFIED_CHINA_PROVIDER_IDS);
 		assert.deepEqual(
@@ -178,6 +179,7 @@ describe("provider recommendations", () => {
 			{ id: "deepseek", models: { "deepseek-chat": {} } },
 			{ id: "zhipuai", models: { "glm-4.7-flash": {} } },
 			{ id: "alibaba-cn", models: { "qwen3-coder-plus": {} } },
+			{ id: "tencent-token-plan", models: { hy3: {} } },
 			{ id: "kimi-for-coding", models: { "kimi-for-coding": {} } },
 		]);
 
@@ -189,6 +191,7 @@ describe("provider recommendations", () => {
 				"deepseek/deepseek-chat",
 				"zhipuai/glm-4.7-flash",
 				"alibaba-cn/qwen3-coder-plus",
+				"tencent-token-plan/hy3",
 			],
 		);
 	});

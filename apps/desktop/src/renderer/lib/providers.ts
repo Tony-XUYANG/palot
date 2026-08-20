@@ -16,13 +16,13 @@ export const CHINA_PROVIDER_IDS = [
 	"deepseek",
 	"zhipuai",
 	"alibaba-cn",
+	TENCENT_TOKEN_PLAN_PROVIDER_ID,
 	"kimi-for-coding",
 	"moonshotai-cn",
 	"siliconflow-cn",
 	"minimax-cn",
 	"modelscope",
 	"alibaba-coding-plan-cn",
-	TENCENT_TOKEN_PLAN_PROVIDER_ID,
 	"tencent-coding-plan",
 	"stepfun-step-plan",
 	"longcat",
@@ -33,6 +33,7 @@ export const VERIFIED_CHINA_PROVIDER_IDS = [
 	"deepseek",
 	"zhipuai",
 	"alibaba-cn",
+	TENCENT_TOKEN_PLAN_PROVIDER_ID,
 ] as const;
 
 /** Backwards-compatible name for the domestic providers promoted in the first release. */
@@ -129,8 +130,8 @@ export const CHINA_MODEL_REGISTRY = [
 	{
 		providerID: TENCENT_TOKEN_PLAN_PROVIDER_ID,
 		modelID: "hy3",
-		tier: "candidate",
-		firstTier: false,
+		tier: "verified",
+		firstTier: true,
 	},
 	{
 		providerID: "tencent-coding-plan",
