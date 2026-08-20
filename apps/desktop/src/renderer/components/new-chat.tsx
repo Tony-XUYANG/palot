@@ -209,15 +209,15 @@ function MentionTrigger({
 const SUGGESTIONS = [
 	{
 		icon: CodeIcon,
-		text: "Build a new feature based on the existing patterns in this repo.",
+		key: "chat.suggestions.feature",
 	},
 	{
 		icon: FileTextIcon,
-		text: "Summarize the architecture and key design decisions.",
+		key: "chat.suggestions.architecture",
 	},
 	{
 		icon: GitPullRequestIcon,
-		text: "Review recent changes and suggest improvements.",
+		key: "chat.suggestions.review",
 	},
 ];
 
@@ -617,7 +617,11 @@ export function NewChat() {
 					console.error("Worktree launch failed:", err);
 					// Remove the stub and navigate back to new chat
 					appStore.set(removeSessionAtom, stubId);
-					setError(`Worktree setup failed: ${formatRequestError(err)}`);
+					setError(
+						t("chat.worktreeSetupFailed", {
+							error: formatRequestError(err),
+						}),
+					);
 					navigate({ to: "/" });
 				}
 			};
@@ -635,6 +639,7 @@ export function NewChat() {
 			persistProjectModel,
 			navigateToSession,
 			navigate,
+			t,
 		],
 	);
 
@@ -691,7 +696,7 @@ export function NewChat() {
 										/>
 									}
 								>
-									{selectedProject?.name ?? "select project"}
+									{selectedProject?.name ?? t("chat.selectProject")}
 									<ChevronDownIcon className="size-4" />
 								</PopoverTrigger>
 								<PopoverContent className="w-64 p-1" align="center">
@@ -728,17 +733,18 @@ export function NewChat() {
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 						{SUGGESTIONS.map((suggestion) => {
 							const Icon = suggestion.icon;
+							const text = t(suggestion.key);
 							return (
 								<button
-									key={suggestion.text}
+									key={suggestion.key}
 									type="button"
-									onClick={() => handleLaunch(suggestion.text)}
+									onClick={() => handleLaunch(text)}
 									disabled={launching || !selectedDirectory}
 									className="group/card flex flex-col gap-3 rounded-xl border border-border/50 bg-background/40 backdrop-blur-sm p-4 text-left transition-colors hover:border-muted-foreground/30 hover:bg-background/60 disabled:opacity-50"
 								>
 									<Icon className="size-5 text-muted-foreground transition-colors group-hover/card:text-foreground" />
 									<p className="text-sm leading-snug text-muted-foreground transition-colors group-hover/card:text-foreground">
-										{suggestion.text}
+										{text}
 									</p>
 								</button>
 							);
@@ -788,7 +794,7 @@ export function NewChat() {
 									supportsPdf={modelCapabilities?.pdf}
 								/>
 								<PromptInputTextarea
-									placeholder="What should this session work on?"
+									placeholder={t("chat.newSessionPrompt")}
 									autoFocus
 									disabled={
 										launching || !selectedDirectory || projects.length === 0

@@ -110,7 +110,7 @@ export const SessionMetricsBar = memo(function SessionMetricsBar({
 						</TooltipTrigger>
 						<TooltipContent side="bottom" align="end">
 							<div className="space-y-1 text-xs">
-								<p className="font-medium">Cost</p>
+								<p className="font-medium">{t("metrics.cost")}</p>
 								<p className="text-background/60">
 									{t("metrics.averageCost")}: {metrics.avgExchangeCost}
 								</p>

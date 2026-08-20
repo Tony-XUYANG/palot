@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import fuzzysort from "fuzzysort";
 import { BookOpenIcon, SearchIcon } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getProjectClient } from "../../services/connection-manager";
 
 // ============================================================
@@ -71,6 +72,7 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 	directory,
 	onSelect,
 }: SkillPickerDialogProps) {
+	const { t } = useTranslation();
 	const [search, setSearch] = useState("");
 	const [activeIndex, setActiveIndex] = useState(0);
 	const searchRef = useRef<HTMLInputElement>(null);
@@ -157,10 +159,10 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 				<DialogHeader className="p-4 pb-0">
 					<DialogTitle className="flex items-center gap-2 text-base">
 						<BookOpenIcon className="size-4" />
-						Skills
+						{t("chat.skills.title")}
 					</DialogTitle>
 					<DialogDescription>
-						Select a skill to use in your prompt
+						{t("chat.skills.description")}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -172,7 +174,7 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						onKeyDown={handleKeyDown}
-						placeholder="Search skills..."
+						placeholder={t("chat.skills.search")}
 						className="pl-9"
 					/>
 				</div>
@@ -182,13 +184,15 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 					<div ref={listRef}>
 						{isLoading && (
 							<div className="py-8 text-center text-sm text-muted-foreground">
-								Loading skills...
+								{t("chat.skills.loading")}
 							</div>
 						)}
 
 						{!isLoading && filtered.length === 0 && (
 							<div className="py-8 text-center text-sm text-muted-foreground">
-								{search ? "No skills found" : "No skills available"}
+								{search
+									? t("chat.skills.noneFound")
+									: t("chat.skills.noneAvailable")}
 							</div>
 						)}
 

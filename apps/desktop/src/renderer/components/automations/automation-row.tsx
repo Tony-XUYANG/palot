@@ -55,9 +55,9 @@ export const AutomationRow = memo(function AutomationRow({
 	const isPaused = automation.status === "paused";
 	const countdownLabel = useCountdown(automation.nextRunAt);
 	const countdownText = countdownLabel
-		? `Starts in ${countdownLabel}`
+		? t("automations.startsIn", { value: countdownLabel })
 		: isPaused
-			? "Paused"
+			? t("automations.paused")
 			: null;
 
 	const projectLabel =

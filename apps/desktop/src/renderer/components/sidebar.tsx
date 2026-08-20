@@ -227,7 +227,7 @@ export function AppSidebarContent({
 										{t("projects.noProjects")}
 									</p>
 									<p className="text-xs text-muted-foreground/60">
-										Add a project to get started
+									{t("projects.addProject")}
 									</p>
 								</>
 							)}
@@ -252,7 +252,7 @@ export function AppSidebarContent({
 							{automationsEnabled && isLocalServer && (
 								<SidebarMenuItem>
 									<SidebarMenuButton
-										tooltip="Automations"
+									tooltip={t("automations.title")}
 										onClick={() => navigate({ to: "/automations" })}
 										className="text-muted-foreground"
 									>
@@ -357,7 +357,7 @@ export function AppSidebarContent({
 									}
 								>
 									<CommandIcon className="size-4 shrink-0" />
-									<span className="sr-only">Command palette</span>
+									<span className="sr-only">{t("chat.commandPalette")}</span>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
 									{t("chat.commandPalette")} (⌘K)
@@ -375,7 +375,7 @@ export function AppSidebarContent({
 										}
 									>
 										<PlusIcon className="size-4 shrink-0" />
-										<span className="sr-only">Add Project</span>
+										<span className="sr-only">{t("projects.add")}</span>
 									</TooltipTrigger>
 									<TooltipContent side="bottom">
 										{t("projects.add")}
@@ -396,7 +396,7 @@ export function AppSidebarContent({
 											toggleProjectSearch();
 										}
 									}}
-									placeholder="Filter projects..."
+									placeholder={t("chat.filterProjects")}
 									className="h-7 text-xs"
 								/>
 							</div>
@@ -441,7 +441,7 @@ export function AppSidebarContent({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
-							tooltip="Settings"
+							tooltip={t("projects.settings")}
 							onClick={() => navigate({ to: "/settings" })}
 							className="text-muted-foreground"
 						>

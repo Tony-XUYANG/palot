@@ -5,6 +5,8 @@
  * and "Starts in 32m" style countdowns.
  */
 
+import type { SupportedLocale } from "../../shared/i18n";
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -16,35 +18,52 @@ const YEAR = 365 * DAY;
  * Format a past timestamp as a compact relative string.
  * Examples: "1m", "5m", "1h", "3h", "2d", "1w", "3mo", "1y"
  */
-export function formatTimeAgo(timestamp: number): string {
+export function formatTimeAgo(
+	timestamp: number,
+	locale: SupportedLocale = "en-US",
+): string {
 	const now = Date.now();
 	const diff = now - timestamp;
-	if (diff < 0) return "now";
+	const relative = new Intl.RelativeTimeFormat(locale, {
+		numeric: "auto",
+		style: "narrow",
+	});
+	if (diff < 0) return relative.format(0, "second");
 
-	if (diff < MINUTE) return "now";
-	if (diff < HOUR) return `${Math.floor(diff / MINUTE)}m`;
-	if (diff < DAY) return `${Math.floor(diff / HOUR)}h`;
-	if (diff < WEEK) return `${Math.floor(diff / DAY)}d`;
-	if (diff < MONTH) return `${Math.floor(diff / WEEK)}w`;
-	if (diff < YEAR) return `${Math.floor(diff / MONTH)}mo`;
-	return `${Math.floor(diff / YEAR)}y`;
+	if (diff < MINUTE) return relative.format(0, "second");
+	if (diff < HOUR) return relative.format(-Math.floor(diff / MINUTE), "minute");
+	if (diff < DAY) return relative.format(-Math.floor(diff / HOUR), "hour");
+	if (diff < WEEK) return relative.format(-Math.floor(diff / DAY), "day");
+	if (diff < MONTH) return relative.format(-Math.floor(diff / WEEK), "week");
+	if (diff < YEAR) return relative.format(-Math.floor(diff / MONTH), "month");
+	return relative.format(-Math.floor(diff / YEAR), "year");
 }
 
 /**
  * Format a future timestamp as a compact countdown string.
  * Examples: "now", "32m", "1h", "2d", "1w"
  */
-export function formatCountdown(futureTimestamp: number): string {
+export function formatCountdown(
+	futureTimestamp: number,
+	locale: SupportedLocale = "en-US",
+): string {
 	const now = Date.now();
 	const diff = futureTimestamp - now;
-	if (diff <= 0) return "now";
+	const number = (value: number, unit: string) =>
+		locale === "zh-CN" ? `${value} ${unit}` : `${value}${unit}`;
+	if (diff <= 0) return locale === "zh-CN" ? "现在" : "now";
 
-	if (diff < HOUR) return `${Math.max(1, Math.ceil(diff / MINUTE))}m`;
-	if (diff < DAY) return `${Math.floor(diff / HOUR)}h`;
-	if (diff < WEEK) return `${Math.floor(diff / DAY)}d`;
-	if (diff < MONTH) return `${Math.floor(diff / WEEK)}w`;
-	if (diff < YEAR) return `${Math.floor(diff / MONTH)}mo`;
-	return `${Math.floor(diff / YEAR)}y`;
+	if (diff < HOUR)
+		return number(Math.max(1, Math.ceil(diff / MINUTE)), locale === "zh-CN" ? "分钟" : "m");
+	if (diff < DAY)
+		return number(Math.floor(diff / HOUR), locale === "zh-CN" ? "小时" : "h");
+	if (diff < WEEK)
+		return number(Math.floor(diff / DAY), locale === "zh-CN" ? "天" : "d");
+	if (diff < MONTH)
+		return number(Math.floor(diff / WEEK), locale === "zh-CN" ? "周" : "w");
+	if (diff < YEAR)
+		return number(Math.floor(diff / MONTH), locale === "zh-CN" ? "个月" : "mo");
+	return number(Math.floor(diff / YEAR), locale === "zh-CN" ? "年" : "y");
 }
 
 /**

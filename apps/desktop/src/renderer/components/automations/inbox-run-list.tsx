@@ -144,7 +144,7 @@ export function InboxRunList({
 			{/* Scheduled section */}
 			{scheduled.length > 0 && (
 				<div>
-					<SectionHeader label="Scheduled" />
+					<SectionHeader label={t("automations.scheduled")} />
 					<div className="px-1 pb-1">
 						{scheduled.map((automation) => (
 							<AutomationRow
@@ -172,7 +172,7 @@ export function InboxRunList({
 			{/* Completed section */}
 			{completed.length > 0 && (
 				<div>
-					<SectionHeader label="Completed" />
+					<SectionHeader label={t("automations.completed")} />
 					<div className="px-1 pb-1">
 						{completed.map((run) => {
 							const automation = automationMap.get(run.automationId);
@@ -180,7 +180,7 @@ export function InboxRunList({
 								<InboxRunRow
 									key={run.id}
 									run={run}
-									automationName={automation?.name ?? "Unknown"}
+									automationName={automation?.name ?? t("automations.unknown")}
 									projectLabel={getRunProjectLabel(run)}
 									isSelected={run.id === selectedRunId}
 									onClick={() =>
@@ -201,7 +201,7 @@ export function InboxRunList({
 			{/* Archived section */}
 			{archived.length > 0 && (
 				<div>
-					<SectionHeader label="Archived" />
+					<SectionHeader label={t("automations.archived")} />
 					<div className="px-1 pb-1">
 						{archived.map((run) => {
 							const automation = automationMap.get(run.automationId);
@@ -209,7 +209,7 @@ export function InboxRunList({
 								<InboxRunRow
 									key={run.id}
 									run={run}
-									automationName={automation?.name ?? "Unknown"}
+									automationName={automation?.name ?? t("automations.unknown")}
 									projectLabel={getRunProjectLabel(run)}
 									isSelected={run.id === selectedRunId}
 									onClick={() =>

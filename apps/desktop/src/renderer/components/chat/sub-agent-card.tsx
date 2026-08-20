@@ -257,39 +257,39 @@ export const SubAgentCard = memo(function SubAgentCard({
 				if (p.type === "tool") {
 					switch (p.tool) {
 						case "task":
-							lastStatus = "Delegating...";
+							lastStatus = t("chat.subAgent.delegating");
 							break;
 						case "todowrite":
 						case "todoread":
-							lastStatus = "Planning...";
+							lastStatus = t("chat.subAgent.planning");
 							break;
 						case "read":
-							lastStatus = "Reading files...";
+							lastStatus = t("chat.subAgent.readingFiles");
 							break;
 						case "list":
 						case "grep":
 						case "glob":
-							lastStatus = "Searching codebase...";
+							lastStatus = t("chat.subAgent.searchingCodebase");
 							break;
 						case "webfetch":
-							lastStatus = "Fetching web content...";
+							lastStatus = t("chat.subAgent.fetchingWeb");
 							break;
 						case "edit":
 						case "write":
 						case "apply_patch":
-							lastStatus = "Making edits...";
+							lastStatus = t("chat.subAgent.makingEdits");
 							break;
 						case "bash":
-							lastStatus = "Running command...";
+							lastStatus = t("chat.subAgent.runningCommand");
 							break;
 						default:
-							lastStatus = `Running ${p.tool}...`;
+							lastStatus = t("chat.subAgent.runningTool", { tool: p.tool });
 							break;
 					}
 				} else if (p.type === "reasoning") {
-					lastStatus = "Thinking...";
+					lastStatus = t("chat.subAgent.thinking");
 				} else if (p.type === "text") {
-					lastStatus = "Composing response...";
+					lastStatus = t("chat.subAgent.composing");
 				}
 			}
 		}
@@ -297,9 +297,9 @@ export const SubAgentCard = memo(function SubAgentCard({
 		return {
 			latestToolParts: toolParts.slice(-3),
 			latestText,
-			childStatus: lastStatus ?? "Working...",
+			childStatus: lastStatus ?? t("chat.subAgent.working"),
 		};
-	}, [childMessages, streamingVersion, sessionId]);
+	}, [childMessages, streamingVersion, sessionId, t]);
 
 	// Extract first meaningful line for the summary teaser.
 	// "hasMore" is true when the full text has content beyond the first line.
@@ -517,7 +517,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 									onClick={handleShowLess}
 									className="mt-2 inline-flex items-center gap-0.5 text-[10px] font-medium text-primary/70 transition-colors hover:text-primary"
 								>
-									Show less
+									{t("chat.subAgent.showLess")}
 									<ChevronUpIcon className="size-3" />
 								</button>
 							)}
@@ -537,7 +537,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 							<span className="text-[11px] text-red-400">
 								{part.state.status === "error"
 									? part.state.error
-									: "Sub-agent failed"}
+									: t("chat.subAgent.failed")}
 							</span>
 						</div>
 					)}
@@ -550,7 +550,7 @@ export const SubAgentCard = memo(function SubAgentCard({
 					<span className="text-[11px] text-red-400">
 						{part.state.status === "error"
 							? part.state.error
-							: "Sub-agent failed"}
+							: t("chat.subAgent.failed")}
 					</span>
 				</div>
 			)}

@@ -18,7 +18,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@palot/ui/components/dialog";
-
+import type { TFunction } from "i18next";
 import {
 	ArrowUpToLineIcon,
 	BotIcon,
@@ -41,12 +41,13 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useDisplayMode } from "../../hooks/use-agents";
 import type {
 	ChatMessageEntry,
 	ChatTurn as ChatTurnType,
 } from "../../hooks/use-session-chat";
-import { formatModelError } from "../../lib/model-errors";
+import type { ModelError } from "../../lib/model-errors";
 import {
 	computeTurnCost,
 	computeTurnWorkTime,
@@ -62,6 +63,7 @@ import type {
 	ToolPart,
 } from "../../lib/types";
 import { ChatToolCall, getToolInfo, getToolSubtitle } from "./chat-tool-call";
+import { ModelErrorNotice } from "./model-error-notice";
 import {
 	getToolCategory,
 	TOOL_CATEGORY_COLORS,
@@ -88,7 +90,7 @@ export function formatTimestamp(ms: number): string {
  * Computes a status string from the last active part.
  * Follows into sub-agent sessions for deeper status.
  */
-function computeStatus(parts: Part[]): string {
+function computeStatus(parts: Part[], t: TFunction): string {
 	for (let i = parts.length - 1; i >= 0; i--) {
 		const part = parts[i];
 		if (part.type === "tool") {
@@ -98,35 +100,37 @@ function computeStatus(parts: Part[]): string {
 					const desc = part.state.input?.description as string | undefined;
 					const shortDesc =
 						desc && desc.length > 30 ? `${desc.slice(0, 27)}...` : desc;
-					return shortDesc ? `Agent: ${shortDesc}` : "Delegating...";
+					return shortDesc
+						? t("chat.status.agentTask", { task: shortDesc })
+						: t("chat.subAgent.delegating");
 				}
 				case "todowrite":
 				case "todoread":
-					return "Planning...";
+					return t("chat.subAgent.planning");
 				case "read":
-					return "Reading files...";
+					return t("chat.subAgent.readingFiles");
 				case "list":
 				case "grep":
 				case "glob":
-					return "Searching codebase...";
+					return t("chat.subAgent.searchingCodebase");
 				case "webfetch":
-					return "Fetching web content...";
+					return t("chat.subAgent.fetchingWeb");
 				case "edit":
 				case "write":
 				case "apply_patch":
-					return "Making edits...";
+					return t("chat.subAgent.makingEdits");
 				case "bash":
-					return "Running command...";
+					return t("chat.subAgent.runningCommand");
 				case "question":
-					return "Asking a question...";
+					return t("chat.status.askingQuestion");
 				default:
-					return `Running ${part.tool}...`;
+					return t("chat.subAgent.runningTool", { tool: part.tool });
 			}
 		}
-		if (part.type === "reasoning") return "Thinking...";
-		if (part.type === "text") return "Composing response...";
+		if (part.type === "reasoning") return t("chat.subAgent.thinking");
+		if (part.type === "text") return t("chat.subAgent.composing");
 	}
-	return "Working...";
+	return t("chat.subAgent.working");
 }
 
 // ============================================================
@@ -150,7 +154,10 @@ function getUserText(entry: ChatMessageEntry): string {
 		.join("\n");
 }
 
-function getSyntheticLabel(entry: ChatMessageEntry): string {
+function getSyntheticLabel(
+	entry: ChatMessageEntry,
+	t: TFunction,
+): string {
 	const text = entry.parts
 		.filter((p): p is TextPart => p.type === "text")
 		.map((p) => p.text)
@@ -158,18 +165,21 @@ function getSyntheticLabel(entry: ChatMessageEntry): string {
 		.toLowerCase();
 
 	if (text.includes("continue if you have next steps"))
-		return "Auto-continued after compaction";
+		return t("chat.synthetic.afterCompaction");
 	if (text.includes("summarize the task tool output"))
-		return "Auto-continued after task";
+		return t("chat.synthetic.afterTask");
 	if (text.includes("tool was executed by the user"))
-		return "Shell command executed";
-	if (text.includes("plan has been approved")) return "Plan approved";
-	if (text.includes("enter plan mode")) return "Entered plan mode";
-	if (text.includes("switch") && text.includes("plan")) return "Mode switched";
+		return t("chat.synthetic.shellExecuted");
+	if (text.includes("plan has been approved"))
+		return t("chat.synthetic.planApproved");
+	if (text.includes("enter plan mode"))
+		return t("chat.synthetic.enteredPlanMode");
+	if (text.includes("switch") && text.includes("plan"))
+		return t("chat.synthetic.modeSwitched");
 	// No text parts — check for compaction part (user message that triggers compaction)
 	if (entry.parts.some((p) => p.type === "compaction"))
-		return "Compacting conversation";
-	return "Auto-continued";
+		return t("chat.synthetic.compacting");
+	return t("chat.synthetic.autoContinued");
 }
 
 function getFileParts(entry: ChatMessageEntry): FilePart[] {
@@ -208,6 +218,7 @@ function AttachmentThumbnail({
 	file: FilePart;
 	onDelete?: (file: FilePart) => void;
 }) {
+	const { t } = useTranslation();
 	const isImage = file.mime.startsWith("image/");
 	const [deleting, setDeleting] = useState(false);
 
@@ -234,7 +245,7 @@ function AttachmentThumbnail({
 						onClick={handleDelete}
 						disabled={deleting}
 						className="absolute -right-1 -top-1 z-10 flex size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow-sm transition-opacity hover:bg-destructive/90 group-hover/thumb:opacity-100 disabled:opacity-50"
-						title="Remove attachment"
+						title={t("chat.attachment.remove")}
 					>
 						<XIcon className="size-2.5" />
 					</button>
@@ -250,7 +261,7 @@ function AttachmentThumbnail({
 					{isImage ? (
 						<img
 							src={file.url}
-							alt={file.filename ?? "Image attachment"}
+							alt={file.filename ?? t("chat.attachment.image")}
 							className="size-full object-cover"
 						/>
 					) : (
@@ -267,19 +278,19 @@ function AttachmentThumbnail({
 			</div>
 			<DialogContent className="max-h-[90vh] max-w-4xl overflow-auto p-0">
 				<DialogTitle className="sr-only">
-					{file.filename ?? "Attachment preview"}
+					{file.filename ?? t("chat.attachment.preview")}
 				</DialogTitle>
 				{isImage ? (
 					<img
 						src={file.url}
-						alt={file.filename ?? "Image attachment"}
+						alt={file.filename ?? t("chat.attachment.image")}
 						className="max-h-[85vh] w-full object-contain"
 					/>
 				) : (
 					<div className="flex flex-col items-center justify-center gap-2 p-8">
 						<FileIcon className="size-12 text-muted-foreground" />
 						<p className="text-sm text-muted-foreground">
-							{file.filename ?? "PDF attachment"}
+							{file.filename ?? t("chat.attachment.pdf")}
 						</p>
 					</div>
 				)}
@@ -346,10 +357,10 @@ function getLastResponseText(
 	return undefined;
 }
 
-function getError(assistantMessages: ChatMessageEntry[]): string | undefined {
+function getError(assistantMessages: ChatMessageEntry[]): ModelError | undefined {
 	for (const msg of assistantMessages) {
 		if (msg.info.role === "assistant" && msg.info.error) {
-			return formatModelError(msg.info.error);
+			return msg.info.error;
 		}
 	}
 	return undefined;
@@ -479,7 +490,11 @@ function groupPartsForStream(ordered: RenderablePart[]): StreamItem[] {
  * Generates a human-readable summary for a group of tools in the same category.
  * Returns text like "Read 3 files", "Edited foo.tsx, bar.tsx", "Ran 2 commands".
  */
-function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
+function describeToolGroup(
+	category: ToolCategory,
+	tools: ToolPart[],
+	t: TFunction,
+): string {
 	const count = tools.length;
 
 	// For small groups, list specific targets
@@ -494,31 +509,35 @@ function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
 			});
 
 		if (details.length > 0) {
-			switch (category) {
-				case "explore":
-					return count === 1
-						? `Read ${details[0]}`
-						: `Read ${details.join(", ")}`;
-				case "edit":
-					return count === 1
-						? `Edited ${details[0]}`
-						: `Edited ${details.join(", ")}`;
-				case "run":
-					return count === 1 ? `Ran ${details[0]}` : `Ran ${count} commands`;
-				case "delegate":
-					return count === 1
-						? `Delegated: ${details[0]}`
-						: `Delegated ${count} tasks`;
-				case "fetch":
-					return count === 1
-						? `Fetched ${details[0]}`
-						: `Fetched ${count} URLs`;
-				case "ask":
-					return "Asked a question";
-				case "plan":
-					return "Updated plan";
-				default:
-					return `Ran ${details.join(", ")}`;
+				switch (category) {
+					case "explore":
+						return t("chat.toolGroups.read", {
+							targets: details.join(", "),
+						});
+					case "edit":
+						return t("chat.toolGroups.edited", {
+							targets: details.join(", "),
+						});
+					case "run":
+						return count === 1
+							? t("chat.toolGroups.ran", { target: details[0] })
+							: t("chat.toolGroups.ranCommands", { count });
+					case "delegate":
+						return count === 1
+							? t("chat.toolGroups.delegated", { target: details[0] })
+							: t("chat.toolGroups.delegatedTasks", { count });
+					case "fetch":
+						return count === 1
+							? t("chat.toolGroups.fetched", { target: details[0] })
+							: t("chat.toolGroups.fetchedUrls", { count });
+					case "ask":
+						return t("chat.toolGroups.askedQuestion");
+					case "plan":
+						return t("chat.toolGroups.updatedPlan");
+					default:
+						return t("chat.toolGroups.ran", {
+							target: details.join(", "),
+						});
 			}
 		}
 	}
@@ -526,21 +545,21 @@ function describeToolGroup(category: ToolCategory, tools: ToolPart[]): string {
 	// For larger groups, use count-based summaries
 	switch (category) {
 		case "explore":
-			return `Explored ${count} files`;
+			return t("chat.toolGroups.exploredFiles", { count });
 		case "edit":
-			return `Edited ${count} files`;
+			return t("chat.toolGroups.editedFiles", { count });
 		case "run":
-			return `Ran ${count} commands`;
+			return t("chat.toolGroups.ranCommands", { count });
 		case "delegate":
-			return `Delegated ${count} tasks`;
+			return t("chat.toolGroups.delegatedTasks", { count });
 		case "fetch":
-			return `Fetched ${count} URLs`;
+			return t("chat.toolGroups.fetchedUrls", { count });
 		case "ask":
-			return `Asked ${count} questions`;
+			return t("chat.toolGroups.askedQuestions", { count });
 		case "plan":
-			return "Updated plan";
+			return t("chat.toolGroups.updatedPlan");
 		default:
-			return `Ran ${count} tools`;
+			return t("chat.toolGroups.ranTools", { count });
 	}
 }
 
@@ -570,8 +589,12 @@ const ToolGroupSummary = memo(function ToolGroupSummary({
 	tools: ToolPart[];
 	isActiveTurn: boolean;
 }) {
+	const { t, i18n } = useTranslation();
 	const [expanded, setExpanded] = useState(false);
-	const description = describeToolGroup(category, tools);
+	const description = useMemo(
+		() => describeToolGroup(category, tools, t),
+		[category, tools, i18n.language],
+	);
 	const running = isGroupRunning(tools);
 	const hasError = isGroupError(tools);
 	const { icon: GroupIcon } = getToolInfo(tools[0].tool);
@@ -667,6 +690,7 @@ export const ChatTurnComponent = memo(
 		onForkFromTurn,
 		onDeletePart,
 	}: ChatTurnProps) {
+		const { t } = useTranslation();
 		const [stepsExpanded, setStepsExpanded] = useState(false);
 		const [copied, setCopied] = useState(false);
 		const displayMode = useDisplayMode();
@@ -681,8 +705,8 @@ export const ChatTurnComponent = memo(
 			[turn.userMessage],
 		);
 		const syntheticLabel = useMemo(
-			() => (isSynthetic ? getSyntheticLabel(turn.userMessage) : ""),
-			[isSynthetic, turn.userMessage],
+			() => (isSynthetic ? getSyntheticLabel(turn.userMessage, t) : ""),
+			[isSynthetic, turn.userMessage, t],
 		);
 		const userFiles = useMemo(
 			() => getFileParts(turn.userMessage),
@@ -702,7 +726,7 @@ export const ChatTurnComponent = memo(
 		);
 		const responseText = useDeferredValue(rawResponseText);
 
-		const errorText = useMemo(
+		const modelError = useMemo(
 			() => getError(turn.assistantMessages),
 			[turn.assistantMessages],
 		);
@@ -710,12 +734,13 @@ export const ChatTurnComponent = memo(
 		// Compute status by walking the last message's parts in reverse — no
 		// need to flatMap all messages into a temporary array.
 		const statusText = useMemo(() => {
+			const fallback = t("chat.subAgent.working");
 			for (let m = turn.assistantMessages.length - 1; m >= 0; m--) {
-				const status = computeStatus(turn.assistantMessages[m].parts);
-				if (status !== "Working...") return status;
+				const status = computeStatus(turn.assistantMessages[m].parts, t);
+				if (status !== fallback) return status;
 			}
-			return "Working...";
-		}, [turn.assistantMessages]);
+			return fallback;
+		}, [turn.assistantMessages, t]);
 
 		const working = isLast && isWorking;
 		const isQueued =
@@ -841,7 +866,7 @@ export const ChatTurnComponent = memo(
 							{(isQueued || isQueuedLast) && (
 								<span className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground/60">
 									<ListOrderedIcon className="size-3" />
-									Queued
+									{t("chat.queue.queued")}
 									{onSendNow && (
 										<button
 											type="button"
@@ -850,7 +875,9 @@ export const ChatTurnComponent = memo(
 											className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
 										>
 											<SendIcon className="size-2.5" />
-											{sendingNow ? "Sending..." : "Send now"}
+											{sendingNow
+												? t("chat.queue.sending")
+												: t("chat.queue.sendNow")}
 										</button>
 									)}
 								</span>
@@ -1038,7 +1065,7 @@ export const ChatTurnComponent = memo(
 												key={item.part.id}
 												part={item.part}
 												isActiveTurn={isActiveTurn}
-												turnHasError={!!errorText}
+										turnHasError={!!modelError}
 												onDelete={
 													onDeletePart ? handleDeleteToolPart : undefined
 												}
@@ -1088,13 +1115,7 @@ export const ChatTurnComponent = memo(
 				)}
 
 				{/* Error */}
-				{errorText && (
-					<div className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-400">
-						{errorText.length > 300
-							? `${errorText.slice(0, 300)}...`
-							: errorText}
-					</div>
-				)}
+				{modelError ? <ModelErrorNotice error={modelError} /> : null}
 
 				{/* Thinking shimmer — only for turns with no tools/reasoning section yet */}
 
@@ -1132,11 +1153,16 @@ export const ChatTurnComponent = memo(
 				{/* Turn-level message actions — visible on hover across all display modes */}
 				{responseText && (
 					<MessageActions className="opacity-0 transition-opacity group-hover/turn:opacity-100">
-						<MessageAction tooltip="Scroll to top" onClick={handleScrollToTop}>
+					<MessageAction
+						tooltip={t("chat.responseActions.scrollTop")}
+						onClick={handleScrollToTop}
+					>
 							<ArrowUpToLineIcon className="size-3" />
 						</MessageAction>
 						<MessageAction
-							tooltip={copied ? "Copied" : "Copy response"}
+						tooltip={
+							copied ? t("common.ui.copied") : t("chat.responseActions.copy")
+						}
 							onClick={handleCopyResponse}
 						>
 							{copied ? (
@@ -1147,7 +1173,11 @@ export const ChatTurnComponent = memo(
 						</MessageAction>
 						{onForkFromTurn && !working && (
 							<MessageAction
-								tooltip={forking ? "Forking..." : "Fork from here"}
+								tooltip={
+									forking
+										? t("chat.responseActions.forking")
+										: t("chat.responseActions.forkHere")
+								}
 								onClick={handleFork}
 								disabled={forking}
 							>
@@ -1156,7 +1186,7 @@ export const ChatTurnComponent = memo(
 						)}
 						{onRevertToMessage && !working && (
 							<MessageAction
-								tooltip="Undo from here"
+								tooltip={t("chat.responseActions.undoHere")}
 								onClick={handleRevertHere}
 							>
 								<Undo2Icon className="size-3" />

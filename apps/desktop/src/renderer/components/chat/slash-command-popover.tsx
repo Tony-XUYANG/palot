@@ -35,6 +35,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useServerCommands } from "../../hooks/use-opencode-data";
 
 // ============================================================
@@ -44,6 +45,7 @@ import { useServerCommands } from "../../hooks/use-opencode-data";
 interface SlashCommand {
 	name: string;
 	description: string;
+	descriptionKey?: string;
 	icon: LucideIcon;
 	source: "client" | "server";
 	/** For server commands: the original source type */
@@ -85,34 +87,39 @@ interface SlashCommandPopoverProps {
 const CLIENT_COMMANDS: SlashCommand[] = [
 	{
 		name: "undo",
-		description: "Undo the last turn",
+		description: "",
+		descriptionKey: "chat.commands.undo",
 		icon: Undo2Icon,
 		source: "client",
 		shortcut: "⌘Z",
 	},
 	{
 		name: "redo",
-		description: "Redo previously undone turn",
+		description: "",
+		descriptionKey: "chat.commands.redo",
 		icon: Redo2Icon,
 		source: "client",
 		shortcut: "⇧⌘Z",
 	},
 	{
 		name: "compact",
-		description: "Summarize conversation to save context",
+		description: "",
+		descriptionKey: "chat.commands.compact",
 		icon: SparklesIcon,
 		source: "client",
 	},
 	{
 		name: "fork",
-		description: "Fork conversation from this point",
+		description: "",
+		descriptionKey: "chat.commands.fork",
 		icon: GitForkIcon,
 		source: "client",
 		action: "fork",
 	},
 	{
 		name: "skills",
-		description: "Browse and use skills",
+		description: "",
+		descriptionKey: "chat.commands.skills",
 		icon: BookOpenIcon,
 		source: "client",
 		action: "skills",
@@ -144,6 +151,7 @@ export const SlashCommandPopover = memo(
 			{ query, open, directory, onSelect, onSkillsOpen, onFork, onClose },
 			ref,
 		) {
+			const { t } = useTranslation();
 			const [activeIndex, setActiveIndex] = useState(0);
 			const listRef = useRef<HTMLDivElement>(null);
 
@@ -155,18 +163,29 @@ export const SlashCommandPopover = memo(
 						.filter((c) => c.source !== "skill")
 						.map((c) => ({
 							name: c.name,
-							description: c.description ?? `Run /${c.name}`,
+							description:
+								c.description ?? t("chat.commands.run", { name: c.name }),
 							icon: getCommandIcon(c.name),
 							source: "server" as const,
 							serverSource: c.source,
 						})),
-				[rawServerCommands],
+				[rawServerCommands, t],
+			);
+			const clientCommands = useMemo<SlashCommand[]>(
+				() =>
+					CLIENT_COMMANDS.map((command) => ({
+						...command,
+						description: command.descriptionKey
+							? t(command.descriptionKey)
+							: command.description,
+					})),
+				[t],
 			);
 
 			// --- Merge: server commands first, then built-in (matching TUI ordering) ---
 			const allCommands = useMemo(
-				() => [...serverCommands, ...CLIENT_COMMANDS],
-				[serverCommands],
+				() => [...serverCommands, ...clientCommands],
+				[serverCommands, clientCommands],
 			);
 
 			// --- Fuzzy filter ---
@@ -262,7 +281,9 @@ export const SlashCommandPopover = memo(
 					{/* Search header */}
 					<div className="flex items-center gap-2 border-b px-3 py-2">
 						<SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-						<span className="text-sm text-muted-foreground">Search</span>
+						<span className="text-sm text-muted-foreground">
+							{t("chat.commands.search")}
+						</span>
 					</div>
 
 					{/* Results */}
@@ -270,7 +291,7 @@ export const SlashCommandPopover = memo(
 						<div ref={listRef} className="py-1">
 							{flatList.length === 0 && (
 								<div className="py-4 text-center text-sm text-muted-foreground">
-									No commands found
+									{t("chat.commands.noneFound")}
 								</div>
 							)}
 

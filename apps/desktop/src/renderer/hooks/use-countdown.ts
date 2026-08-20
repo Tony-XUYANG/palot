@@ -6,11 +6,14 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatCountdown } from "../lib/time-format";
 
 export function useCountdown(futureTimestamp: number | null): string | null {
+	const { i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const [label, setLabel] = useState(() =>
-		futureTimestamp ? formatCountdown(futureTimestamp) : null,
+		futureTimestamp ? formatCountdown(futureTimestamp, locale) : null,
 	);
 
 	useEffect(() => {
@@ -20,10 +23,10 @@ export function useCountdown(futureTimestamp: number | null): string | null {
 		}
 
 		// Compute immediately
-		setLabel(formatCountdown(futureTimestamp));
+		setLabel(formatCountdown(futureTimestamp, locale));
 
 		function tick() {
-			setLabel(formatCountdown(futureTimestamp!));
+			setLabel(formatCountdown(futureTimestamp!, locale));
 		}
 
 		// Tick every 30s for general countdowns, every 5s when under 2 minutes
@@ -46,7 +49,7 @@ export function useCountdown(futureTimestamp: number | null): string | null {
 		schedule();
 
 		return () => clearTimeout(timerId);
-	}, [futureTimestamp]);
+	}, [futureTimestamp, locale]);
 
 	return label;
 }

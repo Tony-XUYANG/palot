@@ -701,10 +701,6 @@ interface StatusBarProps {
 }
 
 const DISPLAY_MODE_CYCLE: DisplayMode[] = ["default", "verbose"];
-const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
-	default: "Default",
-	verbose: "Verbose",
-};
 const DISPLAY_MODE_ICONS: Record<DisplayMode, typeof ListIcon> = {
 	default: ListIcon,
 	verbose: MaximizeIcon,
@@ -723,6 +719,7 @@ export function StatusBar({
 }: StatusBarProps) {
 	const { t } = useTranslation();
 	const displayMode = useDisplayMode();
+	const displayModeLabel = t(`chat.display.${displayMode}`);
 	const setDisplayMode = useSetDisplayMode();
 
 	const cycleDisplayMode = useCallback(() => {
@@ -761,8 +758,8 @@ export function StatusBar({
 						</kbd>
 						<span>
 							{interruptCount && interruptCount > 0
-								? "press again to stop"
-								: "interrupt"}
+								? t("chat.display.pressAgain")
+								: t("chat.display.interrupt")}
 						</span>
 					</div>
 				)}
@@ -775,10 +772,10 @@ export function StatusBar({
 					type="button"
 					onClick={cycleDisplayMode}
 					className="flex items-center gap-1 transition-colors hover:text-foreground"
-					title={`Display: ${DISPLAY_MODE_LABELS[displayMode]} (click to cycle)`}
+					title={t("chat.display.tooltip", { mode: displayModeLabel })}
 				>
 					<DisplayModeIcon className="size-3" />
-					<span>{DISPLAY_MODE_LABELS[displayMode]}</span>
+					<span>{displayModeLabel}</span>
 				</button>
 
 				{/* Context window usage */}

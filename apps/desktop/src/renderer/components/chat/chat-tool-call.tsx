@@ -1062,6 +1062,7 @@ export const ChatToolCall = memo(
 		onApprove,
 		onDeny,
 	}: ChatToolCallProps) {
+		const { t } = useTranslation();
 		const viewFileInDiff = useSetAtom(viewFileInDiffPanelAtom);
 
 		// Compute diff stats for edit tools (shown in trailing area)
@@ -1160,7 +1161,7 @@ export const ChatToolCall = memo(
 					type="button"
 					onClick={handleViewDiff}
 					className="rounded p-0.5 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-					title="View in diff panel"
+					title={t("review.title")}
 				>
 					<DiffIcon className="size-3" aria-hidden="true" />
 				</button>
@@ -1172,7 +1173,7 @@ export const ChatToolCall = memo(
 					{viewButton}
 				</span>
 			);
-		}, [editFilePath, status, trailingElement, handleViewDiff]);
+		}, [editFilePath, status, trailingElement, handleViewDiff, t]);
 
 		// When the turn has an error, add a delete button so the user can
 		// surgically remove a problematic tool part and continue the conversation.
@@ -1192,7 +1193,7 @@ export const ChatToolCall = memo(
 					type="button"
 					onClick={handleDelete}
 					className="rounded p-0.5 text-muted-foreground/40 transition-colors hover:bg-red-500/20 hover:text-red-400"
-					title="Remove this tool call to recover from the error"
+					title={t("chat.tool.removeForRecovery")}
 				>
 					<XIcon className="size-3" aria-hidden="true" />
 				</button>
@@ -1204,7 +1205,7 @@ export const ChatToolCall = memo(
 					{deleteButton}
 				</span>
 			);
-		}, [turnHasError, onDelete, combinedTrailing, handleDelete]);
+		}, [turnHasError, onDelete, combinedTrailing, handleDelete, t]);
 
 		// Skip rendering todoread parts without output
 		if (part.tool === "todoread" && part.state.status !== "completed")

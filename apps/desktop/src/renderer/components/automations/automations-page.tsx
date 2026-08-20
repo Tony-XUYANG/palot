@@ -60,15 +60,15 @@ export function AutomationsPage() {
 	const handleRunNow = useCallback(async (automationId: string) => {
 		try {
 			await runAutomationNow(automationId);
-			toast.success("Automation run started", {
-				description: "Check the inbox for results.",
+			toast.success(t("automations.runStarted"), {
+				description: t("automations.checkInbox"),
 			});
 		} catch (err) {
-			toast.error("Failed to run automation", {
+			toast.error(t("automations.runFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, []);
+	}, [t]);
 
 	const handleTogglePause = useCallback(async (automation: Automation) => {
 		try {
@@ -77,21 +77,21 @@ export function AutomationsPage() {
 				status: automation.status === "paused" ? "active" : "paused",
 			});
 		} catch (err) {
-			toast.error("Failed to update automation", {
+			toast.error(t("automations.updateFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, []);
+	}, [t]);
 
 	const handleDeleteAutomation = useCallback(async (automationId: string) => {
 		try {
 			await deleteAutomation(automationId);
 		} catch (err) {
-			toast.error("Failed to delete automation", {
+			toast.error(t("automations.deleteFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, []);
+	}, [t]);
 
 	const handleDialogChange = useCallback((open: boolean) => {
 		setDialogOpen(open);
@@ -111,16 +111,14 @@ export function AutomationsPage() {
 							<span className="font-medium text-amber-900 dark:text-amber-200/90">
 								{t("automations.unattended")}
 							</span>{" "}
-							with broad permissions: all tools are allowed (file reads, edits,
-							bash commands) and interactive prompts are auto-denied since no
-							one is watching.
+							{t("automations.permissionsDescription")}
 						</AlertDescription>
 						<AlertAction>
 							<button
 								type="button"
 								onClick={() => setBannerDismissed(true)}
 								className="rounded p-1 text-amber-600/50 transition-colors hover:text-amber-800 dark:text-amber-200/40 dark:hover:text-amber-200/80"
-								aria-label="Dismiss"
+								aria-label={t("common.actions.close")}
 							>
 								<XIcon className="size-3.5" aria-hidden="true" />
 							</button>

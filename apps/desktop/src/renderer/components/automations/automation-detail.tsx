@@ -41,6 +41,7 @@ import { CreateAutomationDialog } from "./create-automation-dialog";
 // ============================================================
 
 function RunStatusBadge({ status }: { status: AutomationRun["status"] }) {
+	const { t } = useTranslation();
 	switch (status) {
 		case "running":
 		case "queued":
@@ -50,31 +51,33 @@ function RunStatusBadge({ status }: { status: AutomationRun["status"] }) {
 					className="gap-1 text-blue-600 dark:text-blue-400"
 				>
 					<Loader2Icon className="size-3 animate-spin" />
-					{status === "running" ? "Running" : "Queued"}
+					{status === "running"
+						? t("common.states.running")
+						: t("common.states.queued")}
 				</Badge>
 			);
 		case "pending_review":
 			return (
 				<Badge variant="outline" className="text-amber-600 dark:text-amber-400">
-					Pending review
+					{t("common.states.pendingReview")}
 				</Badge>
 			);
 		case "accepted":
 			return (
 				<Badge variant="outline" className="text-green-600 dark:text-green-400">
-					Accepted
+					{t("common.states.accepted")}
 				</Badge>
 			);
 		case "archived":
 			return (
 				<Badge variant="outline" className="text-muted-foreground">
-					Archived
+					{t("common.states.archived")}
 				</Badge>
 			);
 		case "failed":
 			return (
 				<Badge variant="destructive" className="text-xs">
-					Failed
+					{t("common.states.failed")}
 				</Badge>
 			);
 		default:
@@ -93,6 +96,8 @@ function AutomationRunRow({
 	run: AutomationRun;
 	automationId: string;
 }) {
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const navigate = useNavigate();
 
 	return (
@@ -109,7 +114,7 @@ function AutomationRunRow({
 			<div className="min-w-0 flex-1">
 				<div className="flex items-center gap-2">
 					<span className="truncate font-medium">
-						{run.resultTitle ?? `Run #${run.attempt}`}
+						{run.resultTitle ?? t("automations.runNumber", { number: run.attempt })}
 					</span>
 					<RunStatusBadge status={run.status} />
 				</div>
@@ -120,7 +125,7 @@ function AutomationRunRow({
 				)}
 			</div>
 			<span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-				{formatTimeAgo(run.createdAt)}
+				{formatTimeAgo(run.createdAt, locale)}
 			</span>
 		</button>
 	);
@@ -131,7 +136,8 @@ function AutomationRunRow({
 // ============================================================
 
 export function AutomationDetail() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const { automationId } = useParams({ strict: false }) as {
 		automationId: string;
 	};
@@ -160,24 +166,25 @@ export function AutomationDetail() {
 			automation
 				? formatScheduleSummary(
 						rruleToScheduleConfig(automation.schedule.rrule),
+						locale,
 					)
 				: "",
-		[automation],
+		[automation, locale],
 	);
 
 	const handleRunNow = useCallback(async () => {
 		if (!automation) return;
 		try {
 			await runAutomationNow(automation.id);
-			toast.success("Automation run started", {
-				description: "Check the inbox for results.",
+			toast.success(t("automations.runStarted"), {
+				description: t("automations.checkInbox"),
 			});
 		} catch (err) {
-			toast.error("Failed to run automation", {
+			toast.error(t("automations.runFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, [automation]);
+	}, [automation, t]);
 
 	const handleTogglePause = useCallback(async () => {
 		if (!automation) return;
@@ -187,11 +194,11 @@ export function AutomationDetail() {
 				status: automation.status === "paused" ? "active" : "paused",
 			});
 		} catch (err) {
-			toast.error("Failed to update automation", {
+			toast.error(t("automations.updateFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, [automation]);
+	}, [automation, t]);
 
 	if (!automation) {
 		return (
@@ -256,8 +263,9 @@ export function AutomationDetail() {
 										aria-hidden="true"
 									/>
 									<span>
-										{automation.runCount} run
-										{automation.runCount !== 1 ? "s" : ""}
+										{t("automations.runCount", {
+											count: automation.runCount,
+										})}
 									</span>
 								</>
 							)}
@@ -285,7 +293,7 @@ export function AutomationDetail() {
 						) : (
 							<PauseIcon className="size-3.5" />
 						)}
-						{isPaused ? "Resume" : "Pause"}
+						{isPaused ? t("automations.resume") : t("automations.pause")}
 					</Button>
 					<Button
 						variant="outline"
@@ -294,7 +302,7 @@ export function AutomationDetail() {
 						onClick={handleRunNow}
 					>
 						<ZapIcon className="size-3.5" />
-						Run now
+						{t("automations.runNow")}
 					</Button>
 				</div>
 			</div>

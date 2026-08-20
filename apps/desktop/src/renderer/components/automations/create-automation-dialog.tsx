@@ -75,8 +75,8 @@ const DEFAULT_RRULE = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0";
 // Helpers
 // ============================================================
 
-function formatDate(ts: number): string {
-	return new Date(ts).toLocaleDateString("en-US", {
+function formatDate(ts: number, locale: string): string {
+	return new Date(ts).toLocaleDateString(locale, {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
@@ -90,6 +90,7 @@ function ProjectChip({
 	path: string;
 	onRemove: () => void;
 }) {
+	const { t } = useTranslation();
 	const name = path.split("/").pop() ?? path;
 	return (
 		<span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs">
@@ -98,7 +99,7 @@ function ProjectChip({
 				type="button"
 				onClick={onRemove}
 				className="ml-0.5 text-muted-foreground hover:text-foreground"
-				aria-label={`Remove ${name}`}
+				aria-label={`${t("common.actions.delete")} ${name}`}
 			>
 				&times;
 			</button>
@@ -115,7 +116,7 @@ export function CreateAutomationDialog({
 	onOpenChange,
 	editAutomation,
 }: CreateAutomationDialogProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const isEditing = !!editAutomation;
 
 	const [name, setName] = useState("");
@@ -236,7 +237,9 @@ export function CreateAutomationDialog({
 			onOpenChange(false);
 		} catch (err) {
 			toast.error(
-				isEditing ? "Failed to save automation" : "Failed to create automation",
+				isEditing
+					? t("automations.saveFailed")
+					: t("automations.createFailed"),
 				{
 					description: err instanceof Error ? err.message : undefined,
 				},
@@ -255,6 +258,7 @@ export function CreateAutomationDialog({
 		workspaces,
 		onOpenChange,
 		buildExecutionPatch,
+		t,
 	]);
 
 	const activeServer = useAtomValue(activeServerConfigAtom);
@@ -312,29 +316,29 @@ export function CreateAutomationDialog({
 			await deleteAutomation(editAutomation.id);
 			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to delete automation", {
+			toast.error(t("automations.deleteFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, [editAutomation, onOpenChange]);
+	}, [editAutomation, onOpenChange, t]);
 
 	const handleTest = useCallback(async () => {
 		if (!editAutomation || isTesting) return;
 		setIsTesting(true);
 		try {
 			await runAutomationNow(editAutomation.id);
-			toast.success("Automation run started", {
-				description: "Check the inbox for results.",
+			toast.success(t("automations.runStarted"), {
+				description: t("automations.checkInbox"),
 			});
 			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to run automation", {
+			toast.error(t("automations.runFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		} finally {
 			setIsTesting(false);
 		}
-	}, [editAutomation, isTesting, onOpenChange]);
+	}, [editAutomation, isTesting, onOpenChange, t]);
 
 	const handleTogglePause = useCallback(async () => {
 		if (!editAutomation) return;
@@ -345,11 +349,11 @@ export function CreateAutomationDialog({
 			});
 			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to update automation", {
+			toast.error(t("automations.updateFailed"), {
 				description: err instanceof Error ? err.message : undefined,
 			});
 		}
-	}, [editAutomation, onOpenChange]);
+	}, [editAutomation, onOpenChange, t]);
 
 	const isPaused = editAutomation?.status === "paused";
 
@@ -362,16 +366,20 @@ export function CreateAutomationDialog({
 				<DialogHeader>
 					<div className="flex items-start justify-between gap-4">
 						<DialogTitle>
-							{isEditing ? "Edit automation" : "Create automation"}
+							{isEditing ? t("automations.editTitle") : t("automations.create")}
 						</DialogTitle>
 						{isEditing && editAutomation && (
 							<div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
 								<span>
 									{t("automations.started", {
-										date: formatDate(editAutomation.createdAt),
+										date: formatDate(editAutomation.createdAt, i18n.language),
 									})}
 								</span>
-								<span>{editAutomation.runCount} runs</span>
+								<span>
+									{t("automations.runCount", {
+										count: editAutomation.runCount,
+									})}
+								</span>
 								<Badge
 									variant={isPaused ? "secondary" : "default"}
 									className="gap-1 px-1.5 py-0 text-[10px]"
@@ -379,7 +387,7 @@ export function CreateAutomationDialog({
 									<span
 										className={`inline-block size-1.5 rounded-full ${isPaused ? "bg-yellow-500" : "bg-green-500"}`}
 									/>
-									{isPaused ? "Paused" : "Active"}
+									{isPaused ? t("automations.paused") : t("automations.active")}
 								</Badge>
 							</div>
 						)}
@@ -403,8 +411,7 @@ export function CreateAutomationDialog({
 					<div className="space-y-2">
 						<Label>{t("automations.projects")}</Label>
 						<p className="text-xs text-muted-foreground">
-							If you want an automation to run on a specific branch, you can
-							specify it in your prompt.
+							{t("automations.branchHint")}
 						</p>
 
 						{/* Selected projects as chips */}
@@ -489,7 +496,7 @@ export function CreateAutomationDialog({
 									disabled={!remotePathInput.trim()}
 									onClick={handleAddRemotePath}
 								>
-									Add
+									{t("common.actions.create")}
 								</Button>
 							</div>
 						) : (
@@ -499,15 +506,15 @@ export function CreateAutomationDialog({
 								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
 							>
 								<FolderOpenIcon aria-hidden="true" className="size-3.5" />
-								{isRemote ? "Add custom path" : "Browse for folder"}
+								{isRemote
+									? t("automations.addCustomPath")
+									: t("automations.browseFolder")}
 							</button>
 						)}
 
 						{isEditing && (
 							<p className="text-xs text-muted-foreground">
-								Automations run in the background on dedicated worktrees.
-								Automations in non-version-controlled projects run directly in
-								the project directory.
+								{t("automations.backgroundDescription")}
 							</p>
 						)}
 					</div>
@@ -531,9 +538,8 @@ export function CreateAutomationDialog({
 					<div className="space-y-2">
 						<Label>{t("automations.agentAndModel")}</Label>
 						<p className="text-xs text-muted-foreground">
-							Choose which agent mode and model to use. Defaults to your server
-							configuration.{" "}
-							{!directory && "Add a project above to load available models."}
+							{t("automations.modelDescription")} {" "}
+							{!directory ? t("automations.addProjectForModels") : null}
 						</p>
 						<div className="flex flex-wrap items-center gap-1 rounded-md border px-1 py-1">
 							{agents.length > 0 && (
@@ -586,7 +592,7 @@ export function CreateAutomationDialog({
 									onClick={handleDelete}
 								>
 									<Trash2Icon className="size-3.5" />
-									Delete
+									{t("common.actions.delete")}
 								</Button>
 								<Button
 									variant="ghost"
@@ -596,7 +602,9 @@ export function CreateAutomationDialog({
 									disabled={isTesting}
 								>
 									<TriangleIcon className="size-3 rotate-90 fill-current" />
-									{isTesting ? "Running..." : "Test"}
+									{isTesting
+										? t("automations.testing")
+										: t("automations.test")}
 								</Button>
 								<Button
 									variant="ghost"
@@ -609,7 +617,7 @@ export function CreateAutomationDialog({
 									) : (
 										<PauseIcon className="size-3.5" />
 									)}
-									{isPaused ? "Resume" : "Pause"}
+									{isPaused ? t("automations.resume") : t("automations.pause")}
 								</Button>
 							</>
 						)}
@@ -618,16 +626,16 @@ export function CreateAutomationDialog({
 					{/* Right side: cancel / save */}
 					<div className="flex items-center gap-2">
 						<Button variant="ghost" onClick={handleCancel}>
-							Cancel
+							{t("common.actions.cancel")}
 						</Button>
 						<Button onClick={handleSubmit} disabled={!canSave || isSubmitting}>
 							{isSubmitting
 								? isEditing
-									? "Saving..."
-									: "Creating..."
+									? t("automations.saving")
+									: t("automations.creating")
 								: isEditing
-									? "Save"
-									: "Create"}
+									? t("common.actions.save")
+									: t("common.actions.create")}
 						</Button>
 					</div>
 				</DialogFooter>

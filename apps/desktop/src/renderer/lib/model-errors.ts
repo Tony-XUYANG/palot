@@ -3,6 +3,7 @@
  */
 
 import type { AssistantMessage } from "./types";
+import { appI18n } from "../i18n";
 
 export type ModelError = NonNullable<AssistantMessage["error"]>;
 
@@ -26,7 +27,9 @@ const OAUTH_PATTERN =
 	/(oauth|authorization).{0,32}(denied|expired|failed|incomplete)|access_denied|invalid_grant|redirect_uri_mismatch|device code expired/i;
 
 function providerPhrase(providerName?: string): string {
-	return providerName ? providerName : "the selected provider";
+	return providerName
+		? providerName
+		: appI18n.t("common.terms.selectedModelProvider");
 }
 
 function combinedApiMessage(
@@ -45,60 +48,88 @@ export function formatModelError(
 
 	switch (error.name) {
 		case "ProviderAuthError":
-			return `Authentication failed for ${provider}. Check the API key in Settings > Providers.`;
+			return appI18n.t("common.errors.providerAuth", { provider });
 		case "APIError": {
 			const details = combinedApiMessage(error);
 			const status = error.data.statusCode;
 			if (OAUTH_PATTERN.test(details)) {
-				return `Browser authorization for ${provider} did not complete. Retry sign-in or use an API key instead.`;
+				return appI18n.t("common.errors.oauth", { provider });
 			}
 			if (REGION_PATTERN.test(details)) {
-				return `${provider} is not available for the current account or region. Check the provider's regional requirements or choose another provider.`;
+				return appI18n.t("common.errors.region", { provider });
 			}
 			if (status === 401 || AUTH_PATTERN.test(details)) {
-				return `Authentication failed for ${provider}. Check the API key in Settings > Providers.`;
+				return appI18n.t("common.errors.providerAuth", { provider });
 			}
 			if (status === 402 || BALANCE_PATTERN.test(details)) {
-				return `No balance or quota is available for ${provider}. Top up the account or choose another provider.`;
+				return appI18n.t("common.errors.balance", { provider });
 			}
 			if (status === 429 || RATE_LIMIT_PATTERN.test(details)) {
-				return `Rate limit reached for ${provider}. Wait a moment or choose another model.`;
+				return appI18n.t("common.errors.rateLimit", { provider });
 			}
 			if (status === 404 || MODEL_NOT_FOUND_PATTERN.test(details)) {
-				return `The selected model is not available from ${provider}. Refresh the model list or choose another model.`;
+				return appI18n.t("common.errors.modelUnavailable", { provider });
 			}
 			if (NETWORK_PATTERN.test(details)) {
-				return `Palot could not reach ${provider}. Check the network connection and provider endpoint, then try again.`;
+				return appI18n.t("common.errors.network", { provider });
 			}
 			if (status === 403 || ACCOUNT_ACCESS_PATTERN.test(details)) {
-				return `The current ${provider} account or project does not have access. Check project permissions, billing, and model access.`;
+				return appI18n.t("common.errors.accountAccess", { provider });
 			}
 			if (
 				error.data.isRetryable ||
 				(status !== undefined && status >= 500) ||
 				UNAVAILABLE_PATTERN.test(details)
 			) {
-				return `${provider} is temporarily unavailable. Try again or choose another provider.`;
+				return appI18n.t("common.errors.temporarilyUnavailable", { provider });
 			}
 			return (
 				error.data.message ||
-				"The model request failed. Try again or choose another model."
+				appI18n.t("common.errors.modelRequestFailed")
 			);
 		}
 		case "ContextOverflowError":
-			return "This conversation is too long for the selected model. Start a new chat or choose a model with a larger context window.";
+			return appI18n.t("common.errors.contextOverflow");
 		case "MessageOutputLengthError":
-			return "The response exceeded the model output limit. Ask for a shorter response or split the task into smaller steps.";
+			return appI18n.t("common.errors.outputLength");
 		case "StructuredOutputError":
-			return "The model could not produce the required structured response. Try again or choose another model.";
+			return appI18n.t("common.errors.structuredOutput");
 		case "MessageAbortedError":
-			return "The request was stopped.";
+			return appI18n.t("common.errors.requestStopped");
 		case "UnknownError":
 			return (
 				error.data.message ||
-				"The model request failed. Try again or choose another model."
+				appI18n.t("common.errors.modelRequestFailed")
 			);
 	}
+}
+
+export function getModelErrorTechnicalDetails(error: ModelError): string | undefined {
+	let details: string | undefined;
+	switch (error.name) {
+		case "ProviderAuthError":
+		case "UnknownError":
+			details = error.data.message;
+			break;
+		case "APIError":
+			details = combinedApiMessage(error);
+			break;
+		default:
+			return undefined;
+	}
+	const normalized = details?.trim();
+	if (!normalized) return undefined;
+	return normalized
+		.slice(0, 4000)
+		.replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "[REDACTED]")
+		.replace(
+			/(authorization\s*[:=]\s*(?:bearer\s+)?)[^\s,;]+/gi,
+			"$1[REDACTED]",
+		)
+		.replace(
+			/((?:api[ _-]?key|access[ _-]?token|refresh[ _-]?token|secret)["']?\s*[:=]\s*["']?)[A-Za-z0-9._~+\/-]{8,}/gi,
+			"$1[REDACTED]",
+		);
 }
 
 export function formatRequestError(

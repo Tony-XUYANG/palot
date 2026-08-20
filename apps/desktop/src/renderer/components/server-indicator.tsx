@@ -29,6 +29,7 @@ import {
 	SettingsIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ServerConfig } from "../../preload/api";
 import { serverConnectedAtom } from "../atoms/connection";
 import { useServerActions, useServers } from "../hooks/use-servers";
@@ -96,12 +97,14 @@ function StatusDot({
 		// Still checking: pulsing neutral dot
 		return (
 			<span
+				aria-hidden="true"
 				className={`size-1.5 shrink-0 rounded-full bg-muted-foreground/40 animate-pulse ${className ?? ""}`}
 			/>
 		);
 	}
 	return (
 		<span
+			aria-hidden="true"
 			className={`size-1.5 shrink-0 rounded-full ${health ? "bg-green-500" : "bg-red-500"} ${className ?? ""}`}
 		/>
 	);
@@ -112,6 +115,7 @@ function StatusDot({
 // ============================================================
 
 export function ServerIndicator() {
+	const { t } = useTranslation();
 	const { servers, activeServer, discoveredMdns } = useServers();
 	const connected = useAtomValue(serverConnectedAtom);
 	const { switchServer, saveDiscoveredServer } = useServerActions();
@@ -212,8 +216,12 @@ export function ServerIndicator() {
 							<SidebarMenuButton
 								tooltip={
 									connected
-										? `Server: ${activeServer.name}`
-										: `Server offline: ${activeServer.name}`
+										? t("settings.servers.connectedTooltip", {
+												server: activeServer.name,
+											})
+										: t("settings.servers.offlineTooltip", {
+												server: activeServer.name,
+											})
 								}
 								className={
 									connected
@@ -234,7 +242,9 @@ export function ServerIndicator() {
 						</div>
 						<span className="truncate">{activeServer.name}</span>
 						{!connected && (
-							<span className="text-[10px] text-red-500/70">(offline)</span>
+							<span className="text-[10px] text-red-500/70">
+								({t("settings.servers.offline")})
+							</span>
 						)}
 					</PopoverTrigger>
 				</SidebarMenuItem>
@@ -242,7 +252,9 @@ export function ServerIndicator() {
 
 			<PopoverContent side="top" align="start" className="w-64 p-1">
 				<div className="px-2 py-1.5">
-					<p className="text-xs font-medium text-muted-foreground">Servers</p>
+					<p className="text-xs font-medium text-muted-foreground">
+						{t("settings.servers.title")}
+					</p>
 				</div>
 				{servers.map((server) => {
 					const isActive = server.id === activeServer.id;
@@ -285,7 +297,7 @@ export function ServerIndicator() {
 						<div className="px-2 py-1.5">
 							<p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
 								<RadarIcon aria-hidden="true" className="size-3" />
-								Discovered on Network
+								{t("settings.servers.discovered")}
 							</p>
 						</div>
 						{unsavedDiscovered.map((mdns) => (
@@ -315,7 +327,7 @@ export function ServerIndicator() {
 					className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
 				>
 					<SettingsIcon aria-hidden="true" className="size-3.5" />
-					Manage Servers...
+					{t("settings.servers.manage")}
 				</button>
 			</PopoverContent>
 		</Popover>

@@ -76,6 +76,7 @@ export function WorktreeActions({ agent }: WorktreeActionsProps) {
 // ============================================================
 
 function ApplyToLocalButton({ agent }: { agent: Agent }) {
+	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
 	const [result, setResult] = useState<{
 		success: boolean;
@@ -97,21 +98,26 @@ function ApplyToLocalButton({ agent }: { agent: Agent }) {
 			if (res.success) {
 				setResult({
 					success: true,
-					message: `Applied ${res.filesApplied.length} file${res.filesApplied.length !== 1 ? "s" : ""} to project`,
+					message: t("worktree.appliedFiles", {
+						count: res.filesApplied.length,
+					}),
 				});
 			} else {
-				setResult({ success: false, message: res.error ?? "Apply failed" });
+				setResult({
+					success: false,
+					message: res.error ?? t("worktree.applyFailed"),
+				});
 			}
 		} catch (err) {
 			setResult({
 				success: false,
-				message: err instanceof Error ? err.message : "Apply failed",
+				message: err instanceof Error ? err.message : t("worktree.applyFailed"),
 			});
 		} finally {
 			setLoading(false);
 			setTimeout(() => setResult(null), 4000);
 		}
-	}, [agent.worktreePath, targetDir]);
+	}, [agent.worktreePath, targetDir, canApply, t]);
 
 	return (
 		<Tooltip>
@@ -142,13 +148,13 @@ function ApplyToLocalButton({ agent }: { agent: Agent }) {
 						{result.message}
 					</span>
 				) : (
-					"Apply to project"
+					t("worktree.apply")
 				)}
 			</TooltipTrigger>
 			<TooltipContent side="bottom">
 				{canApply
-					? "Apply worktree changes to your project as uncommitted changes"
-					: "Apply to project requires the Electron desktop app"}
+					? t("worktree.applyDescription")
+					: t("worktree.applyDesktopOnly")}
 			</TooltipContent>
 		</Tooltip>
 	);
@@ -178,7 +184,7 @@ function CommitPushButton({ agent }: { agent: Agent }) {
 					}
 				>
 					<ArrowUpFromLineIcon className="size-3" />
-					Commit & push
+					{t("worktree.commitPush")}
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
 					{t("worktree.commitPushDescription")}
@@ -242,7 +248,9 @@ function CommitDialog({
 					branchName,
 				);
 				if (!branchResult.success) {
-					setError(`Branch creation failed: ${branchResult.error}`);
+					setError(
+						t("worktree.branchCreateFailed", { error: branchResult.error }),
+					);
 					return;
 				}
 			}
@@ -250,10 +258,12 @@ function CommitDialog({
 			// Step 2: Commit all changes
 			const msg =
 				commitMessage.trim() ||
-				`Update ${diffStat?.filesChanged || 0} file${diffStat?.filesChanged !== 1 ? "s" : ""}`;
+				t("worktree.defaultMessage", {
+					count: diffStat?.filesChanged || 0,
+				});
 			const commitResult = await gitCommitAll(agent.worktreePath, msg);
 			if (!commitResult.success) {
-				setError(`Commit failed: ${commitResult.error}`);
+				setError(t("worktree.commitFailed", { error: commitResult.error }));
 				return;
 			}
 
@@ -261,7 +271,7 @@ function CommitDialog({
 			if (step === "commit-push" || step === "commit-push-pr") {
 				const pushResult = await gitPush(agent.worktreePath);
 				if (!pushResult.success) {
-					setError(`Push failed: ${pushResult.error}`);
+					setError(t("worktree.pushFailed", { error: pushResult.error }));
 					return;
 				}
 			}
@@ -291,14 +301,16 @@ function CommitDialog({
 
 			setSuccess(
 				step === "commit"
-					? "Committed successfully"
+					? t("worktree.committed")
 					: step === "commit-push"
-						? "Committed and pushed"
-						: "Committed, pushed, and PR page opened",
+						? t("worktree.committedPushed")
+						: t("worktree.committedPr"),
 			);
 			setTimeout(() => onOpenChange(false), 1500);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Operation failed");
+			setError(
+				err instanceof Error ? err.message : t("common.errors.operationFailed"),
+			);
 		} finally {
 			setExecuting(false);
 		}
@@ -311,16 +323,17 @@ function CommitDialog({
 		hasBranch,
 		onOpenChange,
 		diffStat?.filesChanged,
+		t,
 	]);
 
 	const stepLabels: Record<
 		CommitStep,
 		{ label: string; icon: typeof GitCommitHorizontalIcon }
 	> = {
-		commit: { label: "Commit", icon: GitCommitHorizontalIcon },
-		"commit-push": { label: "Commit & push", icon: ArrowUpFromLineIcon },
+		commit: { label: t("worktree.commit"), icon: GitCommitHorizontalIcon },
+		"commit-push": { label: t("worktree.commitPush"), icon: ArrowUpFromLineIcon },
 		"commit-push-pr": {
-			label: "Commit, push & create PR",
+			label: t("worktree.commitPushPr"),
 			icon: GitBranchIcon,
 		},
 	};
@@ -331,10 +344,10 @@ function CommitDialog({
 				<DialogHeader className="shrink-0">
 					<DialogTitle className="flex items-center gap-2">
 						<GitCommitHorizontalIcon className="size-5" />
-						Commit your changes
+						{t("worktree.title")}
 					</DialogTitle>
 					<DialogDescription>
-						Commit changes from the worktree and optionally push or create a PR.
+						{t("worktree.description")}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -363,13 +376,14 @@ function CommitDialog({
 						{loadingDiff ? (
 							<div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
 								<Loader2Icon className="size-3.5 animate-spin" />
-								Scanning changes...
+								{t("worktree.scanning")}
 							</div>
 						) : diffStat ? (
 							<div className="rounded-md bg-muted px-3 py-2">
 								<div className="text-sm">
-									{diffStat.filesChanged} file
-									{diffStat.filesChanged !== 1 ? "s" : ""} changed
+									{t("worktree.filesChanged", {
+										count: diffStat.filesChanged,
+									})}
 								</div>
 								{diffStat.files.length > 0 && (
 									<div className="mt-1.5 max-h-[120px] space-y-0.5 overflow-y-auto">
@@ -386,7 +400,7 @@ function CommitDialog({
 							</div>
 						) : (
 							<div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-								No changes detected
+								{t("worktree.noChanges")}
 							</div>
 						)}
 					</div>
@@ -399,7 +413,7 @@ function CommitDialog({
 						<Textarea
 							value={commitMessage}
 							onChange={(e) => setCommitMessage(e.target.value)}
-							placeholder="Describe your changes (optional)"
+							placeholder={t("worktree.messagePlaceholder")}
 							className="min-h-[60px] resize-none text-sm"
 						/>
 					</div>
@@ -453,7 +467,7 @@ function CommitDialog({
 						onClick={() => onOpenChange(false)}
 						disabled={executing}
 					>
-						Cancel
+						{t("common.actions.cancel")}
 					</Button>
 					<Button
 						onClick={handleExecute}
@@ -466,7 +480,7 @@ function CommitDialog({
 						{executing ? (
 							<>
 								<Loader2Icon className="size-3.5 animate-spin" />
-								Working...
+								{t("worktree.working")}
 							</>
 						) : (
 							stepLabels[step].label

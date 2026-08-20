@@ -36,13 +36,14 @@ import {
 	computeNextRuns,
 	formatNextRun,
 	formatScheduleSummary,
+	getSchedulePresetLabel,
+	getWeekdayLabel,
 	type IntervalUnit,
 	matchPreset,
 	rruleToScheduleConfig,
 	SCHEDULE_PRESETS,
 	type ScheduleConfig,
 	scheduleConfigToRrule,
-	WEEKDAY_LABELS,
 	type Weekday,
 } from "../../lib/rrule-ui";
 
@@ -60,7 +61,8 @@ interface SchedulePickerProps {
 // ============================================================
 
 export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const config = useMemo(() => rruleToScheduleConfig(value), [value]);
 	const presetKey = useMemo(() => matchPreset(value), [value]);
 	const isCustom = presetKey === CUSTOM_PRESET_KEY;
@@ -77,11 +79,11 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 	const presetItems = useMemo(() => {
 		const map: Record<string, string> = {};
 		for (const p of SCHEDULE_PRESETS) {
-			map[p.key] = p.label;
+			map[p.key] = getSchedulePresetLabel(p, locale);
 		}
-		map[CUSTOM_PRESET_KEY] = "Custom";
+		map[CUSTOM_PRESET_KEY] = t("automations.custom");
 		return map;
-	}, []);
+	}, [locale, t]);
 
 	// --- Preset selection
 	const handlePresetChange = useCallback(
@@ -140,7 +142,10 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 	);
 
 	// --- Summary
-	const summary = useMemo(() => formatScheduleSummary(config), [config]);
+	const summary = useMemo(
+		() => formatScheduleSummary(config, locale),
+		[config, locale],
+	);
 
 	return (
 		<div className="space-y-3">
@@ -166,7 +171,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 					>
 						{SCHEDULE_PRESETS.map((preset) => (
 							<SelectItem key={preset.key} value={preset.key}>
-								{preset.label}
+								{getSchedulePresetLabel(preset, locale)}
 							</SelectItem>
 						))}
 						<SelectSeparator />
@@ -367,6 +372,8 @@ function WeekdayPills({
 	weekdays: Weekday[];
 	toggleWeekday: (day: Weekday) => void;
 }) {
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	return (
 		<div className="flex gap-1">
 			{ALL_WEEKDAYS.map((day) => {
@@ -384,10 +391,12 @@ function WeekdayPills({
 								/>
 							}
 						>
-							{WEEKDAY_LABELS[day]}
+							{getWeekdayLabel(day, locale)}
 						</TooltipTrigger>
 						<TooltipContent>
-							{isSelected ? "Included" : "Excluded"}
+							{isSelected
+								? t("automations.included")
+								: t("automations.excluded")}
 						</TooltipContent>
 					</Tooltip>
 				);
@@ -407,7 +416,8 @@ function SchedulePreview({
 	rrule: string;
 	summary: string;
 }) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const [nextRuns, setNextRuns] = useState<Date[]>([]);
 
 	useEffect(() => {
@@ -428,7 +438,7 @@ function SchedulePreview({
 					<span>{t("automations.next")}</span>
 					{nextRuns.map((date, i) => (
 						<span key={date.toISOString()}>
-							{formatNextRun(date)}
+							{formatNextRun(date, locale)}
 							{i < nextRuns.length - 1 && (
 								<span className="ml-1.5 text-border">·</span>
 							)}

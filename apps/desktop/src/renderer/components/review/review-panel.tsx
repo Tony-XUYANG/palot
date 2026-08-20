@@ -691,6 +691,7 @@ const FileListItem = memo(function FileListItem({
 	isGenerated: boolean;
 	onSelect: (file: string | null) => void;
 }) {
+	const { t } = useTranslation();
 	const handleClick = useCallback(
 		() => onSelect(isSelected ? null : file),
 		[file, isSelected, onSelect],
@@ -720,11 +721,11 @@ const FileListItem = memo(function FileListItem({
 			<span className="flex shrink-0 items-center gap-1.5 text-[10px]">
 				{isGenerated && (
 					<span className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground/60">
-						generated
+						{t("review.generated")}
 					</span>
 				)}
 				{isLarge && (
-					<span title="Large diff">
+					<span title={t("review.largeDiffTitle")}>
 						<AlertTriangleIcon
 							className="size-3 text-amber-500"
 							aria-hidden="true"
@@ -998,7 +999,7 @@ function EmptyState() {
 					{t("review.noChangesYet")}
 				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
-					File changes will appear here as the agent works
+					{t("review.emptyDescription")}
 				</p>
 			</div>
 		</div>

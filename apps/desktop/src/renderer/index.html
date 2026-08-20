@@ -82,7 +82,7 @@
       // since production React builds don't expose the DevTools hook.
       try {
         if (localStorage.getItem('palot:reactScan') === 'true') {
-          document.write('<script src="https://unpkg.com/react-scan/dist/auto.global.js"></script>');
+          document.write('<script src="https://unpkg.com/react-scan/dist/auto.global.js"><\/script>');
         }
       } catch (e) {}
     </script>

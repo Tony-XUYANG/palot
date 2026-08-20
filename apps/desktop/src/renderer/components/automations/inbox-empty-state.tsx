@@ -34,19 +34,19 @@ export function InboxEmptyState({ onNewClick }: InboxEmptyStateProps) {
 				{hasAutomations ? (
 					<p className="text-sm text-muted-foreground">
 						{unreadCount > 0
-							? `${unreadCount} unread automation${unreadCount === 1 ? "" : "s"}`
-							: "No unread automations"}
+							? t("automations.unread", { count: unreadCount })
+							: t("automations.noUnread")}
 					</p>
 				) : (
 					<>
 						<h2 className="text-lg font-semibold">{t("automations.title")}</h2>
 						<p className="text-sm text-muted-foreground">
-							Set up recurring AI tasks that run on a schedule.
+							{t("automations.description")}
 						</p>
 						{onNewClick && (
 							<Button onClick={onNewClick} size="sm" className="mt-3">
 								<PlusIcon className="size-4" />
-								Create Automation
+								{t("automations.create")}
 							</Button>
 						)}
 					</>

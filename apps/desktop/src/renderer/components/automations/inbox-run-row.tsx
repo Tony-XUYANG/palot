@@ -21,6 +21,7 @@ import {
 	Loader2Icon,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { AutomationRun } from "../../../preload/api";
 import { formatTimeAgo } from "../../lib/time-format";
 
@@ -43,6 +44,8 @@ export const InboxRunRow = memo(function InboxRunRow({
 	onArchive,
 	onMarkRead,
 }: InboxRunRowProps) {
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const [hovered, setHovered] = useState(false);
 
 	const isUnread = run.readAt === null && run.status === "pending_review";
@@ -51,7 +54,7 @@ export const InboxRunRow = memo(function InboxRunRow({
 	const isAccepted = run.status === "accepted";
 
 	const summary = run.resultSummary ?? run.resultTitle ?? null;
-	const timeText = run.createdAt ? formatTimeAgo(run.createdAt) : null;
+	const timeText = run.createdAt ? formatTimeAgo(run.createdAt, locale) : null;
 
 	const handleCopy = useCallback(
 		(e: React.MouseEvent) => {
@@ -132,13 +135,13 @@ export const InboxRunRow = memo(function InboxRunRow({
 				{onMarkRead && !isArchived && (
 					<ContextMenuItem onSelect={() => onMarkRead(run.id)}>
 						<CircleIcon className="size-4" />
-						{isUnread ? "Mark as read" : "Mark as read"}
+						{t("automations.markRead")}
 					</ContextMenuItem>
 				)}
 				{run.sessionId && (
 					<ContextMenuItem onSelect={onClick}>
 						<ExternalLinkIcon className="size-4" />
-						Open thread
+						{t("automations.openThread")}
 					</ContextMenuItem>
 				)}
 				{(onMarkRead || run.sessionId) && onArchive && !isArchived && (
@@ -147,7 +150,7 @@ export const InboxRunRow = memo(function InboxRunRow({
 				{onArchive && !isArchived && (
 					<ContextMenuItem onSelect={() => onArchive(run.id)}>
 						<ArchiveIcon className="size-4" />
-						Archive
+						{t("automations.archive")}
 					</ContextMenuItem>
 				)}
 			</ContextMenuContent>

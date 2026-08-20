@@ -11,6 +11,7 @@ import {
 } from "@palot/ui/components/ai-elements/prompt-input";
 import { PlusIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useTranslation } from "react-i18next";
 import { setProjectModelAtom } from "../../atoms/preferences";
 import { appStore } from "../../atoms/store";
 import { useDraftActions, useDraftSnapshot } from "../../hooks/use-draft";
@@ -71,10 +72,11 @@ interface ChatInputProps {
 }
 
 function AttachButton({ disabled }: { disabled?: boolean }) {
+	const { t } = useTranslation();
 	const attachments = usePromptInputAttachments();
 	return (
 		<PromptInputButton
-			tooltip="Attach files"
+			tooltip={t("chat.attachFiles")}
 			onClick={() => attachments.openFileDialog()}
 			disabled={disabled}
 		>

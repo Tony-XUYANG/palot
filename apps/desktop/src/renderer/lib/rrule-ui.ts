@@ -8,6 +8,8 @@
  * next-runs preview using the rrule library.
  */
 
+import type { SupportedLocale } from "../../shared/i18n";
+
 // ============================================================
 // Types
 // ============================================================
@@ -41,6 +43,23 @@ export const WEEKDAY_LABELS: Record<Weekday, string> = {
 	SA: "Sa",
 	SU: "Su",
 };
+
+const ZH_WEEKDAY_LABELS: Record<Weekday, string> = {
+	MO: "一",
+	TU: "二",
+	WE: "三",
+	TH: "四",
+	FR: "五",
+	SA: "六",
+	SU: "日",
+};
+
+export function getWeekdayLabel(
+	day: Weekday,
+	locale: SupportedLocale = "en-US",
+): string {
+	return locale === "zh-CN" ? ZH_WEEKDAY_LABELS[day] : WEEKDAY_LABELS[day];
+}
 
 export interface ScheduleConfig {
 	mode: ScheduleMode;
@@ -89,6 +108,22 @@ export const SCHEDULE_PRESETS: SchedulePreset[] = [
 	},
 ];
 
+const ZH_PRESET_LABELS: Record<string, string> = {
+	"daily-9am": "每天 09:00",
+	"weekdays-9am": "工作日 09:00",
+	"every-30m": "每 30 分钟",
+	"every-1h": "每小时",
+	"every-6h": "每 6 小时",
+	"every-12h": "每 12 小时",
+};
+
+export function getSchedulePresetLabel(
+	preset: SchedulePreset,
+	locale: SupportedLocale = "en-US",
+): string {
+	return locale === "zh-CN" ? (ZH_PRESET_LABELS[preset.key] ?? preset.label) : preset.label;
+}
+
 /** Special sentinel value for custom schedules that don't match any preset. */
 export const CUSTOM_PRESET_KEY = "__custom__";
 
@@ -128,13 +163,16 @@ export function matchPreset(rrule: string): string {
  * Get the label to display for a preset selector given the current RRULE.
  * Returns the preset label or a human-readable summary for custom schedules.
  */
-export function getPresetLabel(rrule: string): string {
+export function getPresetLabel(
+	rrule: string,
+	locale: SupportedLocale = "en-US",
+): string {
 	const key = matchPreset(rrule);
 	if (key !== CUSTOM_PRESET_KEY) {
 		const preset = SCHEDULE_PRESETS.find((p) => p.key === key);
-		if (preset) return preset.label;
+		if (preset) return getSchedulePresetLabel(preset, locale);
 	}
-	return formatScheduleSummary(rruleToScheduleConfig(rrule));
+	return formatScheduleSummary(rruleToScheduleConfig(rrule), locale);
 }
 
 // ============================================================
@@ -231,19 +269,28 @@ export function rruleToScheduleConfig(rrule: string): ScheduleConfig {
 // Human-readable schedule summary
 // ============================================================
 
-export function formatScheduleSummary(config: ScheduleConfig): string {
+export function formatScheduleSummary(
+	config: ScheduleConfig,
+	locale: SupportedLocale = "en-US",
+): string {
 	if (config.mode === "interval") {
 		const v = config.intervalValue;
-		const weekdayDesc = formatWeekdayDesc(config.weekdays);
+		const weekdayDesc = formatWeekdayDesc(config.weekdays, locale);
 
 		let base: string;
-		if (config.intervalUnit === "minutes") {
+		if (locale === "zh-CN") {
+			base = `每隔 ${v} ${config.intervalUnit === "minutes" ? "分钟" : "小时"}`;
+		} else if (config.intervalUnit === "minutes") {
 			base = v === 1 ? "Every minute" : `Every ${v} minutes`;
 		} else {
 			base = v === 1 ? "Every hour" : `Every ${v} hours`;
 		}
 
-		return weekdayDesc ? `${base}, ${weekdayDesc}` : base;
+		return weekdayDesc
+			? locale === "zh-CN"
+				? `${base}，${weekdayDesc}`
+				: `${base}, ${weekdayDesc}`
+			: base;
 	}
 
 	// Daily mode
@@ -258,14 +305,22 @@ export function formatScheduleSummary(config: ScheduleConfig): string {
 		config.weekdays.includes("SA") &&
 		config.weekdays.includes("SU");
 
-	const time12 = formatTime12h(config.time);
+	const displayTime = locale === "zh-CN" ? config.time : formatTime12h(config.time);
 
-	if (allDays) return `Every day at ${time12}`;
-	if (weekdaysOnly) return `Weekdays at ${time12}`;
-	if (weekendsOnly) return `Weekends at ${time12}`;
+	if (locale === "zh-CN") {
+		if (allDays) return `每天 ${displayTime}`;
+		if (weekdaysOnly) return `工作日 ${displayTime}`;
+		if (weekendsOnly) return `周末 ${displayTime}`;
+		const dayLabels = config.weekdays.map((d) => getWeekdayLabel(d, locale));
+		return `周${dayLabels.join("、")} ${displayTime}`;
+	}
 
-	const dayLabels = config.weekdays.map((d) => WEEKDAY_LABELS[d]);
-	return `${dayLabels.join(", ")} at ${time12}`;
+	if (allDays) return `Every day at ${displayTime}`;
+	if (weekdaysOnly) return `Weekdays at ${displayTime}`;
+	if (weekendsOnly) return `Weekends at ${displayTime}`;
+
+	const dayLabels = config.weekdays.map((d) => getWeekdayLabel(d, locale));
+	return `${dayLabels.join(", ")} at ${displayTime}`;
 }
 
 // ============================================================
@@ -303,14 +358,17 @@ export async function computeNextRuns(
  * Format a Date for the next-runs preview. Shows day name, date, and time.
  * Example: "Mon, Feb 16 at 9:00 AM"
  */
-export function formatNextRun(date: Date): string {
-	return date.toLocaleDateString("en-US", {
+export function formatNextRun(
+	date: Date,
+	locale: SupportedLocale = "en-US",
+): string {
+	return date.toLocaleString(locale, {
 		weekday: "short",
 		month: "short",
 		day: "numeric",
 		hour: "numeric",
 		minute: "2-digit",
-		hour12: true,
+		hour12: locale === "en-US",
 	});
 }
 
@@ -342,16 +400,21 @@ function formatTime12h(time24: string): string {
 }
 
 /** Short weekday description for interval mode summaries */
-function formatWeekdayDesc(weekdays: Weekday[]): string | null {
+function formatWeekdayDesc(
+	weekdays: Weekday[],
+	locale: SupportedLocale,
+): string | null {
 	if (weekdays.length === 7 || weekdays.length === 0) return null;
 	const weekdaysOnly =
 		weekdays.length === 5 &&
 		["MO", "TU", "WE", "TH", "FR"].every((d) =>
 			weekdays.includes(d as Weekday),
 		);
-	if (weekdaysOnly) return "weekdays only";
+	if (weekdaysOnly) return locale === "zh-CN" ? "仅工作日" : "weekdays only";
 	const weekendsOnly =
 		weekdays.length === 2 && weekdays.includes("SA") && weekdays.includes("SU");
-	if (weekendsOnly) return "weekends only";
-	return weekdays.map((d) => WEEKDAY_LABELS[d]).join(", ");
+	if (weekendsOnly) return locale === "zh-CN" ? "仅周末" : "weekends only";
+	return weekdays
+		.map((d) => getWeekdayLabel(d, locale))
+		.join(locale === "zh-CN" ? "、" : ", ");
 }

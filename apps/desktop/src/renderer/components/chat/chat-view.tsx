@@ -68,7 +68,7 @@ import {
 } from "../../hooks/use-opencode-data";
 import type { ChatTurn } from "../../hooks/use-session-chat";
 import { createLogger } from "../../lib/logger";
-import { formatModelError, formatRequestError } from "../../lib/model-errors";
+import { formatRequestError } from "../../lib/model-errors";
 import {
 	computeTurnWorkTimeSplit,
 	formatWorkDuration,
@@ -92,6 +92,7 @@ import {
 import { PermissionItem } from "./chat-permission";
 import { ChatQuestionFlow } from "./chat-question";
 import { ChatTurnComponent } from "./chat-turn";
+import { ModelErrorNotice } from "./model-error-notice";
 import { ContextItems } from "./context-items";
 import type { MentionOption } from "./mention-popover";
 import { MentionPopover, type MentionPopoverHandle } from "./mention-popover";
@@ -117,10 +118,11 @@ import {
  * Must be rendered inside a <PromptInput> so the attachments context is available.
  */
 function AttachButton({ disabled }: { disabled?: boolean }) {
+	const { t } = useTranslation();
 	const attachments = usePromptInputAttachments();
 	return (
 		<PromptInputButton
-			tooltip="Attach files"
+			tooltip={t("chat.attachFiles")}
 			onClick={() => attachments.openFileDialog()}
 			disabled={disabled}
 		>
@@ -536,11 +538,6 @@ export function ChatView({
 	// turn doesn't already carry an assistant-level error (the server emits
 	// both session.error and message.updated for the same failure, so showing
 	// both would duplicate the message).
-	const sessionErrorText = useMemo(() => {
-		if (!sessionError) return undefined;
-		return formatModelError(sessionError);
-	}, [sessionError]);
-
 	const lastTurnHasError = useMemo(() => {
 		const lastTurn = turns.at(-1);
 		if (!lastTurn) return false;
@@ -549,7 +546,7 @@ export function ChatView({
 		);
 	}, [turns]);
 
-	const showSessionError = !!sessionErrorText && !lastTurnHasError;
+	const showSessionError = !!sessionError && !lastTurnHasError;
 
 	// Stable callbacks for question/permission handlers — agent is stable
 	// per render, but wrapping in useCallback avoids creating new inline
@@ -735,11 +732,9 @@ export function ChatView({
 							)}
 
 							{/* Session-level error from session.error events */}
-							{showSessionError && sessionErrorText && (
-								<div className="rounded-md border border-red-500/30 bg-red-500/5 px-3 py-2 text-xs text-red-400">
-									{sessionErrorText}
-								</div>
-							)}
+							{showSessionError && sessionError ? (
+								<ModelErrorNotice error={sessionError} />
+							) : null}
 						</div>
 					</ConversationContent>
 					<ScrollToResponseStart isWorking={isWorking} scrollRef={scrollRef} />
