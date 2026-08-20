@@ -7,9 +7,9 @@ import {
 	net,
 	shell,
 	systemPreferences,
-} from "electron"
-import { sanitizeOpenCodeProviderResponse } from "../shared/opencode-provider-sanitizer"
-import { listAgentEngineDescriptors } from "./agent-engine-registry"
+} from "electron";
+import { sanitizeOpenCodeProviderResponse } from "../shared/opencode-provider-sanitizer";
+import { listAgentEngineDescriptors } from "./agent-engine-registry";
 import {
 	acceptRun,
 	archiveRun,
@@ -22,10 +22,17 @@ import {
 	previewSchedule,
 	runNow,
 	updateAutomation,
-} from "./automation"
-import type { CreateAutomationInput, UpdateAutomationInput } from "./automation/types"
-import { installCli, isCliInstalled, uninstallCli } from "./cli-install"
-import { deleteCredential, getCredential, storeCredential } from "./credential-store"
+} from "./automation";
+import type {
+	CreateAutomationInput,
+	UpdateAutomationInput,
+} from "./automation/types";
+import { installCli, isCliInstalled, uninstallCli } from "./cli-install";
+import {
+	deleteCredential,
+	getCredential,
+	storeCredential,
+} from "./credential-store";
 import {
 	applyChangesToLocal,
 	applyDiffTextToLocal,
@@ -41,23 +48,24 @@ import {
 	push,
 	stashAndCheckout,
 	stashPop,
-} from "./git-service"
+} from "./git-service";
 import {
 	completeGitHubLogin,
-	readGitHubBuildResult,
 	getGitHubBuildStatus,
 	prepareGitHubBuild,
 	publishGitHubSource,
+	readGitHubBuildResult,
 	runGitHubBuild,
 	startGitHubLogin,
-} from "./github-build-service"
-import { getResolvedChromeTier } from "./liquid-glass"
-import { createLogger } from "./logger"
-import { getDiscoveredServers } from "./mdns-scanner"
+} from "./github-build-service";
+import { tMain } from "./i18n";
+import { getResolvedChromeTier } from "./liquid-glass";
+import { createLogger } from "./logger";
+import { getDiscoveredServers } from "./mdns-scanner";
 
-import { readModelState, updateModelRecent } from "./model-state"
-import { dismissNotification, updateBadgeCount } from "./notifications"
-import type { MigrationProvider } from "./onboarding"
+import { readModelState, updateModelRecent } from "./model-state";
+import { dismissNotification, updateBadgeCount } from "./notifications";
+import type { MigrationProvider } from "./onboarding";
 import {
 	checkOpenCodeInstallation,
 	detectProviders,
@@ -66,9 +74,26 @@ import {
 	previewMigration,
 	restoreMigrationBackup,
 	scanProvider,
-} from "./onboarding"
-import { getOpenInTargets, openInTarget, setPreferredTarget } from "./open-in-targets"
-import { ensureServer, getServerUrl, restartServer, stopServer } from "./opencode-manager"
+} from "./onboarding";
+import {
+	getOpenInTargets,
+	openInTarget,
+	setPreferredTarget,
+} from "./open-in-targets";
+import {
+	ensureServer,
+	getServerUrl,
+	restartServer,
+	stopServer,
+} from "./opencode-manager";
+import {
+	bootstrapPalotCloud,
+	connectPalotCloud,
+	disconnectPalotCloud,
+	getPalotCloudStatus,
+	getPalotCloudTopupOrder,
+	startPalotCloudTopup,
+} from "./palot-cloud-service";
 import {
 	completeSealosLogin,
 	deployToSealos,
@@ -81,45 +106,42 @@ import {
 	updateSealosDeployment,
 	updateSealosTemplateImage,
 	verifySealosRuntime,
-} from "./sealos-service"
-import { getOpaqueWindows, getSettings, onSettingsChanged, updateSettings } from "./settings-store"
+} from "./sealos-service";
 import {
-	bootstrapPalotCloud,
-	connectPalotCloud,
-	disconnectPalotCloud,
-	getPalotCloudTopupOrder,
-	getPalotCloudStatus,
-	startPalotCloudTopup,
-} from "./palot-cloud-service"
+	getOpaqueWindows,
+	getSettings,
+	onSettingsChanged,
+	updateSettings,
+} from "./settings-store";
 import {
 	checkForUpdates,
 	downloadUpdate,
 	getUpdateState,
 	installUpdate,
 	openReleasePage,
-} from "./updater"
+} from "./updater";
 
-const log = createLogger("ipc")
+const log = createLogger("ipc");
 
 /** Read the opaque windows preference for use at window creation time. */
-export { getOpaqueWindows as getOpaqueWindowsPref } from "./settings-store"
+export { getOpaqueWindows as getOpaqueWindowsPref } from "./settings-store";
 
 // ============================================================
 // Serialized fetch types — used to pass Request/Response over IPC
 // ============================================================
 
 interface SerializedRequest {
-	url: string
-	method: string
-	headers: Record<string, string>
-	body: string | null
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body: string | null;
 }
 
 interface SerializedResponse {
-	status: number
-	statusText: string
-	headers: Record<string, string>
-	body: string | null
+	status: number;
+	statusText: string;
+	headers: Record<string, string>;
+	body: string | null;
 }
 
 /**
@@ -137,20 +159,24 @@ async function handleFetchProxy(
 	_event: Electron.IpcMainInvokeEvent,
 	req: SerializedRequest,
 ): Promise<SerializedResponse> {
-	log.info("IPC fetch proxy →", { method: req.method, url: req.url })
-	const start = Date.now()
+	log.info("IPC fetch proxy →", { method: req.method, url: req.url });
+	const start = Date.now();
 	const response = await net.fetch(req.url, {
 		method: req.method,
 		headers: req.headers,
 		body: req.body ?? undefined,
-	})
+	});
 
-	const body = sanitizeOpenCodeProviderResponse(req.url, response.status, await response.text())
-	const headers: Record<string, string> = {}
+	const body = sanitizeOpenCodeProviderResponse(
+		req.url,
+		response.status,
+		await response.text(),
+	);
+	const headers: Record<string, string> = {};
 	response.headers.forEach((value, key) => {
-		headers[key] = value
-	})
-	const durationMs = Date.now() - start
+		headers[key] = value;
+	});
+	const durationMs = Date.now() - start;
 
 	log.info("IPC fetch proxy ←", {
 		method: req.method,
@@ -158,14 +184,14 @@ async function handleFetchProxy(
 		status: response.status,
 		bodyLength: body?.length ?? 0,
 		durationMs,
-	})
+	});
 
 	return {
 		status: response.status,
 		statusText: response.statusText,
 		headers,
 		body,
-	}
+	};
 }
 
 /**
@@ -178,19 +204,23 @@ function withLogging<TArgs extends unknown[], TResult>(
 	handler: (...args: TArgs) => TResult | Promise<TResult>,
 ): (...args: TArgs) => Promise<TResult> {
 	return async (...args: TArgs) => {
-		const start = Date.now()
+		const start = Date.now();
 		try {
-			const result = await handler(...args)
-			const durationMs = Date.now() - start
+			const result = await handler(...args);
+			const durationMs = Date.now() - start;
 			if (durationMs > 500) {
-				log.warn(`Handler "${channel}" slow`, { durationMs })
+				log.warn(`Handler "${channel}" slow`, { durationMs });
 			}
-			return result
+			return result;
 		} catch (err) {
-			log.error(`Handler "${channel}" failed`, { durationMs: Date.now() - start }, err)
-			throw err
+			log.error(
+				`Handler "${channel}" failed`,
+				{ durationMs: Date.now() - start },
+				err,
+			);
+			throw err;
 		}
-	}
+	};
 }
 
 /**
@@ -206,33 +236,39 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle("app:info", () => ({
 		version: app.getVersion(),
 		isDev: !app.isPackaged,
-	}))
+	}));
 
 	// --- OpenCode server lifecycle ---
 
 	ipcMain.handle(
 		"opencode:ensure",
 		withLogging("opencode:ensure", async () => await ensureServer()),
-	)
+	);
 
-	ipcMain.handle("opencode:url", () => getServerUrl())
+	ipcMain.handle("opencode:url", () => getServerUrl());
 
 	ipcMain.handle(
 		"agent-engines:list",
-		withLogging("agent-engines:list", async () => await listAgentEngineDescriptors()),
-	)
+		withLogging(
+			"agent-engines:list",
+			async () => await listAgentEngineDescriptors(),
+		),
+	);
 
 	// --- Palot Cloud ---
 
 	ipcMain.handle(
 		"palot-cloud:status",
 		withLogging("palot-cloud:status", async () => await getPalotCloudStatus()),
-	)
+	);
 
 	ipcMain.handle(
 		"palot-cloud:bootstrap",
-		withLogging("palot-cloud:bootstrap", async () => await bootstrapPalotCloud()),
-	)
+		withLogging(
+			"palot-cloud:bootstrap",
+			async () => await bootstrapPalotCloud(),
+		),
+	);
 
 	ipcMain.handle(
 		"palot-cloud:connect",
@@ -240,12 +276,15 @@ export function registerIpcHandlers(): void {
 			"palot-cloud:connect",
 			async (_, token: string) => await connectPalotCloud(token),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"palot-cloud:disconnect",
-		withLogging("palot-cloud:disconnect", async () => await disconnectPalotCloud()),
-	)
+		withLogging(
+			"palot-cloud:disconnect",
+			async () => await disconnectPalotCloud(),
+		),
+	);
 
 	ipcMain.handle(
 		"palot-cloud:topup-start",
@@ -253,7 +292,7 @@ export function registerIpcHandlers(): void {
 			"palot-cloud:topup-start",
 			async (_, packageId: string) => await startPalotCloudTopup(packageId),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"palot-cloud:topup-order",
@@ -261,82 +300,100 @@ export function registerIpcHandlers(): void {
 			"palot-cloud:topup-order",
 			async (_, orderId: string) => await getPalotCloudTopupOrder(orderId),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"opencode:stop",
 		withLogging("opencode:stop", () => stopServer()),
-	)
+	);
 
 	ipcMain.handle(
 		"opencode:restart",
 		withLogging("opencode:restart", async () => await restartServer()),
-	)
+	);
 
 	// --- Model state ---
 
 	ipcMain.handle(
 		"model-state",
 		withLogging("model-state", async () => await readModelState()),
-	)
+	);
 
 	ipcMain.handle(
 		"model-state:update-recent",
 		withLogging(
 			"model-state:update-recent",
-			async (_, model: { providerID: string; modelID: string }) => await updateModelRecent(model),
+			async (_, model: { providerID: string; modelID: string }) =>
+				await updateModelRecent(model),
 		),
-	)
+	);
 
 	// --- Auto-updater ---
 
-	ipcMain.handle("updater:state", () => getUpdateState())
+	ipcMain.handle("updater:state", () => getUpdateState());
 
-	ipcMain.handle("updater:check", async () => await checkForUpdates())
+	ipcMain.handle("updater:check", async () => await checkForUpdates());
 
-	ipcMain.handle("updater:download", async () => await downloadUpdate())
+	ipcMain.handle("updater:download", async () => await downloadUpdate());
 
-	ipcMain.handle("updater:install", async () => await installUpdate())
+	ipcMain.handle("updater:install", async () => await installUpdate());
 
-	ipcMain.handle("updater:open-release-page", async () => await openReleasePage())
+	ipcMain.handle(
+		"updater:open-release-page",
+		async () => await openReleasePage(),
+	);
 
 	// --- Git operations ---
 
 	ipcMain.handle(
 		"git:branches",
-		withLogging("git:branches", async (_, directory: string) => await listBranches(directory)),
-	)
+		withLogging(
+			"git:branches",
+			async (_, directory: string) => await listBranches(directory),
+		),
+	);
 
 	ipcMain.handle(
 		"git:status",
-		withLogging("git:status", async (_, directory: string) => await getStatus(directory)),
-	)
+		withLogging(
+			"git:status",
+			async (_, directory: string) => await getStatus(directory),
+		),
+	);
 
 	ipcMain.handle(
 		"git:checkout",
 		withLogging(
 			"git:checkout",
-			async (_, directory: string, branch: string) => await checkout(directory, branch),
+			async (_, directory: string, branch: string) =>
+				await checkout(directory, branch),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:stash-and-checkout",
 		withLogging(
 			"git:stash-and-checkout",
-			async (_, directory: string, branch: string) => await stashAndCheckout(directory, branch),
+			async (_, directory: string, branch: string) =>
+				await stashAndCheckout(directory, branch),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:stash-pop",
-		withLogging("git:stash-pop", async (_, directory: string) => await stashPop(directory)),
-	)
+		withLogging(
+			"git:stash-pop",
+			async (_, directory: string) => await stashPop(directory),
+		),
+	);
 
 	ipcMain.handle(
 		"git:diff-stat",
-		withLogging("git:diff-stat", async (_, directory: string) => await getDiffStat(directory)),
-	)
+		withLogging(
+			"git:diff-stat",
+			async (_, directory: string) => await getDiffStat(directory),
+		),
+	);
 
 	ipcMain.handle(
 		"git:working-tree-diff",
@@ -344,31 +401,34 @@ export function registerIpcHandlers(): void {
 			"git:working-tree-diff",
 			async (_, directory: string) => await getWorkingTreeDiff(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:commit-all",
 		withLogging(
 			"git:commit-all",
-			async (_, directory: string, message: string) => await commitAll(directory, message),
+			async (_, directory: string, message: string) =>
+				await commitAll(directory, message),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:push",
 		withLogging(
 			"git:push",
-			async (_, directory: string, remote?: string) => await push(directory, remote),
+			async (_, directory: string, remote?: string) =>
+				await push(directory, remote),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:create-branch",
 		withLogging(
 			"git:create-branch",
-			async (_, directory: string, branchName: string) => await createBranch(directory, branchName),
+			async (_, directory: string, branchName: string) =>
+				await createBranch(directory, branchName),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:apply-to-local",
@@ -377,7 +437,7 @@ export function registerIpcHandlers(): void {
 			async (_, worktreeDir: string, localDir: string) =>
 				await applyChangesToLocal(worktreeDir, localDir),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:apply-diff-text",
@@ -386,20 +446,24 @@ export function registerIpcHandlers(): void {
 			async (_, localDir: string, diffText: string) =>
 				await applyDiffTextToLocal(localDir, diffText),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"git:root",
-		withLogging("git:root", async (_, directory: string) => await getGitRoot(directory)),
-	)
+		withLogging(
+			"git:root",
+			async (_, directory: string) => await getGitRoot(directory),
+		),
+	);
 
 	ipcMain.handle(
 		"git:remote-url",
 		withLogging(
 			"git:remote-url",
-			async (_, directory: string, remote?: string) => await getRemoteUrl(directory, remote),
+			async (_, directory: string, remote?: string) =>
+				await getRemoteUrl(directory, remote),
 		),
-	)
+	);
 
 	// --- Directory picker ---
 
@@ -408,44 +472,56 @@ export function registerIpcHandlers(): void {
 		withLogging("dialog:open-directory", async () => {
 			const result = await dialog.showOpenDialog({
 				properties: ["openDirectory"],
-				title: "Select a project folder",
-			})
-			if (result.canceled || result.filePaths.length === 0) return null
-			return result.filePaths[0]
+				title: tMain("native.dialogs.selectProjectFolder"),
+			});
+			if (result.canceled || result.filePaths.length === 0) return null;
+			return result.filePaths[0];
 		}),
-	)
+	);
 
 	// --- Fetch proxy (bypasses Chromium connection limits) ---
 
-	ipcMain.handle("fetch:request", withLogging("fetch:request", handleFetchProxy))
+	ipcMain.handle(
+		"fetch:request",
+		withLogging("fetch:request", handleFetchProxy),
+	);
 
 	// --- Sealos deployment ---
 
 	ipcMain.handle(
 		"sealos:preflight",
 		withLogging("sealos:preflight", async (_, directory: string) => {
-			if (!directory?.trim()) throw new Error("A project directory is required")
-			return await runSealosPreflight(directory)
+			if (!directory?.trim())
+				throw new Error("A project directory is required");
+			return await runSealosPreflight(directory);
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:deploy",
-		withLogging("sealos:deploy", async (_, directory: string, args?: Record<string, string>) => {
-			if (!directory?.trim()) throw new Error("A project directory is required")
-			return await deployToSealos(directory, args)
-		}),
-	)
+		withLogging(
+			"sealos:deploy",
+			async (_, directory: string, args?: Record<string, string>) => {
+				if (!directory?.trim())
+					throw new Error("A project directory is required");
+				return await deployToSealos(directory, args);
+			},
+		),
+	);
 
-	ipcMain.handle("sealos:workspaces", withLogging("sealos:workspaces", listSealosWorkspaces))
+	ipcMain.handle(
+		"sealos:workspaces",
+		withLogging("sealos:workspaces", listSealosWorkspaces),
+	);
 
 	ipcMain.handle(
 		"sealos:switch-workspace",
 		withLogging(
 			"sealos:switch-workspace",
-			async (_, workspaceId: string) => await switchSealosWorkspace(workspaceId),
+			async (_, workspaceId: string) =>
+				await switchSealosWorkspace(workspaceId),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:template-inputs",
@@ -453,15 +529,16 @@ export function registerIpcHandlers(): void {
 			"sealos:template-inputs",
 			async (_, directory: string) => await readSealosTemplateInputs(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:deployment-state",
 		withLogging(
 			"sealos:deployment-state",
-			async (_, directory: string) => await readSealosDeploymentState(directory),
+			async (_, directory: string) =>
+				await readSealosDeploymentState(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:update",
@@ -469,7 +546,7 @@ export function registerIpcHandlers(): void {
 			"sealos:update",
 			async (_, directory: string) => await updateSealosDeployment(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-status",
@@ -477,7 +554,7 @@ export function registerIpcHandlers(): void {
 			"sealos:github-status",
 			async (_, directory: string) => await getGitHubBuildStatus(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-last-build",
@@ -485,16 +562,16 @@ export function registerIpcHandlers(): void {
 			"sealos:github-last-build",
 			async (_, directory: string) => await readGitHubBuildResult(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-login-start",
 		withLogging("sealos:github-login-start", async () => {
-			const login = await startGitHubLogin()
-			await shell.openExternal(login.verificationUrl)
-			return login
+			const login = await startGitHubLogin();
+			await shell.openExternal(login.verificationUrl);
+			return login;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-login-complete",
@@ -502,7 +579,7 @@ export function registerIpcHandlers(): void {
 			"sealos:github-login-complete",
 			async (_, sessionId: string) => await completeGitHubLogin(sessionId),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-prepare",
@@ -510,7 +587,7 @@ export function registerIpcHandlers(): void {
 			"sealos:github-prepare",
 			async (_, directory: string) => await prepareGitHubBuild(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-publish",
@@ -518,27 +595,27 @@ export function registerIpcHandlers(): void {
 			"sealos:github-publish",
 			async (_, directory: string) => await publishGitHubSource(directory),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:github-build",
 		withLogging("sealos:github-build", async (event, directory: string) => {
 			const result = await runGitHubBuild(directory, (progress) => {
-				event.sender.send("sealos:github-build-progress", progress)
-			})
-			await updateSealosTemplateImage(directory, result.image)
-			return result
+				event.sender.send("sealos:github-build-progress", progress);
+			});
+			await updateSealosTemplateImage(directory, result.image);
+			return result;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:login-start",
 		withLogging("sealos:login-start", async (_, region: string) => {
-			const login = await startSealosLogin(region)
-			await shell.openExternal(login.verificationUrl)
-			return login
+			const login = await startSealosLogin(region);
+			await shell.openExternal(login.verificationUrl);
+			return login;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:login-complete",
@@ -546,99 +623,106 @@ export function registerIpcHandlers(): void {
 			"sealos:login-complete",
 			async (_, sessionId: string) => await completeSealosLogin(sessionId),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"sealos:verify-runtime",
 		withLogging(
 			"sealos:verify-runtime",
-			async (_, directory: string, url: string) => await verifySealosRuntime(directory, url),
+			async (_, directory: string, url: string) =>
+				await verifySealosRuntime(directory, url),
 		),
-	)
+	);
 
 	// --- CLI install ---
 
-	ipcMain.handle("cli:is-installed", () => isCliInstalled())
+	ipcMain.handle("cli:is-installed", () => isCliInstalled());
 
-	ipcMain.handle("cli:install", () => installCli())
+	ipcMain.handle("cli:install", () => installCli());
 
-	ipcMain.handle("cli:uninstall", () => uninstallCli())
+	ipcMain.handle("cli:uninstall", () => uninstallCli());
 
 	// --- Open in external app ---
 
-	ipcMain.handle("open-in:targets", () => getOpenInTargets())
+	ipcMain.handle("open-in:targets", () => getOpenInTargets());
 
 	ipcMain.handle(
 		"open-in:open",
 		withLogging(
 			"open-in:open",
-			async (_, directory: string, targetId: string, persistPreferred?: boolean) =>
-				await openInTarget(directory, targetId, { persistPreferred }),
+			async (
+				_,
+				directory: string,
+				targetId: string,
+				persistPreferred?: boolean,
+			) => await openInTarget(directory, targetId, { persistPreferred }),
 		),
-	)
+	);
 
 	ipcMain.handle("open-in:set-preferred", (_, targetId: string) => {
-		setPreferredTarget(targetId)
-		return { success: true }
-	})
+		setPreferredTarget(targetId);
+		return { success: true };
+	});
 
 	// --- Chrome tier (pull-based, avoids race with push-based "chrome-tier" event) ---
 
-	ipcMain.handle("chrome-tier:get", () => getResolvedChromeTier())
+	ipcMain.handle("chrome-tier:get", () => getResolvedChromeTier());
 
 	// --- Window preferences (opaque windows) ---
 
 	ipcMain.handle("prefs:get-opaque-windows", () => {
-		return getOpaqueWindows()
-	})
+		return getOpaqueWindows();
+	});
 
 	ipcMain.handle("prefs:set-opaque-windows", (_, value: boolean) => {
-		updateSettings({ opaqueWindows: value })
-		return { success: true }
-	})
+		updateSettings({ opaqueWindows: value });
+		return { success: true };
+	});
 
 	ipcMain.handle("app:relaunch", () => {
-		app.relaunch()
-		app.exit(0)
-	})
+		app.relaunch();
+		app.exit(0);
+	});
 
 	// --- Notifications ---
 
 	ipcMain.handle("notification:dismiss", (_, sessionId: string) => {
-		dismissNotification(sessionId)
-	})
+		dismissNotification(sessionId);
+	});
 
 	ipcMain.handle("notification:badge", (_, count: number) => {
-		updateBadgeCount(count)
-	})
+		updateBadgeCount(count);
+	});
 
 	// --- Settings ---
 
-	ipcMain.handle("settings:get", () => getSettings())
+	ipcMain.handle("settings:get", () => getSettings());
 
-	ipcMain.handle("settings:update", (_, partial) => updateSettings(partial))
+	ipcMain.handle("settings:update", (_, partial) => updateSettings(partial));
 
 	// --- Credential storage (safeStorage-backed) ---
 
 	ipcMain.handle(
 		"credential:store",
 		withLogging("credential:store", (_, serverId: string, password: string) => {
-			storeCredential(serverId, password)
+			storeCredential(serverId, password);
 		}),
-	)
+	);
 
-	ipcMain.handle("credential:get", (_, serverId: string) => getCredential(serverId))
+	ipcMain.handle("credential:get", (_, serverId: string) =>
+		getCredential(serverId),
+	);
 
 	ipcMain.handle(
 		"credential:delete",
 		withLogging("credential:delete", (_, serverId: string) => {
-			deleteCredential(serverId)
+			deleteCredential(serverId);
 		}),
-	)
+	);
 
 	// --- mDNS discovery ---
 
-	ipcMain.handle("mdns:get-discovered", () => getDiscoveredServers())
+	ipcMain.handle("mdns:get-discovered", () => getDiscoveredServers());
 
 	// --- Remote server connectivity test ---
 
@@ -648,74 +732,87 @@ export function registerIpcHandlers(): void {
 			"server:test-connection",
 			async (_, url: string, username?: string, password?: string) => {
 				try {
-					const headers: Record<string, string> = {}
+					const headers: Record<string, string> = {};
 					if (password) {
-						const user = username || "opencode"
-						headers.Authorization = `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`
+						const user = username || "opencode";
+						headers.Authorization = `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`;
 					}
 					const res = await net.fetch(`${url}/session`, {
 						method: "GET",
 						headers,
 						signal: AbortSignal.timeout(5000),
-					})
-					if (res.ok) return null
-					if (res.status === 401) return "Authentication failed. Check username and password."
-					return `Server responded with HTTP ${res.status} ${res.statusText}`
+					});
+					if (res.ok) return null;
+					if (res.status === 401)
+						return "Authentication failed. Check username and password.";
+					return `Server responded with HTTP ${res.status} ${res.statusText}`;
 				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err)
-					if (msg.includes("ECONNREFUSED")) return "Connection refused. Is the server running?"
-					if (msg.includes("ENOTFOUND")) return "Host not found. Check the URL."
-					if (msg.includes("ETIMEDOUT") || msg.includes("timeout")) return "Connection timed out."
-					if (msg.includes("CERT")) return `TLS/certificate error: ${msg}`
-					return `Connection failed: ${msg}`
+					const msg = err instanceof Error ? err.message : String(err);
+					if (msg.includes("ECONNREFUSED"))
+						return "Connection refused. Is the server running?";
+					if (msg.includes("ENOTFOUND"))
+						return "Host not found. Check the URL.";
+					if (msg.includes("ETIMEDOUT") || msg.includes("timeout"))
+						return "Connection timed out.";
+					if (msg.includes("CERT")) return `TLS/certificate error: ${msg}`;
+					return `Connection failed: ${msg}`;
 				}
 			},
 		),
-	)
+	);
 
 	// --- Native theme (controls macOS glass tint color) ---
 
 	ipcMain.handle("theme:set-native", (_, source: string) => {
 		if (source === "light" || source === "dark") {
-			nativeTheme.themeSource = source
+			nativeTheme.themeSource = source;
 		} else {
-			nativeTheme.themeSource = "system"
+			nativeTheme.themeSource = "system";
 		}
-	})
+	});
 
 	// --- System accent color (macOS / Windows) ---
 
 	ipcMain.handle("theme:accent-color", () => {
 		try {
-			return systemPreferences.getAccentColor()
+			return systemPreferences.getAccentColor();
 		} catch {
-			return null
+			return null;
 		}
-	})
+	});
 
 	// Broadcast accent color changes to all renderer windows
 	systemPreferences.on("accent-color-changed", (_event, newColor) => {
 		for (const win of BrowserWindow.getAllWindows()) {
-			win.webContents.send("theme:accent-color-changed", newColor)
+			win.webContents.send("theme:accent-color-changed", newColor);
 		}
-	})
+	});
 
 	// --- Onboarding ---
 
 	ipcMain.handle(
 		"onboarding:check-opencode",
-		withLogging("onboarding:check-opencode", async () => await checkOpenCodeInstallation()),
-	)
+		withLogging(
+			"onboarding:check-opencode",
+			async () => await checkOpenCodeInstallation(),
+		),
+	);
 
 	ipcMain.handle(
 		"onboarding:install-opencode",
-		withLogging("onboarding:install-opencode", async () => await installOpenCode()),
-	)
+		withLogging(
+			"onboarding:install-opencode",
+			async () => await installOpenCode(),
+		),
+	);
 
 	ipcMain.handle(
 		"onboarding:detect-providers",
-		withLogging("onboarding:detect-providers", async () => await detectProviders()),
-	)
+		withLogging(
+			"onboarding:detect-providers",
+			async () => await detectProviders(),
+		),
+	);
 
 	ipcMain.handle(
 		"onboarding:scan-provider",
@@ -723,75 +820,92 @@ export function registerIpcHandlers(): void {
 			"onboarding:scan-provider",
 			async (_, provider: MigrationProvider) => await scanProvider(provider),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"onboarding:preview-migration",
 		withLogging(
 			"onboarding:preview-migration",
-			async (_, provider: MigrationProvider, scanResult: unknown, categories: string[]) =>
-				await previewMigration(provider, scanResult, categories),
+			async (
+				_,
+				provider: MigrationProvider,
+				scanResult: unknown,
+				categories: string[],
+			) => await previewMigration(provider, scanResult, categories),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"onboarding:execute-migration",
 		withLogging(
 			"onboarding:execute-migration",
-			async (_, provider: MigrationProvider, scanResult: unknown, categories: string[]) =>
-				await executeMigration(provider, scanResult, categories),
+			async (
+				_,
+				provider: MigrationProvider,
+				scanResult: unknown,
+				categories: string[],
+			) => await executeMigration(provider, scanResult, categories),
 		),
-	)
+	);
 
 	ipcMain.handle(
 		"onboarding:restore-backup",
-		withLogging("onboarding:restore-backup", async () => await restoreMigrationBackup()),
-	)
+		withLogging(
+			"onboarding:restore-backup",
+			async () => await restoreMigrationBackup(),
+		),
+	);
 
 	// --- Automations ---
 
 	ipcMain.handle(
 		"automation:list",
 		withLogging("automation:list", () => listAutomations()),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:get",
 		withLogging("automation:get", (_, id: string) => getAutomation(id)),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:create",
-		withLogging("automation:create", async (_, input: CreateAutomationInput) => {
-			const result = await createAutomation(input)
-			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
-			}
-			return result
-		}),
-	)
+		withLogging(
+			"automation:create",
+			async (_, input: CreateAutomationInput) => {
+				const result = await createAutomation(input);
+				for (const win of BrowserWindow.getAllWindows()) {
+					win.webContents.send("automation:runs-updated");
+				}
+				return result;
+			},
+		),
+	);
 
 	ipcMain.handle(
 		"automation:update",
-		withLogging("automation:update", async (_, input: UpdateAutomationInput) => {
-			const result = await updateAutomation(input)
-			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
-			}
-			return result
-		}),
-	)
+		withLogging(
+			"automation:update",
+			async (_, input: UpdateAutomationInput) => {
+				const result = await updateAutomation(input);
+				for (const win of BrowserWindow.getAllWindows()) {
+					win.webContents.send("automation:runs-updated");
+				}
+				return result;
+			},
+		),
+	);
 
 	ipcMain.handle(
 		"automation:delete",
 		withLogging("automation:delete", async (_, id: string) => {
-			const result = await deleteAutomation(id)
+			const result = await deleteAutomation(id);
 			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
+				win.webContents.send("automation:runs-updated");
 			}
-			return result
+			return result;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:run-now",
@@ -799,61 +913,64 @@ export function registerIpcHandlers(): void {
 			// runNow is fire-and-forget: it returns immediately after validating
 			// the automation exists. Execution happens in the background, and
 			// broadcastRunsUpdated() is called from within executeAutomation.
-			return runNow(id)
+			return runNow(id);
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:list-runs",
-		withLogging("automation:list-runs", (_, automationId?: string) => listRuns(automationId)),
-	)
+		withLogging("automation:list-runs", (_, automationId?: string) =>
+			listRuns(automationId),
+		),
+	);
 
 	ipcMain.handle(
 		"automation:archive-run",
 		withLogging("automation:archive-run", async (_, runId: string) => {
-			const result = await archiveRun(runId)
+			const result = await archiveRun(runId);
 			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
+				win.webContents.send("automation:runs-updated");
 			}
-			return result
+			return result;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:accept-run",
 		withLogging("automation:accept-run", async (_, runId: string) => {
-			const result = await acceptRun(runId)
+			const result = await acceptRun(runId);
 			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
+				win.webContents.send("automation:runs-updated");
 			}
-			return result
+			return result;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:mark-run-read",
 		withLogging("automation:mark-run-read", async (_, runId: string) => {
-			const result = await markRunRead(runId)
+			const result = await markRunRead(runId);
 			for (const win of BrowserWindow.getAllWindows()) {
-				win.webContents.send("automation:runs-updated")
+				win.webContents.send("automation:runs-updated");
 			}
-			return result
+			return result;
 		}),
-	)
+	);
 
 	ipcMain.handle(
 		"automation:preview-schedule",
-		withLogging("automation:preview-schedule", (_, rrule: string, timezone: string) =>
-			previewSchedule(rrule, timezone),
+		withLogging(
+			"automation:preview-schedule",
+			(_, rrule: string, timezone: string) => previewSchedule(rrule, timezone),
 		),
-	)
+	);
 
 	// --- Settings push channel (main -> renderer) ---
 	// Notify all renderer windows when settings change so they can update reactively.
 
 	onSettingsChanged((settings) => {
 		for (const win of BrowserWindow.getAllWindows()) {
-			win.webContents.send("settings:changed", settings)
+			win.webContents.send("settings:changed", settings);
 		}
-	})
+	});
 }

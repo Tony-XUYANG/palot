@@ -6,7 +6,7 @@
  * SQLite only holds timing and execution state.
  */
 
-import { index, int, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { index, int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const automations = sqliteTable("automations", {
 	id: text("id").primaryKey(),
@@ -16,7 +16,7 @@ export const automations = sqliteTable("automations", {
 	consecutiveFailures: int("consecutive_failures").notNull().default(0),
 	createdAt: int("created_at").notNull(),
 	updatedAt: int("updated_at").notNull(),
-})
+});
 
 export const automationRuns = sqliteTable(
 	"automation_runs",
@@ -50,4 +50,4 @@ export const automationRuns = sqliteTable(
 		index("idx_runs_status").on(table.status),
 		index("idx_runs_created").on(table.createdAt),
 	],
-)
+);

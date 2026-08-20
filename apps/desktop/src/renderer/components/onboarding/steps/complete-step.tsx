@@ -7,32 +7,42 @@
  * already been migrated.
  */
 
-import { Badge } from "@palot/ui/components/badge"
-import { Button } from "@palot/ui/components/button"
-import { Spinner } from "@palot/ui/components/spinner"
-import { ArrowRightIcon, CheckCircle2Icon, CommandIcon, FlaskConicalIcon } from "lucide-react"
-import { motion } from "motion/react"
-import { useEffect, useRef, useState } from "react"
-import type { MigrationProvider, MigrationResult, ProviderDetection } from "../../../../preload/api"
+import { Badge } from "@palot/ui/components/badge";
+import { Button } from "@palot/ui/components/button";
+import { Spinner } from "@palot/ui/components/spinner";
+import {
+	ArrowRightIcon,
+	CheckCircle2Icon,
+	CommandIcon,
+	FlaskConicalIcon,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type {
+	MigrationProvider,
+	MigrationResult,
+	ProviderDetection,
+} from "../../../../preload/api";
 
 // ============================================================
 // Types
 // ============================================================
 
 interface CompleteStepProps {
-	opencodeVersion: string | null
-	migratedProviders: string[]
-	migrationResult: MigrationResult | null
-	onStartMigration: (provider: MigrationProvider) => void
-	onFinish: () => void
+	opencodeVersion: string | null;
+	migratedProviders: string[];
+	migrationResult: MigrationResult | null;
+	onStartMigration: (provider: MigrationProvider) => void;
+	onFinish: () => void;
 }
 
 // ============================================================
 // Component
 // ============================================================
 
-const isElectron = typeof window !== "undefined" && "palot" in window
-const isMac = isElectron && window.palot.platform === "darwin"
+const isElectron = typeof window !== "undefined" && "palot" in window;
+const isMac = isElectron && window.palot.platform === "darwin";
 
 export function CompleteStep({
 	opencodeVersion,
@@ -41,34 +51,39 @@ export function CompleteStep({
 	onStartMigration,
 	onFinish,
 }: CompleteStepProps) {
-	const modKey = isMac ? "Cmd" : "Ctrl"
+	const { t } = useTranslation("onboarding");
+	const modKey = isMac ? "Cmd" : "Ctrl";
 
 	// Detect available providers on mount
-	const [providers, setProviders] = useState<ProviderDetection[]>([])
-	const [detecting, setDetecting] = useState(false)
-	const hasDetected = useRef(false)
+	const [providers, setProviders] = useState<ProviderDetection[]>([]);
+	const [detecting, setDetecting] = useState(false);
+	const hasDetected = useRef(false);
 
 	useEffect(() => {
-		if (!isElectron || hasDetected.current) return
-		hasDetected.current = true
-		setDetecting(true)
+		if (!isElectron || hasDetected.current) return;
+		hasDetected.current = true;
+		setDetecting(true);
 
 		window.palot.onboarding
 			.detectProviders()
 			.then((detections) => {
 				// Only show providers that were found and aren't OpenCode itself
 				// (no point migrating OpenCode -> OpenCode)
-				setProviders(detections.filter((d) => d.found && d.provider !== "opencode"))
-				setDetecting(false)
+				setProviders(
+					detections.filter((d) => d.found && d.provider !== "opencode"),
+				);
+				setDetecting(false);
 			})
 			.catch(() => {
-				setDetecting(false)
-			})
-	}, [])
+				setDetecting(false);
+			});
+	}, []);
 
 	// Filter out already-migrated providers
-	const availableProviders = providers.filter((p) => !migratedProviders.includes(p.provider))
-	const hasMigrated = migratedProviders.length > 0
+	const availableProviders = providers.filter(
+		(p) => !migratedProviders.includes(p.provider),
+	);
+	const hasMigrated = migratedProviders.length > 0;
 
 	return (
 		<div className="flex h-full flex-col items-center justify-center px-6">
@@ -97,12 +112,16 @@ export function CompleteStep({
 					transition={{ delay: 0.3, duration: 0.3 }}
 					className="space-y-2"
 				>
-					<h2 className="text-2xl font-semibold text-foreground">You're all set.</h2>
+					<h2 className="text-2xl font-semibold text-foreground">
+						{t("complete.title")}
+					</h2>
 					<p className="text-sm text-muted-foreground">
 						{opencodeVersion
-							? `Palot is connected to OpenCode ${formatVersion(opencodeVersion)}`
-							: "Palot is ready to go"}
-						{hasMigrated ? " and your configuration has been migrated." : "."}
+							? t("complete.connected", {
+									version: formatVersion(opencodeVersion),
+								})
+							: t("complete.ready")}
+						{hasMigrated ? t("complete.migrated") : t("complete.period")}
 					</p>
 				</motion.div>
 
@@ -117,20 +136,34 @@ export function CompleteStep({
 					>
 						<div className="space-y-1 text-xs text-muted-foreground">
 							{migrationResult.filesWritten.length > 0 && (
-								<p>{migrationResult.filesWritten.length} file(s) created</p>
+								<p>
+									{t("complete.filesCreated", {
+										count: migrationResult.filesWritten.length,
+									})}
+								</p>
 							)}
 							{migrationResult.filesSkipped.length > 0 && (
-								<p>{migrationResult.filesSkipped.length} file(s) skipped (already exist)</p>
+								<p>
+									{t("complete.filesSkipped", {
+										count: migrationResult.filesSkipped.length,
+									})}
+								</p>
 							)}
 							{migrationResult.historyDuplicatesSkipped > 0 && (
 								<p>
-									{migrationResult.historyDuplicatesSkipped} session(s) skipped (already imported)
+									{t("complete.sessionsSkipped", {
+										count: migrationResult.historyDuplicatesSkipped,
+									})}
 								</p>
 							)}
-							{migrationResult.backupDir && <p>Backup saved</p>}
+							{migrationResult.backupDir ? (
+								<p>{t("complete.backupSaved")}</p>
+							) : null}
 							{migrationResult.manualActions.length > 0 && (
 								<p className="text-amber-500">
-									{migrationResult.manualActions.length} item(s) need manual attention
+									{t("complete.manualAttention", {
+										count: migrationResult.manualActions.length,
+									})}
 								</p>
 							)}
 						</div>
@@ -146,7 +179,7 @@ export function CompleteStep({
 						className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
 					>
 						<Spinner className="size-3.5" />
-						Checking for existing configurations...
+						{t("complete.checkingConfigurations")}
 					</motion.div>
 				)}
 
@@ -168,16 +201,21 @@ export function CompleteStep({
 								<div className="flex items-center justify-between">
 									<div className="space-y-1">
 										<p className="flex items-center gap-2 text-sm font-medium text-foreground">
-											Migrate from {provider.label}?
+											{t("complete.migrateFrom", { provider: provider.label })}
 											<Badge
 												variant="outline"
 												className="gap-1 px-1.5 py-0 text-[10px] text-muted-foreground"
 											>
-												<FlaskConicalIcon aria-hidden="true" className="size-2.5" />
-												Experimental
+												<FlaskConicalIcon
+													aria-hidden="true"
+													className="size-2.5"
+												/>
+												{t("complete.experimental")}
 											</Badge>
 										</p>
-										<p className="text-xs text-muted-foreground">{provider.summary}</p>
+										<p className="text-xs text-muted-foreground">
+											{provider.summary}
+										</p>
 									</div>
 									<ArrowRightIcon
 										aria-hidden="true"
@@ -197,13 +235,22 @@ export function CompleteStep({
 					className="space-y-2"
 				>
 					<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/50">
-						Quick tips
+						{t("complete.quickTips")}
 					</p>
 					<div className="flex justify-center">
 						<div className="space-y-1.5 text-left text-sm text-muted-foreground">
-							<ShortcutRow keys={[modKey, "K"]} label="Command palette" />
-							<ShortcutRow keys={[modKey, "N"]} label="New session" />
-							<ShortcutRow keys={[modKey, ","]} label="Settings" />
+							<ShortcutRow
+								keys={[modKey, "K"]}
+								label={t("complete.commandPalette")}
+							/>
+							<ShortcutRow
+								keys={[modKey, "N"]}
+								label={t("complete.newSession")}
+							/>
+							<ShortcutRow
+								keys={[modKey, ","]}
+								label={t("complete.settings")}
+							/>
 						</div>
 					</div>
 				</motion.div>
@@ -216,12 +263,12 @@ export function CompleteStep({
 					className="flex items-center justify-center gap-3"
 				>
 					<Button size="lg" onClick={onFinish}>
-						Start Building
+						{t("complete.startBuilding")}
 					</Button>
 				</motion.div>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -230,8 +277,8 @@ export function CompleteStep({
 
 /** Format a version string for display. Semver gets a "v" prefix, non-semver gets parens. */
 function formatVersion(version: string): string {
-	if (/^\d+\.\d+/.test(version)) return `v${version}`
-	return `(${version})`
+	if (/^\d+\.\d+/.test(version)) return `v${version}`;
+	return `(${version})`;
 }
 
 // ============================================================
@@ -247,11 +294,15 @@ function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
 						key={key}
 						className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-border bg-muted px-1 font-mono text-[10px] font-medium text-muted-foreground"
 					>
-						{key === "Cmd" ? <CommandIcon aria-hidden="true" className="size-2.5" /> : key}
+						{key === "Cmd" ? (
+							<CommandIcon aria-hidden="true" className="size-2.5" />
+						) : (
+							key
+						)}
 					</kbd>
 				))}
 			</div>
 			<span>{label}</span>
 		</div>
-	)
+	);
 }

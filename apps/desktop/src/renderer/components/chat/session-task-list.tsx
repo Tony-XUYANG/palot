@@ -1,13 +1,18 @@
-import { cn } from "@palot/ui/lib/utils"
-import { useAtomValue } from "jotai"
-import { CheckCircle2Icon, CircleDotIcon, Loader2Icon, XCircleIcon } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { messagesFamily } from "../../atoms/messages"
-import { partsFamily } from "../../atoms/parts"
-import { appStore } from "../../atoms/store"
-import { streamingVersionFamily } from "../../atoms/streaming"
-import { todosFamily } from "../../atoms/todos"
-import type { Todo } from "../../lib/types"
+import { cn } from "@palot/ui/lib/utils";
+import { useAtomValue } from "jotai";
+import {
+	CheckCircle2Icon,
+	CircleDotIcon,
+	Loader2Icon,
+	XCircleIcon,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { messagesFamily } from "../../atoms/messages";
+import { partsFamily } from "../../atoms/parts";
+import { appStore } from "../../atoms/store";
+import { streamingVersionFamily } from "../../atoms/streaming";
+import { todosFamily } from "../../atoms/todos";
+import type { Todo } from "../../lib/types";
 
 /**
  * Derives the latest todo list for a session.
@@ -17,50 +22,52 @@ import type { Todo } from "../../lib/types"
  * 2. Fallback: extract from the last `todowrite` tool part in messages (for page loads)
  */
 function useSessionTodos(sessionId: string | null): Todo[] {
-	const storeTodos = useAtomValue(todosFamily(sessionId ?? ""))
-	const storeMessages = useAtomValue(messagesFamily(sessionId ?? ""))
-	const streamingVersion = useAtomValue(streamingVersionFamily(sessionId ?? ""))
+	const storeTodos = useAtomValue(todosFamily(sessionId ?? ""));
+	const storeMessages = useAtomValue(messagesFamily(sessionId ?? ""));
+	const streamingVersion = useAtomValue(
+		streamingVersionFamily(sessionId ?? ""),
+	);
 
 	return useMemo(() => {
 		// If we have SSE-pushed todos, prefer those — they're the most up-to-date
-		if (storeTodos && storeTodos.length > 0) return storeTodos
+		if (storeTodos && storeTodos.length > 0) return storeTodos;
 
 		// Fallback: walk messages backwards to find the last todowrite part
-		if (!storeMessages || storeMessages.length === 0) return []
+		if (!storeMessages || storeMessages.length === 0) return [];
 		// streamingVersion in deps triggers recomputation when parts update
-		void streamingVersion
+		void streamingVersion;
 		for (let i = storeMessages.length - 1; i >= 0; i--) {
-			const msg = storeMessages[i]
-			const parts = appStore.get(partsFamily(msg.id))
-			if (!parts) continue
+			const msg = storeMessages[i];
+			const parts = appStore.get(partsFamily(msg.id));
+			if (!parts) continue;
 			for (let j = parts.length - 1; j >= 0; j--) {
-				const part = parts[j]
+				const part = parts[j];
 				if (part.type === "tool" && part.tool === "todowrite") {
-					const todos = part.state.input?.todos as Todo[] | undefined
-					if (todos && todos.length > 0) return todos
+					const todos = part.state.input?.todos as Todo[] | undefined;
+					if (todos && todos.length > 0) return todos;
 				}
 			}
 		}
-		return []
-	}, [storeTodos, storeMessages, streamingVersion])
+		return [];
+	}, [storeTodos, storeMessages, streamingVersion]);
 }
 
 /** Compact status icon for a todo item */
 function TodoStatusIcon({ status }: { status: string }) {
 	switch (status) {
 		case "completed":
-			return <CheckCircle2Icon className="size-3 text-emerald-500/80" />
+			return <CheckCircle2Icon className="size-3 text-emerald-500/80" />;
 		case "in_progress":
-			return <Loader2Icon className="size-3 animate-spin text-blue-400/80" />
+			return <Loader2Icon className="size-3 animate-spin text-blue-400/80" />;
 		case "cancelled":
-			return <XCircleIcon className="size-3 text-muted-foreground/30" />
+			return <XCircleIcon className="size-3 text-muted-foreground/30" />;
 		default:
-			return <CircleDotIcon className="size-3 text-muted-foreground/30" />
+			return <CircleDotIcon className="size-3 text-muted-foreground/30" />;
 	}
 }
 
 interface SessionTaskListProps {
-	sessionId: string | null
+	sessionId: string | null;
 }
 
 /**
@@ -69,31 +76,34 @@ interface SessionTaskListProps {
  * Subtly styled; task items animate in with stagger and re-animate on status change.
  */
 export function SessionTaskList({ sessionId }: SessionTaskListProps) {
-	const todos = useSessionTodos(sessionId)
-	const [isExpanded, setIsExpanded] = useState(true)
-	const scrollRef = useRef<HTMLDivElement>(null)
+	const todos = useSessionTodos(sessionId);
+	const [isExpanded, setIsExpanded] = useState(true);
+	const scrollRef = useRef<HTMLDivElement>(null);
 
 	const completedCount = useMemo(
 		() => todos.filter((t) => t.status === "completed").length,
 		[todos],
-	)
+	);
 
 	const activeTask = useMemo(
 		() => todos.find((t) => t.status === "in_progress"),
 		[todos],
-	)
+	);
 
-	const allCompleted = completedCount === todos.length && todos.length > 0
+	const allCompleted = completedCount === todos.length && todos.length > 0;
 
 	// Auto-scroll to bottom when todos change
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll on todo changes intentionally
 	useEffect(() => {
 		if (isExpanded && scrollRef.current) {
-			scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
+			scrollRef.current.scrollTo({
+				top: scrollRef.current.scrollHeight,
+				behavior: "smooth",
+			});
 		}
-	}, [todos, isExpanded])
+	}, [todos, isExpanded]);
 
-	if (todos.length === 0) return null
+	if (todos.length === 0) return null;
 
 	return (
 		<div className="mb-2 animate-in fade-in duration-400 rounded-lg border border-border/40 bg-muted/10">
@@ -108,14 +118,18 @@ export function SessionTaskList({ sessionId }: SessionTaskListProps) {
 			>
 				{/* Progress text */}
 				<span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
-					<span className={allCompleted ? "text-emerald-500/80" : "text-foreground"}>
+					<span
+						className={allCompleted ? "text-emerald-500/80" : "text-foreground"}
+					>
 						{completedCount}
 					</span>{" "}
 					out of {todos.length} tasks completed
 					{!isExpanded && activeTask && (
 						<>
 							{" · "}
-							<span className="text-foreground/80 italic">{activeTask.content}</span>
+							<span className="text-foreground/80 italic">
+								{activeTask.content}
+							</span>
 						</>
 					)}
 				</span>
@@ -157,13 +171,18 @@ export function SessionTaskList({ sessionId }: SessionTaskListProps) {
 								<li
 									key={`${index}-${todo.status}`}
 									className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-bottom-1 duration-300"
-									style={{ animationDelay: `${index * 35}ms`, animationFillMode: "backwards" }}
+									style={{
+										animationDelay: `${index * 35}ms`,
+										animationFillMode: "backwards",
+									}}
 								>
 									<span className="mt-px shrink-0">
 										<TodoStatusIcon status={todo.status} />
 									</span>
 									<span className="flex items-baseline gap-1 text-[11px] leading-relaxed">
-										<span className="shrink-0 tabular-nums text-muted-foreground/30">{index + 1}.</span>
+										<span className="shrink-0 tabular-nums text-muted-foreground/30">
+											{index + 1}.
+										</span>
 										<span
 											className={cn(
 												"transition-colors duration-300",
@@ -186,5 +205,5 @@ export function SessionTaskList({ sessionId }: SessionTaskListProps) {
 				</div>
 			</div>
 		</div>
-	)
+	);
 }

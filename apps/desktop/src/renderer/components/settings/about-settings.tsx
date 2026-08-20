@@ -1,115 +1,136 @@
-import { Button } from "@palot/ui/components/button"
-import { CheckCircle2Icon, DownloadIcon, Loader2Icon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
-import { useUpdater } from "../../hooks/use-updater"
-import { SettingsRow } from "./settings-row"
-import { SettingsSection } from "./settings-section"
+import { Button } from "@palot/ui/components/button";
+import { CheckCircle2Icon, DownloadIcon, Loader2Icon } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useUpdater } from "../../hooks/use-updater";
+import { SettingsRow } from "./settings-row";
+import { SettingsSection } from "./settings-section";
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 export function AboutSettings() {
-	const [appVersion, setAppVersion] = useState("")
-	const [isDev, setIsDev] = useState(false)
-	const [cliInstalled, setCliInstalled] = useState<boolean | null>(null)
-	const [cliLoading, setCliLoading] = useState(false)
-	const [cliError, setCliError] = useState<string | null>(null)
+	const { t } = useTranslation("settings");
+	const [appVersion, setAppVersion] = useState("");
+	const [isDev, setIsDev] = useState(false);
+	const [cliInstalled, setCliInstalled] = useState<boolean | null>(null);
+	const [cliLoading, setCliLoading] = useState(false);
+	const [cliError, setCliError] = useState<string | null>(null);
 
-	const updater = useUpdater()
+	const updater = useUpdater();
 
 	useEffect(() => {
-		if (!isElectron) return
+		if (!isElectron) return;
 		window.palot.getAppInfo().then((info) => {
-			setAppVersion(info.version)
-			setIsDev(info.isDev)
-		})
-		window.palot.cli.isInstalled().then(setCliInstalled)
-	}, [])
+			setAppVersion(info.version);
+			setIsDev(info.isDev);
+		});
+		window.palot.cli.isInstalled().then(setCliInstalled);
+	}, []);
 
 	const handleCliInstall = useCallback(async () => {
-		if (!isElectron) return
-		setCliLoading(true)
-		setCliError(null)
+		if (!isElectron) return;
+		setCliLoading(true);
+		setCliError(null);
 		try {
-			const result = await window.palot.cli.install()
+			const result = await window.palot.cli.install();
 			if (result.success) {
-				setCliInstalled(true)
+				setCliInstalled(true);
 			} else {
-				setCliError(result.error ?? "Failed to install CLI")
+				setCliError(result.error ?? t("about.cliInstallFailed"));
 			}
 		} finally {
-			setCliLoading(false)
+			setCliLoading(false);
 		}
-	}, [])
+	}, [t]);
 
 	const handleCliUninstall = useCallback(async () => {
-		if (!isElectron) return
-		setCliLoading(true)
-		setCliError(null)
+		if (!isElectron) return;
+		setCliLoading(true);
+		setCliError(null);
 		try {
-			const result = await window.palot.cli.uninstall()
+			const result = await window.palot.cli.uninstall();
 			if (result.success) {
-				setCliInstalled(false)
+				setCliInstalled(false);
 			} else {
-				setCliError(result.error ?? "Failed to uninstall CLI")
+				setCliError(result.error ?? t("about.cliUninstallFailed"));
 			}
 		} finally {
-			setCliLoading(false)
+			setCliLoading(false);
 		}
-	}, [])
+	}, [t]);
 
 	return (
 		<div className="space-y-8">
 			<div>
-				<h2 className="text-xl font-semibold">About</h2>
+				<h2 className="text-xl font-semibold">{t("about.title")}</h2>
 			</div>
 
 			<SettingsSection>
-				<SettingsRow label="Version" description={isDev ? "Development build" : undefined}>
-					<span className="text-sm text-muted-foreground">{appVersion || "..."}</span>
+				<SettingsRow
+					label={t("about.version")}
+					description={isDev ? t("about.developmentBuild") : undefined}
+				>
+					<span className="text-sm text-muted-foreground">
+						{appVersion || "..."}
+					</span>
 				</SettingsRow>
 				<SettingsRow
-					label="Updates"
+					label={t("about.updates")}
 					description={
 						updater.status === "available"
-							? `Version ${updater.version} available`
+							? t("about.versionAvailable", { version: updater.version })
 							: updater.status === "ready"
-								? "Update downloaded, restart to apply"
+								? t("about.updateReady")
 								: updater.status === "error"
-									? (updater.error ?? "Update check failed")
+									? (updater.error ?? t("about.updateFailed"))
 									: undefined
 					}
 				>
 					{updater.status === "idle" && (
-						<Button variant="outline" size="sm" onClick={updater.checkForUpdates}>
-							Check for updates
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={updater.checkForUpdates}
+						>
+							{t("about.checkUpdates")}
 						</Button>
 					)}
 					{updater.status === "checking" && (
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							<Loader2Icon aria-hidden="true" className="size-4 animate-spin" />
-							Checking...
+							{t("common:states.checking")}
 						</div>
 					)}
 					{updater.status === "available" && (
-						<Button variant="outline" size="sm" onClick={updater.downloadUpdate}>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={updater.downloadUpdate}
+						>
 							<DownloadIcon aria-hidden="true" className="size-4" />
-							Download
+							{t("about.download")}
 						</Button>
 					)}
 					{updater.status === "downloading" && (
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							<Loader2Icon aria-hidden="true" className="size-4 animate-spin" />
-							{updater.progress ? `${Math.round(updater.progress.percent)}%` : "Downloading..."}
+							{updater.progress
+								? `${Math.round(updater.progress.percent)}%`
+								: t("about.downloading")}
 						</div>
 					)}
 					{updater.status === "ready" && (
 						<Button variant="outline" size="sm" onClick={updater.installUpdate}>
-							Restart to update
+							{t("about.restartUpdate")}
 						</Button>
 					)}
 					{updater.status === "error" && (
-						<Button variant="outline" size="sm" onClick={updater.checkForUpdates}>
-							Retry
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={updater.checkForUpdates}
+						>
+							{t("common:actions.retry")}
 						</Button>
 					)}
 				</SettingsRow>
@@ -122,26 +143,32 @@ export function AboutSettings() {
 						cliError
 							? cliError
 							: cliInstalled
-								? "Installed at /usr/local/bin/palot"
-								: "Install the palot command-line tool"
+								? t("about.cliInstalled")
+								: t("about.cliDescription")
 					}
 				>
 					{cliLoading ? (
-						<Loader2Icon aria-hidden="true" className="size-4 animate-spin text-muted-foreground" />
+						<Loader2Icon
+							aria-hidden="true"
+							className="size-4 animate-spin text-muted-foreground"
+						/>
 					) : cliInstalled ? (
 						<div className="flex items-center gap-2">
-							<CheckCircle2Icon aria-hidden="true" className="size-4 text-green-500" />
+							<CheckCircle2Icon
+								aria-hidden="true"
+								className="size-4 text-green-500"
+							/>
 							<Button variant="outline" size="sm" onClick={handleCliUninstall}>
-								Uninstall
+								{t("about.uninstall")}
 							</Button>
 						</div>
 					) : cliInstalled === false ? (
 						<Button variant="outline" size="sm" onClick={handleCliInstall}>
-							Install
+							{t("about.install")}
 						</Button>
 					) : null}
 				</SettingsRow>
 			</SettingsSection>
 		</div>
-	)
+	);
 }

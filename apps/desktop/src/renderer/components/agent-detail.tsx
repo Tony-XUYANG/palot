@@ -1,17 +1,25 @@
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@palot/ui/components/dropdown-menu"
-import { Input } from "@palot/ui/components/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@palot/ui/components/popover"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { cn } from "@palot/ui/lib/utils"
-import { useNavigate, useParams } from "@tanstack/react-router"
-import { useAtom, useAtomValue } from "jotai"
+} from "@palot/ui/components/dropdown-menu";
+import { Input } from "@palot/ui/components/input";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@palot/ui/components/popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { cn } from "@palot/ui/lib/utils";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useAtom, useAtomValue } from "jotai";
 import {
 	ArrowLeftIcon,
 	CheckIcon,
@@ -23,83 +31,108 @@ import {
 	PencilIcon,
 	TerminalIcon,
 	XIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { OpenInTarget } from "../../preload/api"
-import { reviewPanelOpenAtom, reviewPanelSettingsAtom, sessionDiffStatsFamily } from "../atoms/ui"
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { OpenInTarget } from "../../preload/api";
+import {
+	reviewPanelOpenAtom,
+	reviewPanelSettingsAtom,
+	sessionDiffStatsFamily,
+} from "../atoms/ui";
 import type {
 	ConfigData,
 	ModelRef,
 	ProvidersData,
 	SdkAgent,
 	VcsData,
-} from "../hooks/use-opencode-data"
-import { useServerConnection } from "../hooks/use-server"
-import type { ChatTurn } from "../hooks/use-session-chat"
-import type { Agent, FileAttachment, QuestionAnswer } from "../lib/types"
-import { fetchOpenInTargets, isElectron, openInTarget } from "../services/backend"
-import { useSetAppBarContent } from "./app-bar-context"
-import { ChatView } from "./chat"
-import { PalotWordmark } from "./palot-wordmark"
-import { ReviewPanel } from "./review/review-panel"
-import { SessionMetricsBar } from "./session-metrics-bar"
-import { WorktreeActions } from "./worktree-actions"
-
+} from "../hooks/use-opencode-data";
+import { useServerConnection } from "../hooks/use-server";
+import type { ChatTurn } from "../hooks/use-session-chat";
+import type { Agent, FileAttachment, QuestionAnswer } from "../lib/types";
+import {
+	fetchOpenInTargets,
+	isElectron,
+	openInTarget,
+} from "../services/backend";
+import { useSetAppBarContent } from "./app-bar-context";
+import { ChatView } from "./chat";
+import { PalotWordmark } from "./palot-wordmark";
+import { ReviewPanel } from "./review/review-panel";
+import { SessionMetricsBar } from "./session-metrics-bar";
+import { WorktreeActions } from "./worktree-actions";
 
 interface AgentDetailProps {
-	agent: Agent
+	agent: Agent;
 	/** Structured chat turns (for Chat tab) */
-	chatTurns: ChatTurn[]
-	chatLoading?: boolean
+	chatTurns: ChatTurn[];
+	chatLoading?: boolean;
 	/** Whether earlier messages are currently being loaded */
-	chatLoadingEarlier?: boolean
+	chatLoadingEarlier?: boolean;
 	/** Whether there are earlier messages that can be loaded */
-	chatHasEarlier?: boolean
+	chatHasEarlier?: boolean;
 	/** Callback to load earlier messages */
-	onLoadEarlier?: () => void
-	onStop?: (agent: Agent) => Promise<void>
+	onLoadEarlier?: () => void;
+	onStop?: (agent: Agent) => Promise<void>;
 	onApprove?: (
 		agent: Agent,
 		permissionSessionId: string,
 		permissionId: string,
 		response?: "once" | "always",
-	) => Promise<void>
-	onDeny?: (agent: Agent, permissionSessionId: string, permissionId: string) => Promise<void>
-	onReplyQuestion?: (agent: Agent, requestId: string, answers: QuestionAnswer[]) => Promise<void>
-	onRejectQuestion?: (agent: Agent, requestId: string) => Promise<void>
+	) => Promise<void>;
+	onDeny?: (
+		agent: Agent,
+		permissionSessionId: string,
+		permissionId: string,
+	) => Promise<void>;
+	onReplyQuestion?: (
+		agent: Agent,
+		requestId: string,
+		answers: QuestionAnswer[],
+	) => Promise<void>;
+	onRejectQuestion?: (agent: Agent, requestId: string) => Promise<void>;
 	onSendMessage?: (
 		agent: Agent,
 		message: string,
-		options?: { model?: ModelRef; agentName?: string; variant?: string; files?: FileAttachment[] },
-	) => Promise<void>
-	onRename?: (agent: Agent, title: string) => Promise<void>
+		options?: {
+			model?: ModelRef;
+			agentName?: string;
+			variant?: string;
+			files?: FileAttachment[];
+		},
+	) => Promise<void>;
+	onRename?: (agent: Agent, title: string) => Promise<void>;
 	/** Display name of the parent session (for breadcrumb) */
-	parentSessionName?: string
-	isConnected?: boolean
+	parentSessionName?: string;
+	isConnected?: boolean;
 	/** Provider data for model selector */
-	providers?: ProvidersData | null
+	providers?: ProvidersData | null;
 	/** Config data (default model, default agent) */
-	config?: ConfigData | null
+	config?: ConfigData | null;
 	/** VCS data for status bar */
-	vcs?: VcsData | null
+	vcs?: VcsData | null;
 	/** Available OpenCode agents for agent selector */
-	openCodeAgents?: SdkAgent[]
+	openCodeAgents?: SdkAgent[];
 	/** Whether undo is available */
-	canUndo?: boolean
+	canUndo?: boolean;
 	/** Whether redo is available */
-	canRedo?: boolean
+	canRedo?: boolean;
 	/** Undo handler — returns the undone user message text */
-	onUndo?: () => Promise<string | undefined>
+	onUndo?: () => Promise<string | undefined>;
 	/** Redo handler */
-	onRedo?: () => Promise<void>
+	onRedo?: () => Promise<void>;
 	/** Whether the session is in a reverted state */
-	isReverted?: boolean
+	isReverted?: boolean;
 	/** Revert to a specific message (for per-turn undo) */
-	onRevertToMessage?: (messageId: string) => Promise<void>
+	onRevertToMessage?: (messageId: string) => Promise<void>;
 	/** Fork from a turn boundary (messageId of the next turn's user message, or undefined for full fork) */
-	onForkFromTurn?: (messageId?: string) => Promise<void>
+	onForkFromTurn?: (messageId?: string) => Promise<void>;
 	/** Delete a specific part from a message (for error recovery) */
-	onDeletePart?: (sessionId: string, messageId: string, partId: string) => Promise<void>
+	onDeletePart?: (
+		sessionId: string,
+		messageId: string,
+		partId: string,
+	) => Promise<void>;
 }
 
 export function AgentDetail({
@@ -131,73 +164,75 @@ export function AgentDetail({
 	onForkFromTurn,
 	onDeletePart,
 }: AgentDetailProps) {
-	const navigate = useNavigate()
-	const { projectSlug } = useParams({ strict: false }) as { projectSlug?: string }
-	const setAppBarContent = useSetAppBarContent()
+	const navigate = useNavigate();
+	const { projectSlug } = useParams({ strict: false }) as {
+		projectSlug?: string;
+	};
+	const setAppBarContent = useSetAppBarContent();
 
-	const [isEditingTitle, setIsEditingTitle] = useState(false)
-	const [titleValue, setTitleValue] = useState(agent.name)
-	const titleInputRef = useRef<HTMLInputElement>(null)
+	const [isEditingTitle, setIsEditingTitle] = useState(false);
+	const [titleValue, setTitleValue] = useState(agent.name);
+	const titleInputRef = useRef<HTMLInputElement>(null);
 
 	// Review panel state
-	const [reviewPanelOpen, setReviewPanelOpen] = useAtom(reviewPanelOpenAtom)
-	const [reviewSettings, setReviewSettings] = useAtom(reviewPanelSettingsAtom)
+	const [reviewPanelOpen, setReviewPanelOpen] = useAtom(reviewPanelOpenAtom);
+	const [reviewSettings, setReviewSettings] = useAtom(reviewPanelSettingsAtom);
 
 	// Keyboard shortcut: Cmd+Shift+D to toggle review panel
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "d") {
-				e.preventDefault()
-				setReviewPanelOpen((prev) => !prev)
+				e.preventDefault();
+				setReviewPanelOpen((prev) => !prev);
 			}
 			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
-				e.preventDefault()
+				e.preventDefault();
 				if (reviewPanelOpen) {
-					setReviewSettings((prev) => ({ ...prev, expanded: !prev.expanded }))
+					setReviewSettings((prev) => ({ ...prev, expanded: !prev.expanded }));
 				}
 			}
-		}
-		document.addEventListener("keydown", handleKeyDown)
-		return () => document.removeEventListener("keydown", handleKeyDown)
-	}, [setReviewPanelOpen, setReviewSettings, reviewPanelOpen])
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [setReviewPanelOpen, setReviewSettings, reviewPanelOpen]);
 
 	// Close review panel when navigating to a session with no diffs
-	const prevSessionIdRef = useRef(agent.sessionId)
-	const diffStats = useAtomValue(sessionDiffStatsFamily(agent.sessionId))
+	const prevSessionIdRef = useRef(agent.sessionId);
+	const diffStats = useAtomValue(sessionDiffStatsFamily(agent.sessionId));
 	useEffect(() => {
 		if (prevSessionIdRef.current !== agent.sessionId) {
-			prevSessionIdRef.current = agent.sessionId
+			prevSessionIdRef.current = agent.sessionId;
 			if (diffStats.fileCount === 0) {
-				setReviewPanelOpen(false)
+				setReviewPanelOpen(false);
 			}
 		}
-	}, [agent.sessionId, diffStats.fileCount, setReviewPanelOpen])
+	}, [agent.sessionId, diffStats.fileCount, setReviewPanelOpen]);
 
 	const startEditingTitle = useCallback(() => {
-		if (!onRename) return
-		setTitleValue(agent.name)
-		setIsEditingTitle(true)
-	}, [agent.name, onRename])
+		if (!onRename) return;
+		setTitleValue(agent.name);
+		setIsEditingTitle(true);
+	}, [agent.name, onRename]);
 
 	const confirmTitle = useCallback(async () => {
-		const trimmed = titleValue.trim()
-		setIsEditingTitle(false)
+		const trimmed = titleValue.trim();
+		setIsEditingTitle(false);
 		if (trimmed && trimmed !== agent.name && onRename) {
-			await onRename(agent, trimmed)
+			await onRename(agent, trimmed);
 		}
-	}, [titleValue, agent, onRename])
+	}, [titleValue, agent, onRename]);
 
 	const cancelEditingTitle = useCallback(() => {
-		setIsEditingTitle(false)
-		setTitleValue(agent.name)
-	}, [agent.name])
+		setIsEditingTitle(false);
+		setTitleValue(agent.name);
+	}, [agent.name]);
 
 	useEffect(() => {
 		if (isEditingTitle && titleInputRef.current) {
-			titleInputRef.current.focus()
-			titleInputRef.current.select()
+			titleInputRef.current.focus();
+			titleInputRef.current.select();
 		}
-	}, [isEditingTitle])
+	}, [isEditingTitle]);
 
 	// ===== Inject session info into AppBar right section =====
 	useEffect(() => {
@@ -216,10 +251,10 @@ export function AgentDetail({
 				reviewPanelOpen={reviewPanelOpen}
 				onToggleReviewPanel={() => setReviewPanelOpen((prev) => !prev)}
 			/>,
-		)
+		);
 
 		// Clean up when unmounting
-		return () => setAppBarContent(null)
+		return () => setAppBarContent(null);
 	}, [
 		agent,
 		isEditingTitle,
@@ -232,7 +267,7 @@ export function AgentDetail({
 		setAppBarContent,
 		reviewPanelOpen,
 		setReviewPanelOpen,
-	])
+	]);
 
 	const chatContent = (
 		<>
@@ -243,7 +278,10 @@ export function AgentDetail({
 					onClick={() =>
 						navigate({
 							to: "/project/$projectSlug/session/$sessionId",
-							params: { projectSlug: projectSlug ?? agent.projectSlug, sessionId: agent.parentId! },
+							params: {
+								projectSlug: projectSlug ?? agent.projectSlug,
+								sessionId: agent.parentId!,
+							},
 						})
 					}
 					className="flex items-center gap-1.5 border-b border-border bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
@@ -283,14 +321,14 @@ export function AgentDetail({
 					onUndo={onUndo}
 					onRedo={onRedo}
 					isReverted={isReverted}
-				onRevertToMessage={onRevertToMessage}
-				onForkFromTurn={onForkFromTurn}
-				onDeletePart={onDeletePart}
-				reviewPanelOpen={reviewPanelOpen}
+					onRevertToMessage={onRevertToMessage}
+					onForkFromTurn={onForkFromTurn}
+					onDeletePart={onDeletePart}
+					reviewPanelOpen={reviewPanelOpen}
 				/>
 			</div>
 		</>
-	)
+	);
 
 	return (
 		<div className="flex h-full">
@@ -300,15 +338,27 @@ export function AgentDetail({
 			{/* Review panel -- slides in/out from right */}
 			<div
 				className="shrink-0 overflow-hidden border-l border-border transition-[width] duration-250 ease-in-out"
-				style={{ width: reviewPanelOpen ? (reviewSettings.expanded ? "100%" : "40%") : 0 }}
+				style={{
+					width: reviewPanelOpen
+						? reviewSettings.expanded
+							? "100%"
+							: "40%"
+						: 0,
+				}}
 			>
 				{/* Keep ReviewPanel mounted so it retains state, just hidden at 0 width */}
-				<div className="h-full" style={{ minWidth: reviewSettings.expanded ? "100vw" : "40vw" }}>
-					<ReviewPanel sessionId={agent.sessionId} directory={agent.directory} />
+				<div
+					className="h-full"
+					style={{ minWidth: reviewSettings.expanded ? "100vw" : "40vw" }}
+				>
+					<ReviewPanel
+						sessionId={agent.sessionId}
+						directory={agent.directory}
+					/>
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -329,21 +379,21 @@ function SessionAppBarContent({
 	reviewPanelOpen,
 	onToggleReviewPanel,
 }: {
-	agent: Agent
-	isEditingTitle: boolean
-	titleValue: string
-	titleInputRef: React.RefObject<HTMLInputElement | null>
-	onTitleValueChange: (v: string) => void
-	onStartEditing: () => void
-	onConfirmTitle: () => void
-	onCancelEditing: () => void
-	onRename?: (agent: Agent, title: string) => Promise<void>
-	projectSlug?: string
-	reviewPanelOpen: boolean
-	onToggleReviewPanel: () => void
+	agent: Agent;
+	isEditingTitle: boolean;
+	titleValue: string;
+	titleInputRef: React.RefObject<HTMLInputElement | null>;
+	onTitleValueChange: (v: string) => void;
+	onStartEditing: () => void;
+	onConfirmTitle: () => void;
+	onCancelEditing: () => void;
+	onRename?: (agent: Agent, title: string) => Promise<void>;
+	projectSlug?: string;
+	reviewPanelOpen: boolean;
+	onToggleReviewPanel: () => void;
 }) {
-	const navigate = useNavigate()
-	const diffStats = useAtomValue(sessionDiffStatsFamily(agent.sessionId))
+	const navigate = useNavigate();
+	const diffStats = useAtomValue(sessionDiffStatsFamily(agent.sessionId));
 
 	return (
 		<div className="flex h-full w-full min-w-0 items-center gap-2.5">
@@ -367,7 +417,9 @@ function SessionAppBarContent({
 				</span>
 
 				{/* Worktree branch badge */}
-				{agent.worktreeBranch && <WorktreeBranchBadge branch={agent.worktreeBranch} />}
+				{agent.worktreeBranch && (
+					<WorktreeBranchBadge branch={agent.worktreeBranch} />
+				)}
 
 				<span className="hidden shrink-0 text-xs leading-none text-muted-foreground/40 sm:inline">
 					/
@@ -385,9 +437,9 @@ function SessionAppBarContent({
 							value={titleValue}
 							onChange={(e) => onTitleValueChange(e.target.value)}
 							onKeyDown={(e) => {
-								e.stopPropagation()
-								if (e.key === "Enter") onConfirmTitle()
-								if (e.key === "Escape") onCancelEditing()
+								e.stopPropagation();
+								if (e.key === "Enter") onConfirmTitle();
+								if (e.key === "Escape") onCancelEditing();
 							}}
 							onBlur={onConfirmTitle}
 							className="col-start-1 row-start-1 h-7 min-w-0 border-none bg-transparent p-0 text-xs md:text-xs font-semibold leading-none shadow-none focus-visible:ring-0"
@@ -420,7 +472,9 @@ function SessionAppBarContent({
 				{/* Worktree actions (Apply to local, Commit & push) */}
 				{agent.worktreePath && <WorktreeActions agent={agent} />}
 
-				{agent.worktreePath && <div className="hidden h-3 w-px shrink-0 bg-border/60 md:block" />}
+				{agent.worktreePath && (
+					<div className="hidden h-3 w-px shrink-0 bg-border/60 md:block" />
+				)}
 
 				{/* Review panel toggle with change stats badge */}
 				<Tooltip>
@@ -447,7 +501,8 @@ function SessionAppBarContent({
 						)}
 					</TooltipTrigger>
 					<TooltipContent>
-						{reviewPanelOpen ? "Hide changes panel" : "Show changes panel"} (Cmd+Shift+D)
+						{reviewPanelOpen ? "Hide changes panel" : "Show changes panel"}{" "}
+						(Cmd+Shift+D)
 					</TooltipContent>
 				</Tooltip>
 
@@ -469,7 +524,7 @@ function SessionAppBarContent({
 					/>
 				</div>
 
-					{/* Close button */}
+				{/* Close button */}
 				<button
 					type="button"
 					onClick={() =>
@@ -484,7 +539,7 @@ function SessionAppBarContent({
 				</button>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -498,8 +553,14 @@ function SessionAppBarContent({
  * from Electron's app.getFileIcon() API. Falls back to ExternalLinkIcon
  * if no icon data is available.
  */
-function TargetIcon({ iconDataUrl, className }: { iconDataUrl?: string; className?: string }) {
-	if (!iconDataUrl) return <ExternalLinkIcon className={className} />
+function TargetIcon({
+	iconDataUrl,
+	className,
+}: {
+	iconDataUrl?: string;
+	className?: string;
+}) {
+	if (!iconDataUrl) return <ExternalLinkIcon className={className} />;
 	return (
 		<img
 			alt=""
@@ -507,7 +568,7 @@ function TargetIcon({ iconDataUrl, className }: { iconDataUrl?: string; classNam
 			src={iconDataUrl}
 			className={cn("shrink-0 object-contain", className)}
 		/>
-	)
+	);
 }
 
 /**
@@ -518,65 +579,69 @@ function TargetIcon({ iconDataUrl, className }: { iconDataUrl?: string; classNam
  * The chevron opens a dropdown to choose a different target.
  */
 function OpenInButton({ directory }: { directory: string }) {
-	const [targets, setTargets] = useState<OpenInTarget[]>([])
-	const [preferred, setPreferred] = useState<string | null>(null)
-	const [loaded, setLoaded] = useState(false)
-	const [opening, setOpening] = useState<string | null>(null)
+	const { t } = useTranslation();
+	const [targets, setTargets] = useState<OpenInTarget[]>([]);
+	const [preferred, setPreferred] = useState<string | null>(null);
+	const [loaded, setLoaded] = useState(false);
+	const [opening, setOpening] = useState<string | null>(null);
 
 	const loadTargets = useCallback(async () => {
 		if (loaded) {
-			return { targets, preferredTarget: preferred }
+			return { targets, preferredTarget: preferred };
 		}
 		try {
-			const result = await fetchOpenInTargets()
-			const availableTargets = result.targets.filter((t) => t.available)
-			setTargets(availableTargets)
-			setPreferred(result.preferredTarget)
-			setLoaded(true)
-			return { targets: availableTargets, preferredTarget: result.preferredTarget }
+			const result = await fetchOpenInTargets();
+			const availableTargets = result.targets.filter((t) => t.available);
+			setTargets(availableTargets);
+			setPreferred(result.preferredTarget);
+			setLoaded(true);
+			return {
+				targets: availableTargets,
+				preferredTarget: result.preferredTarget,
+			};
 		} catch {
 			// Silently fail — button will show no targets
-			setLoaded(true)
-			return { targets: [], preferredTarget: null }
+			setLoaded(true);
+			return { targets: [], preferredTarget: null };
 		}
-	}, [loaded, preferred, targets])
+	}, [loaded, preferred, targets]);
 
 	useEffect(() => {
-		void loadTargets()
-	}, [loadTargets])
+		void loadTargets();
+	}, [loadTargets]);
 
 	const handleOpen = useCallback(
 		async (targetId: string) => {
-			setOpening(targetId)
+			setOpening(targetId);
 			try {
-				await openInTarget(directory, targetId, true)
-				setPreferred(targetId)
+				await openInTarget(directory, targetId, true);
+				setPreferred(targetId);
 			} catch {
 				// Silently fail
 			} finally {
-				setOpening(null)
+				setOpening(null);
 			}
 		},
 		[directory],
-	)
+	);
 
 	const handlePrimaryClick = useCallback(async () => {
 		const { targets: availableTargets, preferredTarget } = loaded
 			? { targets, preferredTarget: preferred }
-			: await loadTargets()
+			: await loadTargets();
 		const target = preferredTarget
 			? availableTargets.find((t) => t.id === preferredTarget)
-			: availableTargets[0]
+			: availableTargets[0];
 		if (target) {
-			await handleOpen(target.id)
+			await handleOpen(target.id);
 		}
-	}, [loaded, loadTargets, preferred, targets, handleOpen])
+	}, [loaded, loadTargets, preferred, targets, handleOpen]);
 
 	// Don't show on non-Electron
-	if (!isElectron) return null
+	if (!isElectron) return null;
 
 	// Resolve the preferred target's icon data URL for the primary button
-	const preferredTarget = targets.find((t) => t.id === preferred)
+	const preferredTarget = targets.find((t) => t.id === preferred);
 
 	return (
 		<div className="flex items-center rounded-md border border-border/60">
@@ -587,11 +652,14 @@ function OpenInButton({ directory }: { directory: string }) {
 				className="flex items-center gap-1.5 rounded-l-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
 			>
 				{preferredTarget?.iconDataUrl ? (
-					<TargetIcon iconDataUrl={preferredTarget.iconDataUrl} className="size-3.5" />
+					<TargetIcon
+						iconDataUrl={preferredTarget.iconDataUrl}
+						className="size-3.5"
+					/>
 				) : (
 					<ExternalLinkIcon className="size-3" />
 				)}
-				<span>Open</span>
+				<span>{t("common.actions.open")}</span>
 			</button>
 
 			<DropdownMenu onOpenChange={(open) => open && loadTargets()}>
@@ -607,9 +675,11 @@ function OpenInButton({ directory }: { directory: string }) {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="min-w-[180px]">
 					{!loaded ? (
-						<DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+						<DropdownMenuItem disabled>
+							{t("common.states.loading")}
+						</DropdownMenuItem>
 					) : targets.length === 0 ? (
-						<DropdownMenuItem disabled>No editors found</DropdownMenuItem>
+						<DropdownMenuItem disabled>{t("agent.noEditors")}</DropdownMenuItem>
 					) : (
 						<>
 							{targets.map((target) => (
@@ -619,7 +689,10 @@ function OpenInButton({ directory }: { directory: string }) {
 									disabled={opening === target.id}
 									className="flex items-center gap-2"
 								>
-									<TargetIcon iconDataUrl={target.iconDataUrl} className="size-4" />
+									<TargetIcon
+										iconDataUrl={target.iconDataUrl}
+										className="size-4"
+									/>
 									<span className="flex-1">{target.label}</span>
 									{preferred === target.id && (
 										<CheckIcon className="size-3 shrink-0 text-muted-foreground/60" />
@@ -627,7 +700,10 @@ function OpenInButton({ directory }: { directory: string }) {
 								</DropdownMenuItem>
 							))}
 							<DropdownMenuSeparator />
-							<DropdownMenuItem disabled className="text-[11px] text-muted-foreground/50">
+							<DropdownMenuItem
+								disabled
+								className="text-[11px] text-muted-foreground/50"
+							>
 								{directory}
 							</DropdownMenuItem>
 						</>
@@ -635,20 +711,21 @@ function OpenInButton({ directory }: { directory: string }) {
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>
-	)
+	);
 }
 
 /**
  * Compact badge showing the worktree branch name with a copy action.
  */
 function WorktreeBranchBadge({ branch }: { branch: string }) {
-	const [copied, setCopied] = useState(false)
+	const { t } = useTranslation();
+	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
-		await navigator.clipboard.writeText(branch)
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
-	}, [branch])
+		await navigator.clipboard.writeText(branch);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	}, [branch]);
 
 	return (
 		<Tooltip>
@@ -665,38 +742,45 @@ function WorktreeBranchBadge({ branch }: { branch: string }) {
 				<span className="max-w-[120px] truncate">{branch}</span>
 				{copied && <CheckIcon className="size-2.5 text-green-500" />}
 			</TooltipTrigger>
-			<TooltipContent>Click to copy branch name</TooltipContent>
+			<TooltipContent>{t("agent.copyBranch")}</TooltipContent>
 		</Tooltip>
-	)
+	);
 }
 
 /**
  * Popover with the `opencode attach` command for opening this session in a terminal.
  */
-function AttachCommand({ sessionId, directory }: { sessionId: string; directory: string }) {
-	const { url } = useServerConnection()
-	const [copied, setCopied] = useState(false)
-	const [open, setOpen] = useState(false)
+function AttachCommand({
+	sessionId,
+	directory,
+}: {
+	sessionId: string;
+	directory: string;
+}) {
+	const { t } = useTranslation();
+	const { url } = useServerConnection();
+	const [copied, setCopied] = useState(false);
+	const [open, setOpen] = useState(false);
 
-	const command = `opencode attach ${url ?? "http://127.0.0.1:4101"} --session ${sessionId} --dir ${directory}`
+	const command = `opencode attach ${url ?? "http://127.0.0.1:4101"} --session ${sessionId} --dir ${directory}`;
 
 	const handleOpen = useCallback(
 		async (nextOpen: boolean) => {
 			if (nextOpen) {
-				await navigator.clipboard.writeText(command)
-				setCopied(true)
-				setTimeout(() => setCopied(false), 2000)
+				await navigator.clipboard.writeText(command);
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
 			}
-			setOpen(nextOpen)
+			setOpen(nextOpen);
 		},
 		[command],
-	)
+	);
 
 	const handleCopy = useCallback(async () => {
-		await navigator.clipboard.writeText(command)
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
-	}, [command])
+		await navigator.clipboard.writeText(command);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	}, [command]);
 
 	return (
 		<Popover open={open} onOpenChange={handleOpen}>
@@ -715,19 +799,24 @@ function AttachCommand({ sessionId, directory }: { sessionId: string; directory:
 				>
 					<TerminalIcon className="size-3.5" />
 				</TooltipTrigger>
-				<TooltipContent>Open in terminal</TooltipContent>
+				<TooltipContent>{t("agent.openTerminal")}</TooltipContent>
 			</Tooltip>
 			<PopoverContent align="end" className="w-auto max-w-sm p-3">
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-1.5">
 						<CheckIcon className="size-3 text-green-500" />
-						<p className="text-xs font-medium">Copied to clipboard</p>
+						<p className="text-xs font-medium">{t("common.ui.copied")}</p>
 					</div>
 					<div className="flex items-center gap-1.5">
 						<code className="flex-1 rounded-md bg-muted px-2.5 py-1.5 font-mono text-[11px] leading-relaxed text-foreground select-all">
 							{command}
 						</code>
-						<Button size="sm" variant="ghost" className="h-7 w-7 shrink-0 p-0" onClick={handleCopy}>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="h-7 w-7 shrink-0 p-0"
+							onClick={handleCopy}
+						>
 							{copied ? (
 								<CheckIcon className="size-3.5 text-green-500" />
 							) : (
@@ -736,10 +825,10 @@ function AttachCommand({ sessionId, directory }: { sessionId: string; directory:
 						</Button>
 					</div>
 					<p className="text-[11px] leading-normal text-muted-foreground">
-						Paste in your terminal to attach. Both views will stay in sync.
+						{t("agent.attachDescription")}
 					</p>
 				</div>
 			</PopoverContent>
 		</Popover>
-	)
+	);
 }

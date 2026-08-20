@@ -4,8 +4,8 @@
  * All timestamps are relative to `Date.now()` so the UI always
  * looks fresh regardless of when the screenshot is taken.
  */
-import type { DiscoveryState } from "../atoms/discovery"
-import type { SessionEntry } from "../atoms/sessions"
+import type { DiscoveryState } from "../atoms/discovery";
+import type { SessionEntry } from "../atoms/sessions";
 import type {
 	AssistantMessage,
 	FileDiff,
@@ -17,15 +17,15 @@ import type {
 	TextPart,
 	ToolPart,
 	UserMessage,
-} from "./types"
+} from "./types";
 
 // ============================================================
 // Helpers
 // ============================================================
 
-const NOW = Date.now()
-const MINUTE = 60_000
-const HOUR = 60 * MINUTE
+const NOW = Date.now();
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 
 /** Stable IDs so navigation works across reloads */
 const IDS = {
@@ -69,10 +69,10 @@ const IDS = {
 	// Messages -- docs session
 	dcUser1: "msg-dc-u1",
 	dcAssistant1: "msg-dc-a1",
-} as const
+} as const;
 
 function partId(messageId: string, index: number): string {
-	return `part-${messageId}-${index}`
+	return `part-${messageId}-${index}`;
 }
 
 // ============================================================
@@ -83,7 +83,7 @@ const DIRS = {
 	palot: "/Users/demo/Projects/palot",
 	acmeApi: "/Users/demo/Projects/acme-api",
 	landing: "/Users/demo/Projects/landing-page",
-}
+};
 
 // ============================================================
 // Discovery state
@@ -114,7 +114,7 @@ const mockDiscoveredProjects: DiscoveryState["projects"] = [
 		time: { created: NOW - 7 * 24 * HOUR, updated: NOW - 1 * HOUR },
 		sandboxes: [],
 	},
-]
+];
 
 export const MOCK_DISCOVERY: DiscoveryState = {
 	loaded: true,
@@ -122,7 +122,7 @@ export const MOCK_DISCOVERY: DiscoveryState = {
 	error: null,
 	phase: "ready",
 	projects: mockDiscoveredProjects,
-}
+};
 
 // ============================================================
 // Providers data (for model selector)
@@ -207,7 +207,7 @@ export const MOCK_PROVIDERS = {
 		anthropic: "claude-sonnet-4-20250514",
 		openai: "gpt-5.3-codex",
 	},
-}
+};
 
 // ============================================================
 // Agents data
@@ -217,7 +217,8 @@ export const MOCK_AGENTS = [
 	{
 		id: "build",
 		name: "Build",
-		description: "Expert at building new features and implementing complex functionality",
+		description:
+			"Expert at building new features and implementing complex functionality",
 		mode: "primary" as const,
 		hidden: false,
 		permissions: [],
@@ -245,7 +246,7 @@ export const MOCK_AGENTS = [
 		permissions: [],
 		options: {},
 	},
-]
+];
 
 // ============================================================
 // Config data
@@ -255,7 +256,7 @@ export const MOCK_CONFIG = {
 	model: "bedrock/anthropic.claude-opus-4-6",
 	smallModel: "anthropic/claude-sonnet-4-20250514",
 	defaultAgent: "Build",
-}
+};
 
 // ============================================================
 // Session factory helpers
@@ -277,7 +278,7 @@ function makeSession(
 		title,
 		version: "1",
 		time: { created, updated },
-	}
+	};
 }
 
 // ============================================================
@@ -333,7 +334,7 @@ const mockSessions: Session[] = [
 		NOW - 5 * HOUR,
 		NOW - 4 * HOUR,
 	),
-]
+];
 
 // ============================================================
 // Session entries (with status, permissions, etc.)
@@ -418,9 +419,11 @@ export const MOCK_SESSION_ENTRIES: Map<string, SessionEntry> = new Map([
 			branch: "docs/api-v2",
 		},
 	],
-])
+]);
 
-export const MOCK_SESSION_IDS: Set<string> = new Set(MOCK_SESSION_ENTRIES.keys())
+export const MOCK_SESSION_IDS: Set<string> = new Set(
+	MOCK_SESSION_ENTRIES.keys(),
+);
 
 // ============================================================
 // Message & part factory helpers
@@ -434,7 +437,7 @@ function userMsg(id: string, sessionID: string, created: number): UserMessage {
 		time: { created },
 		agent: "Build",
 		model: { providerID: "bedrock", modelID: "anthropic.claude-opus-4-6" },
-	}
+	};
 }
 
 function assistantMsg(
@@ -462,7 +465,7 @@ function assistantMsg(
 			reasoning: 0,
 			cache: { read: 800, write: 200 },
 		},
-	}
+	};
 }
 
 function textPart(
@@ -479,7 +482,7 @@ function textPart(
 		type: "text",
 		text,
 		time: { start: NOW - startOffset, end: NOW - startOffset + 2000 },
-	}
+	};
 }
 
 function reasoningPart(
@@ -496,7 +499,7 @@ function reasoningPart(
 		type: "reasoning",
 		text,
 		time: { start: NOW - startOffset, end: NOW - startOffset + 1500 },
-	}
+	};
 }
 
 function toolPart(
@@ -524,7 +527,7 @@ function toolPart(
 			metadata: {},
 			time: { start: NOW - startOffset, end: NOW - startOffset + 3000 },
 		},
-	}
+	};
 }
 
 function runningToolPart(
@@ -550,7 +553,7 @@ function runningToolPart(
 			metadata: {},
 			time: { start: NOW - startOffset },
 		},
-	}
+	};
 }
 
 // ============================================================
@@ -574,7 +577,7 @@ const darkModeMessages: Message[] = [
 		NOW - 8 * MINUTE + 1500,
 		// no completed -- still running
 	),
-]
+];
 
 const darkModeParts: Record<string, Part[]> = {
 	[IDS.dmUser1]: [
@@ -678,7 +681,7 @@ const darkModeParts: Record<string, Part[]> = {
 			2 * MINUTE,
 		),
 	],
-}
+};
 
 // ============================================================
 // Auth fix session
@@ -693,7 +696,7 @@ const authFixMessages: Message[] = [
 		NOW - 45 * MINUTE + 2000,
 		NOW - 15 * MINUTE,
 	),
-]
+];
 
 const authFixParts: Record<string, Part[]> = {
 	[IDS.afUser1]: [
@@ -747,7 +750,7 @@ const authFixParts: Record<string, Part[]> = {
 			15 * MINUTE,
 		),
 	],
-}
+};
 
 // ============================================================
 // Refactor session
@@ -770,7 +773,7 @@ const refactorMessages: Message[] = [
 		NOW - 1 * HOUR + 2000,
 		NOW - 45 * MINUTE,
 	),
-]
+];
 
 const refactorParts: Record<string, Part[]> = {
 	[IDS.rfUser1]: [
@@ -842,7 +845,7 @@ const refactorParts: Record<string, Part[]> = {
 			45 * MINUTE,
 		),
 	],
-}
+};
 
 // ============================================================
 // Landing page session
@@ -857,7 +860,7 @@ const landingMessages: Message[] = [
 		NOW - 1 * HOUR + 2000,
 		NOW - 35 * MINUTE,
 	),
-]
+];
 
 const landingParts: Record<string, Part[]> = {
 	[IDS.lnUser1]: [
@@ -891,7 +894,7 @@ const landingParts: Record<string, Part[]> = {
 			35 * MINUTE,
 		),
 	],
-}
+};
 
 // ============================================================
 // Tests session
@@ -906,7 +909,7 @@ const testsMessages: Message[] = [
 		NOW - 3 * HOUR + 2000,
 		NOW - 2 * HOUR,
 	),
-]
+];
 
 const testsParts: Record<string, Part[]> = {
 	[IDS.tsUser1]: [
@@ -960,7 +963,7 @@ const testsParts: Record<string, Part[]> = {
 			2 * HOUR,
 		),
 	],
-}
+};
 
 // ============================================================
 // Docs session
@@ -975,7 +978,7 @@ const docsMessages: Message[] = [
 		NOW - 5 * HOUR + 2000,
 		NOW - 4 * HOUR,
 	),
-]
+];
 
 const docsParts: Record<string, Part[]> = {
 	[IDS.dcUser1]: [
@@ -1006,7 +1009,7 @@ const docsParts: Record<string, Part[]> = {
 			4 * HOUR,
 		),
 	],
-}
+};
 
 // ============================================================
 // File diffs per session
@@ -1118,7 +1121,7 @@ export function Settings() {
   transition: var(--transition-theme);
 }`,
 	},
-]
+];
 
 const authFixDiffs: FileDiff[] = [
 	{
@@ -1203,7 +1206,7 @@ describe("refreshToken", () => {
   })
 })`,
 	},
-]
+];
 
 const refactorDiffs: FileDiff[] = [
 	{
@@ -1286,7 +1289,7 @@ export async function getPool() {
 }`,
 		after: "",
 	},
-]
+];
 
 const landingDiffs: FileDiff[] = [
 	{
@@ -1357,7 +1360,7 @@ export function Hero() {
   50% { background-position: 100% 50%; }
 }`,
 	},
-]
+];
 
 const testsDiffs: FileDiff[] = [
 	{
@@ -1434,7 +1437,7 @@ function createMockJwt(payload: Record<string, unknown>): string {
   return \`\${header}.\${body}.mock-signature\`
 }`,
 	},
-]
+];
 
 const docsDiffs: FileDiff[] = [
 	{
@@ -1511,7 +1514,7 @@ All endpoints return rate limit headers:
 
 When rate limited (429), wait until the reset timestamp before retrying.`,
 	},
-]
+];
 
 export const MOCK_DIFFS: Map<string, FileDiff[]> = new Map([
 	[IDS.sessionDarkMode, darkModeDiffs],
@@ -1520,7 +1523,7 @@ export const MOCK_DIFFS: Map<string, FileDiff[]> = new Map([
 	[IDS.sessionLanding, landingDiffs],
 	[IDS.sessionTests, testsDiffs],
 	[IDS.sessionDocs, docsDiffs],
-])
+]);
 
 // ============================================================
 // Public API: collected mock data
@@ -1533,7 +1536,7 @@ export const MOCK_MESSAGES: Map<string, Message[]> = new Map([
 	[IDS.sessionLanding, landingMessages],
 	[IDS.sessionTests, testsMessages],
 	[IDS.sessionDocs, docsMessages],
-])
+]);
 
 export const MOCK_PARTS: Map<string, Record<string, Part[]>> = new Map([
 	[IDS.sessionDarkMode, darkModeParts],
@@ -1542,10 +1545,10 @@ export const MOCK_PARTS: Map<string, Record<string, Part[]>> = new Map([
 	[IDS.sessionLanding, landingParts],
 	[IDS.sessionTests, testsParts],
 	[IDS.sessionDocs, docsParts],
-])
+]);
 
 /** The first session ID, suitable for navigating to after enabling mock mode */
-export const MOCK_DEFAULT_SESSION_ID = IDS.sessionDarkMode
+export const MOCK_DEFAULT_SESSION_ID = IDS.sessionDarkMode;
 
 /** Project slug for the default session (palot project) */
-export const MOCK_DEFAULT_PROJECT_SLUG = `palot-${IDS.projectPalot.slice(0, 12)}`
+export const MOCK_DEFAULT_PROJECT_SLUG = `palot-${IDS.projectPalot.slice(0, 12)}`;

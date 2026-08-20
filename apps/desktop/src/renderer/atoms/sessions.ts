@@ -1,76 +1,80 @@
-import { atom } from "jotai"
-import { atomFamily } from "jotai-family"
+import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
 import type {
 	EventSessionError,
 	PermissionRequest,
 	QuestionRequest,
 	Session,
 	SessionStatus,
-} from "../lib/types"
-import { messagesFamily } from "./messages"
-import { partsFamily } from "./parts"
+} from "../lib/types";
+import { messagesFamily } from "./messages";
+import { partsFamily } from "./parts";
 
 // ============================================================
 // Constants
 // ============================================================
 
 /** Number of sessions to load per page when paginating */
-export const SESSIONS_PAGE_SIZE = 5
+export const SESSIONS_PAGE_SIZE = 5;
 
 // ============================================================
 // Types
 // ============================================================
 
 /** Error type from session.error events */
-export type SessionError = NonNullable<EventSessionError["properties"]["error"]>
+export type SessionError = NonNullable<
+	EventSessionError["properties"]["error"]
+>;
 
 /** Phases of worktree setup shown in the chat view's empty state */
-export type SessionSetupPhase = "creating-worktree" | "starting-session" | null
+export type SessionSetupPhase = "creating-worktree" | "starting-session" | null;
 
 /** Per-project pagination state for session loading */
 export interface ProjectPaginationState {
 	/** Whether the initial session fetch has been performed for this project */
-	loaded: boolean
+	loaded: boolean;
 	/** Current limit used for session fetching */
-	currentLimit: number
+	currentLimit: number;
 	/** Whether the last fetch returned fewer sessions than the limit (no more to load) */
-	hasMore: boolean
+	hasMore: boolean;
 	/** Whether a load-more request is in progress */
-	loading: boolean
+	loading: boolean;
 }
 
 export interface SessionEntry {
-	session: Session
-	status: SessionStatus
+	session: Session;
+	status: SessionStatus;
 	/** Pending permission requests */
-	permissions: PermissionRequest[]
+	permissions: PermissionRequest[];
 	/** Pending question requests */
-	questions: QuestionRequest[]
+	questions: QuestionRequest[];
 	/** Project directory this session belongs to */
-	directory: string
+	directory: string;
 	/** Git branch at the time this session was created */
-	branch?: string
+	branch?: string;
 	/** If set, the session runs in a git worktree at this path */
-	worktreePath?: string
+	worktreePath?: string;
 	/** The branch name auto-created for the worktree (e.g. "palot/fix-auth-bug") */
-	worktreeBranch?: string
+	worktreeBranch?: string;
 	/** Last session-level error (from session.error events) */
-	error?: SessionError
+	error?: SessionError;
 	/** Worktree setup phase (shown in chat empty state while worktree is being created) */
-	setupPhase?: SessionSetupPhase
+	setupPhase?: SessionSetupPhase;
 }
 
 // ============================================================
 // Index atom — tracks all known session IDs
 // ============================================================
 
-export const sessionIdsAtom = atom<Set<string>>(new Set<string>())
+export const sessionIdsAtom = atom<Set<string>>(new Set<string>());
 
 // ============================================================
 // Per-session atom family
 // ============================================================
 
-export const sessionFamily = atomFamily((_sessionId: string) => atom<SessionEntry | null>(null))
+export const sessionFamily = atomFamily((_sessionId: string) =>
+	atom<SessionEntry | null>(null),
+);
 
 // ============================================================
 // Write-only action atoms
@@ -82,12 +86,12 @@ export const upsertSessionAtom = atom(
 		get,
 		set,
 		args: {
-			session: Session
-			directory: string
+			session: Session;
+			directory: string;
 		},
 	) => {
-		const { session, directory } = args
-		const existing = get(sessionFamily(session.id))
+		const { session, directory } = args;
+		const existing = get(sessionFamily(session.id));
 
 		set(sessionFamily(session.id), {
 			session,
@@ -100,39 +104,39 @@ export const upsertSessionAtom = atom(
 			worktreeBranch: existing?.worktreeBranch,
 			error: existing?.error,
 			setupPhase: existing?.setupPhase,
-		})
+		});
 
 		// Add to index
-		const ids = get(sessionIdsAtom)
+		const ids = get(sessionIdsAtom);
 		if (!ids.has(session.id)) {
-			const next = new Set(ids)
-			next.add(session.id)
-			set(sessionIdsAtom, next)
+			const next = new Set(ids);
+			next.add(session.id);
+			set(sessionIdsAtom, next);
 		}
 	},
-)
+);
 
 export const removeSessionAtom = atom(null, (get, set, sessionId: string) => {
 	// Clean up message and part atoms to prevent memory leaks.
 	// messagesFamily/partsFamily create atoms on demand and never remove them,
 	// so we must explicitly clear and remove entries for deleted sessions.
-	const messages = get(messagesFamily(sessionId))
+	const messages = get(messagesFamily(sessionId));
 	if (messages && messages.length > 0) {
 		for (const msg of messages) {
-			partsFamily.remove(msg.id)
+			partsFamily.remove(msg.id);
 		}
 	}
-	messagesFamily.remove(sessionId)
+	messagesFamily.remove(sessionId);
 
-	sessionFamily.remove(sessionId)
+	sessionFamily.remove(sessionId);
 
-	const ids = get(sessionIdsAtom)
+	const ids = get(sessionIdsAtom);
 	if (ids.has(sessionId)) {
-		const next = new Set(ids)
-		next.delete(sessionId)
-		set(sessionIdsAtom, next)
+		const next = new Set(ids);
+		next.delete(sessionId);
+		set(sessionIdsAtom, next);
 	}
-})
+});
 
 export const setSessionStatusAtom = atom(
 	null,
@@ -140,15 +144,15 @@ export const setSessionStatusAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			status: SessionStatus
+			sessionId: string;
+			status: SessionStatus;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
-		set(sessionFamily(args.sessionId), { ...entry, status: args.status })
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
+		set(sessionFamily(args.sessionId), { ...entry, status: args.status });
 	},
-)
+);
 
 export const setSessionErrorAtom = atom(
 	null,
@@ -156,15 +160,15 @@ export const setSessionErrorAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			error: SessionError | undefined
+			sessionId: string;
+			error: SessionError | undefined;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
-		set(sessionFamily(args.sessionId), { ...entry, error: args.error })
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
+		set(sessionFamily(args.sessionId), { ...entry, error: args.error });
 	},
-)
+);
 
 export const setSessionBranchAtom = atom(
 	null,
@@ -172,15 +176,15 @@ export const setSessionBranchAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			branch: string
+			sessionId: string;
+			branch: string;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
-		set(sessionFamily(args.sessionId), { ...entry, branch: args.branch })
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
+		set(sessionFamily(args.sessionId), { ...entry, branch: args.branch });
 	},
-)
+);
 
 export const setSessionWorktreeAtom = atom(
 	null,
@@ -188,20 +192,20 @@ export const setSessionWorktreeAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			worktreePath: string
-			worktreeBranch: string
+			sessionId: string;
+			worktreePath: string;
+			worktreeBranch: string;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
 		set(sessionFamily(args.sessionId), {
 			...entry,
 			worktreePath: args.worktreePath,
 			worktreeBranch: args.worktreeBranch,
-		})
+		});
 	},
-)
+);
 
 export const setSessionSetupPhaseAtom = atom(
 	null,
@@ -209,15 +213,18 @@ export const setSessionSetupPhaseAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			setupPhase: SessionSetupPhase
+			sessionId: string;
+			setupPhase: SessionSetupPhase;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
-		set(sessionFamily(args.sessionId), { ...entry, setupPhase: args.setupPhase })
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
+		set(sessionFamily(args.sessionId), {
+			...entry,
+			setupPhase: args.setupPhase,
+		});
 	},
-)
+);
 
 export const addPermissionAtom = atom(
 	null,
@@ -225,18 +232,18 @@ export const addPermissionAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			permission: PermissionRequest
+			sessionId: string;
+			permission: PermissionRequest;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
 		set(sessionFamily(args.sessionId), {
 			...entry,
 			permissions: [...entry.permissions, args.permission],
-		})
+		});
 	},
-)
+);
 
 export const removePermissionAtom = atom(
 	null,
@@ -244,18 +251,18 @@ export const removePermissionAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			permissionId: string
+			sessionId: string;
+			permissionId: string;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
 		set(sessionFamily(args.sessionId), {
 			...entry,
 			permissions: entry.permissions.filter((p) => p.id !== args.permissionId),
-		})
+		});
 	},
-)
+);
 
 export const addQuestionAtom = atom(
 	null,
@@ -263,20 +270,20 @@ export const addQuestionAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			question: QuestionRequest
+			sessionId: string;
+			question: QuestionRequest;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
 		// Avoid duplicates
-		if (entry.questions.some((q) => q.id === args.question.id)) return
+		if (entry.questions.some((q) => q.id === args.question.id)) return;
 		set(sessionFamily(args.sessionId), {
 			...entry,
 			questions: [...entry.questions, args.question],
-		})
+		});
 	},
-)
+);
 
 export const removeQuestionAtom = atom(
 	null,
@@ -284,18 +291,18 @@ export const removeQuestionAtom = atom(
 		get,
 		set,
 		args: {
-			sessionId: string
-			requestId: string
+			sessionId: string;
+			requestId: string;
 		},
 	) => {
-		const entry = get(sessionFamily(args.sessionId))
-		if (!entry) return
+		const entry = get(sessionFamily(args.sessionId));
+		if (!entry) return;
 		set(sessionFamily(args.sessionId), {
 			...entry,
 			questions: entry.questions.filter((q) => q.id !== args.requestId),
-		})
+		});
 	},
-)
+);
 
 /**
  * Bulk-set sessions (used during project load).
@@ -316,41 +323,43 @@ export const setSessionsAtom = atom(
 		get,
 		set,
 		args: {
-			sessions: Session[]
-			statuses: Record<string, SessionStatus>
-			directory: string
+			sessions: Session[];
+			statuses: Record<string, SessionStatus>;
+			directory: string;
 			/** Known sandbox directories for this project (from project.sandboxes) */
-			sandboxDirs?: Set<string>
+			sandboxDirs?: Set<string>;
 		},
 	) => {
-		const currentIds = get(sessionIdsAtom)
-		const nextIds = new Set(currentIds)
+		const currentIds = get(sessionIdsAtom);
+		const nextIds = new Set(currentIds);
 
 		for (const session of args.sessions) {
-			const existing = get(sessionFamily(session.id))
-			const sessionDir = session.directory || args.directory
-			const isSandbox = args.sandboxDirs?.has(sessionDir) ?? false
+			const existing = get(sessionFamily(session.id));
+			const sessionDir = session.directory || args.directory;
+			const isSandbox = args.sandboxDirs?.has(sessionDir) ?? false;
 
 			set(sessionFamily(session.id), {
 				session,
-				status: args.statuses[session.id] ?? existing?.status ?? { type: "idle" },
+				status: args.statuses[session.id] ??
+					existing?.status ?? { type: "idle" },
 				permissions: existing?.permissions ?? [],
 				questions: existing?.questions ?? [],
 				directory: existing?.directory ?? sessionDir,
 				branch: existing?.branch,
-				worktreePath: existing?.worktreePath ?? (isSandbox ? sessionDir : undefined),
+				worktreePath:
+					existing?.worktreePath ?? (isSandbox ? sessionDir : undefined),
 				worktreeBranch: existing?.worktreeBranch,
 				error: existing?.error,
 				setupPhase: existing?.setupPhase,
-			})
-			nextIds.add(session.id)
+			});
+			nextIds.add(session.id);
 		}
 
 		if (nextIds.size !== currentIds.size) {
-			set(sessionIdsAtom, nextIds)
+			set(sessionIdsAtom, nextIds);
 		}
 	},
-)
+);
 
 // ============================================================
 // Per-project session pagination
@@ -368,7 +377,7 @@ export const projectPaginationFamily = atomFamily((_directory: string) =>
 		hasMore: true,
 		loading: false,
 	}),
-)
+);
 
 /**
  * Write-only atom to update pagination state after a session load.
@@ -380,9 +389,9 @@ export const updateProjectPaginationAtom = atom(
 		_get,
 		set,
 		args: {
-			directory: string
-			fetchedCount: number
-			limit: number
+			directory: string;
+			fetchedCount: number;
+			limit: number;
 		},
 	) => {
 		set(projectPaginationFamily(args.directory), {
@@ -390,30 +399,36 @@ export const updateProjectPaginationAtom = atom(
 			currentLimit: args.limit,
 			hasMore: args.fetchedCount >= args.limit,
 			loading: false,
-		})
+		});
 	},
-)
+);
 
 /**
  * Write-only atom to mark a project's session load as in progress.
  */
-export const setProjectPaginationLoadingAtom = atom(null, (get, set, directory: string) => {
-	const current = get(projectPaginationFamily(directory))
-	set(projectPaginationFamily(directory), { ...current, loading: true })
-})
+export const setProjectPaginationLoadingAtom = atom(
+	null,
+	(get, set, directory: string) => {
+		const current = get(projectPaginationFamily(directory));
+		set(projectPaginationFamily(directory), { ...current, loading: true });
+	},
+);
 
 /**
  * Write-only atom to reset pagination state for a list of directories.
  * Called on server switch so expanded projects re-fetch sessions from the new server.
  */
-export const resetProjectPaginationAtom = atom(null, (_get, set, directories: string[]) => {
-	const initial: ProjectPaginationState = {
-		loaded: false,
-		currentLimit: SESSIONS_PAGE_SIZE,
-		hasMore: true,
-		loading: false,
-	}
-	for (const dir of directories) {
-		set(projectPaginationFamily(dir), initial)
-	}
-})
+export const resetProjectPaginationAtom = atom(
+	null,
+	(_get, set, directories: string[]) => {
+		const initial: ProjectPaginationState = {
+			loaded: false,
+			currentLimit: SESSIONS_PAGE_SIZE,
+			hasMore: true,
+			loading: false,
+		};
+		for (const dir of directories) {
+			set(projectPaginationFamily(dir), initial);
+		}
+	},
+);

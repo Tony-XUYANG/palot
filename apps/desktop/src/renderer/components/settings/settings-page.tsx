@@ -5,8 +5,8 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-} from "@palot/ui/components/sidebar"
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
+} from "@palot/ui/components/sidebar";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
 	ArrowLeftIcon,
 	BellIcon,
@@ -16,9 +16,10 @@ import {
 	ServerIcon,
 	SettingsIcon,
 	WrenchIcon,
-} from "lucide-react"
-import { useEffect } from "react"
-import { useSetSidebarSlot } from "../sidebar-slot-context"
+} from "lucide-react";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useSetSidebarSlot } from "../sidebar-slot-context";
 
 // ============================================================
 // Tab definitions
@@ -31,33 +32,33 @@ type SettingsTab =
 	| "providers"
 	| "worktrees"
 	| "setup"
-	| "about"
+	| "about";
 
-const tabs: { id: SettingsTab; label: string; icon: typeof SettingsIcon }[] = [
-	{ id: "general", label: "General", icon: SettingsIcon },
-	{ id: "servers", label: "Servers", icon: ServerIcon },
-	{ id: "notifications", label: "Notifications", icon: BellIcon },
-	{ id: "providers", label: "Providers", icon: PlugIcon },
-	{ id: "worktrees", label: "Worktrees", icon: GitForkIcon },
-	{ id: "setup", label: "Setup", icon: WrenchIcon },
-	{ id: "about", label: "About", icon: InfoIcon },
-]
+const tabs: { id: SettingsTab; icon: typeof SettingsIcon }[] = [
+	{ id: "general", icon: SettingsIcon },
+	{ id: "servers", icon: ServerIcon },
+	{ id: "notifications", icon: BellIcon },
+	{ id: "providers", icon: PlugIcon },
+	{ id: "worktrees", icon: GitForkIcon },
+	{ id: "setup", icon: WrenchIcon },
+	{ id: "about", icon: InfoIcon },
+];
 
 // ============================================================
 // Settings layout (renders <Outlet /> for child routes)
 // ============================================================
 
 export function SettingsPage() {
-	const { setContent, setFooter } = useSetSidebarSlot()
+	const { setContent, setFooter } = useSetSidebarSlot();
 
 	useEffect(() => {
-		setContent(<SettingsSidebarContent />)
-		setFooter(false)
+		setContent(<SettingsSidebarContent />);
+		setFooter(false);
 		return () => {
-			setContent(null)
-			setFooter(null)
-		}
-	}, [setContent, setFooter])
+			setContent(null);
+			setFooter(null);
+		};
+	}, [setContent, setFooter]);
 
 	return (
 		<div className="h-full overflow-y-auto">
@@ -65,7 +66,7 @@ export function SettingsPage() {
 				<Outlet />
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -73,11 +74,12 @@ export function SettingsPage() {
 // ============================================================
 
 function SettingsSidebarContent() {
-	const navigate = useNavigate()
-	const pathname = useRouterState({ select: (s) => s.location.pathname })
+	const { t } = useTranslation("settings");
+	const navigate = useNavigate();
+	const pathname = useRouterState({ select: (s) => s.location.pathname });
 
 	// Derive active tab from the last path segment (e.g. "/settings/general" -> "general")
-	const activeTab = pathname.split("/").pop() || "general"
+	const activeTab = pathname.split("/").pop() || "general";
 
 	return (
 		<SidebarContent>
@@ -90,28 +92,29 @@ function SettingsSidebarContent() {
 							className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
 							<ArrowLeftIcon aria-hidden="true" className="size-4" />
-							Back to app
+							{t("backToApp")}
 						</button>
 					</div>
 					<SidebarMenu>
 						{tabs.map((tab) => {
-							const Icon = tab.icon
+							const Icon = tab.icon;
+							const label = t(`tabs.${tab.id}`);
 							return (
 								<SidebarMenuItem key={tab.id}>
 									<SidebarMenuButton
 										isActive={activeTab === tab.id}
 										onClick={() => navigate({ to: `/settings/${tab.id}` })}
-										tooltip={tab.label}
+										tooltip={label}
 									>
 										<Icon aria-hidden="true" className="size-4" />
-										<span>{tab.label}</span>
+										<span>{label}</span>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
-							)
+							);
 						})}
 					</SidebarMenu>
 				</SidebarGroupContent>
 			</SidebarGroup>
 		</SidebarContent>
-	)
+	);
 }

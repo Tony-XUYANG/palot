@@ -1,27 +1,37 @@
-import { Button } from "@palot/ui/components/button"
+import { Button } from "@palot/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@palot/ui/components/dropdown-menu"
-import { ChevronDownIcon, Loader2Icon, ShieldCheckIcon, ZapIcon } from "lucide-react"
-import { memo, useState } from "react"
-import type { Agent, PermissionRequest } from "../../lib/types"
+} from "@palot/ui/components/dropdown-menu";
+import {
+	ChevronDownIcon,
+	Loader2Icon,
+	ShieldCheckIcon,
+	ZapIcon,
+} from "lucide-react";
+import { memo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { Agent, PermissionRequest } from "../../lib/types";
 
 interface PermissionItemProps {
-	agent: Agent
-	permission: PermissionRequest
+	agent: Agent;
+	permission: PermissionRequest;
 	onApprove?: (
 		agent: Agent,
 		permissionSessionId: string,
 		permissionId: string,
 		response?: "once" | "always",
-	) => Promise<void>
-	onDeny?: (agent: Agent, permissionSessionId: string, permissionId: string) => Promise<void>
-	isConnected?: boolean
+	) => Promise<void>;
+	onDeny?: (
+		agent: Agent,
+		permissionSessionId: string,
+		permissionId: string,
+	) => Promise<void>;
+	isConnected?: boolean;
 	/** When true, the permission originated from a sub-agent session */
-	isFromSubAgent?: boolean
+	isFromSubAgent?: boolean;
 }
 
 /**
@@ -38,32 +48,33 @@ export const PermissionItem = memo(function PermissionItem({
 	isConnected,
 	isFromSubAgent,
 }: PermissionItemProps) {
-	const [responding, setResponding] = useState(false)
+	const { t } = useTranslation();
+	const [responding, setResponding] = useState(false);
 
 	async function handleApprove(response: "once" | "always" = "once") {
-		if (!onApprove || responding) return
-		setResponding(true)
+		if (!onApprove || responding) return;
+		setResponding(true);
 		try {
 			// Pass the permission's own sessionID so sub-agent permissions are
 			// routed to the correct session, not the parent agent's session.
-			await onApprove(agent, permission.sessionID, permission.id, response)
+			await onApprove(agent, permission.sessionID, permission.id, response);
 		} finally {
-			setResponding(false)
+			setResponding(false);
 		}
 	}
 
 	async function handleDeny() {
-		if (!onDeny || responding) return
-		setResponding(true)
+		if (!onDeny || responding) return;
+		setResponding(true);
 		try {
-			await onDeny(agent, permission.sessionID, permission.id)
+			await onDeny(agent, permission.sessionID, permission.id);
 		} finally {
-			setResponding(false)
+			setResponding(false);
 		}
 	}
 
-	const tool = permission.metadata?.tool as string | undefined
-	const command = permission.metadata?.command as string | undefined
+	const tool = permission.metadata?.tool as string | undefined;
+	const command = permission.metadata?.command as string | undefined;
 
 	return (
 		<div className="mb-2 rounded-xl border border-border bg-card">
@@ -71,18 +82,27 @@ export const PermissionItem = memo(function PermissionItem({
 				{isFromSubAgent && (
 					<div className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground/70">
 						<ZapIcon className="size-3 shrink-0" aria-hidden="true" />
-						<span>Sub-agent requesting permission</span>
+						<span>{t("chat.permission.subAgentRequesting")}</span>
 					</div>
 				)}
 				<div className="flex items-center gap-1.5">
-					<ShieldCheckIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-					<span className="text-sm text-foreground">{permission.permission}</span>
+					<ShieldCheckIcon
+						className="size-3.5 shrink-0 text-muted-foreground"
+						aria-hidden="true"
+					/>
+					<span className="text-sm text-foreground">
+						{permission.permission}
+					</span>
 				</div>
 				{(tool || command) && (
 					<code className="mt-1 block truncate text-xs text-muted-foreground">
 						{tool && <span>{tool}</span>}
 						{tool && command && <span> </span>}
-						{command && <span>{command.length > 80 ? `${command.slice(0, 80)}...` : command}</span>}
+						{command && (
+							<span>
+								{command.length > 80 ? `${command.slice(0, 80)}...` : command}
+							</span>
+						)}
 					</code>
 				)}
 			</div>
@@ -93,7 +113,7 @@ export const PermissionItem = memo(function PermissionItem({
 					disabled={!isConnected || responding}
 					className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
 				>
-					Deny
+					{t("chat.permission.deny")}
 				</button>
 				<div className="flex items-center">
 					<Button
@@ -102,8 +122,10 @@ export const PermissionItem = memo(function PermissionItem({
 						disabled={!isConnected || responding}
 						className="h-7 rounded-r-none px-2.5 text-xs"
 					>
-						{responding && <Loader2Icon className="size-3 animate-spin" aria-hidden="true" />}
-						Allow
+						{responding && (
+							<Loader2Icon className="size-3 animate-spin" aria-hidden="true" />
+						)}
+						{t("chat.permission.allow")}
 					</Button>
 					<DropdownMenu>
 						<DropdownMenuTrigger
@@ -112,21 +134,23 @@ export const PermissionItem = memo(function PermissionItem({
 									size="sm"
 									disabled={!isConnected || responding}
 									className="h-7 rounded-l-none border-l border-primary-foreground/20 px-1"
-									aria-label="More approval options"
+									aria-label={t("chat.permission.moreOptions")}
 								/>
 							}
 						>
 							<ChevronDownIcon className="size-3" aria-hidden="true" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<DropdownMenuItem onClick={() => handleApprove("once")}>Allow once</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleApprove("once")}>
+								{t("chat.permission.allowOnce")}
+							</DropdownMenuItem>
 							<DropdownMenuItem onClick={() => handleApprove("always")}>
-								Always allow
+								{t("chat.permission.alwaysAllow")}
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
 			</div>
 		</div>
-	)
-})
+	);
+});

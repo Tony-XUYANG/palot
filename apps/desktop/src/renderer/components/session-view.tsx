@@ -9,33 +9,42 @@
  * AutomationRunDetail (for automation sessions) use this component.
  */
 
-import { useNavigate, useParams } from "@tanstack/react-router"
-import { useAtomValue, useSetAtom } from "jotai"
-import { useCallback, useEffect, useState } from "react"
-import { agentFamily, sessionNameFamily } from "../atoms/derived/agents"
-import { upsertSessionAtom } from "../atoms/sessions"
-import { appStore } from "../atoms/store"
-import { viewedSessionIdAtom } from "../atoms/ui"
-import { useSessionRevert } from "../hooks/use-commands"
-import type { ModelRef } from "../hooks/use-opencode-data"
-import { useConfig, useOpenCodeAgents, useProviders, useVcs } from "../hooks/use-opencode-data"
-import { useAgentActions } from "../hooks/use-server"
-import { useSessionChat } from "../hooks/use-session-chat"
-import { createLogger } from "../lib/logger"
-import type { Agent, FileAttachment, QuestionAnswer } from "../lib/types"
-import { fetchSessionById } from "../services/connection-manager"
-import { AgentDetail } from "./agent-detail"
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useAtomValue, useSetAtom } from "jotai";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { agentFamily, sessionNameFamily } from "../atoms/derived/agents";
+import { upsertSessionAtom } from "../atoms/sessions";
+import { appStore } from "../atoms/store";
+import { viewedSessionIdAtom } from "../atoms/ui";
+import { useSessionRevert } from "../hooks/use-commands";
+import type { ModelRef } from "../hooks/use-opencode-data";
+import {
+	useConfig,
+	useOpenCodeAgents,
+	useProviders,
+	useVcs,
+} from "../hooks/use-opencode-data";
+import { useAgentActions } from "../hooks/use-server";
+import { useSessionChat } from "../hooks/use-session-chat";
+import { createLogger } from "../lib/logger";
+import type { Agent, FileAttachment, QuestionAnswer } from "../lib/types";
+import { fetchSessionById } from "../services/connection-manager";
+import { AgentDetail } from "./agent-detail";
 
-const log = createLogger("session-view")
+const log = createLogger("session-view");
 
 interface SessionViewProps {
 	/** The OpenCode session ID to display */
-	sessionId: string
+	sessionId: string;
 }
 
 export function SessionView({ sessionId }: SessionViewProps) {
-	const navigate = useNavigate()
-	const { projectSlug } = useParams({ strict: false }) as { projectSlug?: string }
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const { projectSlug } = useParams({ strict: false }) as {
+		projectSlug?: string;
+	};
 	const {
 		abort,
 		sendPrompt,
@@ -45,17 +54,17 @@ export function SessionView({ sessionId }: SessionViewProps) {
 		rejectQuestion,
 		forkSession,
 		deletePart,
-	} = useAgentActions()
+	} = useAgentActions();
 
 	// Track which session is currently viewed so background sessions can
 	// skip expensive metric recomputation.
-	const setViewedSessionId = useSetAtom(viewedSessionIdAtom)
+	const setViewedSessionId = useSetAtom(viewedSessionIdAtom);
 	useEffect(() => {
-		setViewedSessionId(sessionId)
-		return () => setViewedSessionId(null)
-	}, [sessionId, setViewedSessionId])
+		setViewedSessionId(sessionId);
+		return () => setViewedSessionId(null);
+	}, [sessionId, setViewedSessionId]);
 
-	const selectedAgent = useAtomValue(agentFamily(sessionId))
+	const selectedAgent = useAtomValue(agentFamily(sessionId));
 
 	// ── Fallback session fetch ──────────────────────────────────────────────
 	// Subagent sessions are excluded from the initial batch load (roots:true)
@@ -67,22 +76,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
 	// `resolving` stays true until either: (a) the agent is already in the
 	// store (fast-path), (b) the fallback fetch succeeds and seeds the store,
 	// or (c) the fetch fails / returns null (genuine not-found).
-	const [resolving, setResolving] = useState(!selectedAgent)
+	const [resolving, setResolving] = useState(!selectedAgent);
 
 	useEffect(() => {
 		// Fast-path: session is already in the Jotai store.
 		if (selectedAgent) {
-			setResolving(false)
-			return
+			setResolving(false);
+			return;
 		}
 
 		// The session isn't in the store — attempt a server-side fetch.
-		let cancelled = false
-		setResolving(true)
+		let cancelled = false;
+		setResolving(true);
 
 		fetchSessionById(sessionId)
 			.then((session) => {
-				if (cancelled) return
+				if (cancelled) return;
 				if (session) {
 					// Seed into the Jotai store. agentFamily will derive an Agent from
 					// this entry, causing selectedAgent to become non-null on the next
@@ -90,27 +99,30 @@ export function SessionView({ sessionId }: SessionViewProps) {
 					appStore.set(upsertSessionAtom, {
 						session,
 						directory: session.directory ?? "",
-					})
+					});
 				} else {
 					// Confirmed not found — stop resolving so "not found" renders.
-					setResolving(false)
+					setResolving(false);
 				}
 			})
 			.catch(() => {
-				if (cancelled) return
-				setResolving(false)
-			})
+				if (cancelled) return;
+				setResolving(false);
+			});
 
 		return () => {
-			cancelled = true
-		}
-	}, [sessionId]) // Only re-run when the session ID changes (not on every agent update)
+			cancelled = true;
+		};
+	}, [sessionId]); // Only re-run when the session ID changes (not on every agent update)
 
 	// Resolve parent session name for breadcrumb navigation
-	const parentSessionName = useAtomValue(sessionNameFamily(selectedAgent?.parentId ?? ""))
+	const parentSessionName = useAtomValue(
+		sessionNameFamily(selectedAgent?.parentId ?? ""),
+	);
 
 	// Load chat turns for the selected session
-	const isSessionActive = selectedAgent?.status === "running" || selectedAgent?.status === "waiting"
+	const isSessionActive =
+		selectedAgent?.status === "running" || selectedAgent?.status === "waiting";
 	const {
 		turns: chatTurns,
 		loading: chatLoading,
@@ -121,28 +133,29 @@ export function SessionView({ sessionId }: SessionViewProps) {
 		selectedAgent?.directory ?? null,
 		selectedAgent?.sessionId ?? null,
 		isSessionActive,
-	)
+	);
 
 	// Undo/redo for this session
-	const { canUndo, canRedo, undo, redo, isReverted, revertToMessage } = useSessionRevert(
-		selectedAgent?.directory ?? null,
-		selectedAgent?.sessionId ?? null,
-	)
+	const { canUndo, canRedo, undo, redo, isReverted, revertToMessage } =
+		useSessionRevert(
+			selectedAgent?.directory ?? null,
+			selectedAgent?.sessionId ?? null,
+		);
 
 	// Toolbar data -- providers, config, VCS, and OpenCode agents
-	const directory = selectedAgent?.directory ?? null
-	const { data: providers } = useProviders(directory)
-	const { data: config } = useConfig(directory)
-	const { data: vcs } = useVcs(directory)
-	const { agents: openCodeAgents } = useOpenCodeAgents(directory)
+	const directory = selectedAgent?.directory ?? null;
+	const { data: providers } = useProviders(directory);
+	const { data: config } = useConfig(directory);
+	const { data: vcs } = useVcs(directory);
+	const { agents: openCodeAgents } = useOpenCodeAgents(directory);
 
 	// Handlers
 	const handleStopAgent = useCallback(
 		async (agent: Agent) => {
-			await abort(agent.directory, agent.sessionId)
+			await abort(agent.directory, agent.sessionId);
 		},
 		[abort],
-	)
+	);
 
 	const handleApprovePermission = useCallback(
 		async (
@@ -158,74 +171,87 @@ export function SessionView({ sessionId }: SessionViewProps) {
 				permissionSessionId,
 				permissionId,
 				response ?? "once",
-			)
+			);
 		},
 		[respondToPermission],
-	)
+	);
 
 	const handleDenyPermission = useCallback(
 		async (agent: Agent, permissionSessionId: string, permissionId: string) => {
-			await respondToPermission(agent.directory, permissionSessionId, permissionId, "reject")
+			await respondToPermission(
+				agent.directory,
+				permissionSessionId,
+				permissionId,
+				"reject",
+			);
 		},
 		[respondToPermission],
-	)
+	);
 
 	const handleReplyQuestion = useCallback(
 		async (agent: Agent, requestId: string, answers: QuestionAnswer[]) => {
-			await replyToQuestion(agent.directory, requestId, answers)
+			await replyToQuestion(agent.directory, requestId, answers);
 		},
 		[replyToQuestion],
-	)
+	);
 
 	const handleRejectQuestion = useCallback(
 		async (agent: Agent, requestId: string) => {
-			await rejectQuestion(agent.directory, requestId)
+			await rejectQuestion(agent.directory, requestId);
 		},
 		[rejectQuestion],
-	)
+	);
 
 	const handleRenameSession = useCallback(
 		async (agent: Agent, title: string) => {
-			await renameSession(agent.directory, agent.sessionId, title)
+			await renameSession(agent.directory, agent.sessionId, title);
 		},
 		[renameSession],
-	)
+	);
 
 	const handleForkFromTurn = useCallback(
 		async (messageId?: string) => {
-			if (!selectedAgent) return
+			if (!selectedAgent) return;
 			try {
-				const forked = await forkSession(selectedAgent.directory, selectedAgent.sessionId, messageId)
+				const forked = await forkSession(
+					selectedAgent.directory,
+					selectedAgent.sessionId,
+					messageId,
+				);
 				if (forked && projectSlug) {
 					navigate({
 						to: "/project/$projectSlug/session/$sessionId",
 						params: { projectSlug, sessionId: forked.id },
-					})
+					});
 				}
 			} catch (err) {
-				log.error("Fork failed", { sessionId: selectedAgent.sessionId, messageId }, err)
+				log.error(
+					"Fork failed",
+					{ sessionId: selectedAgent.sessionId, messageId },
+					err,
+				);
 			}
 		},
 		[selectedAgent, forkSession, projectSlug, navigate],
-	)
+	);
 
 	const handleDeletePart = useCallback(
 		async (sessionId: string, messageId: string, partId: string) => {
-			if (!selectedAgent) return
-			await deletePart(selectedAgent.directory, sessionId, messageId, partId)
+			if (!selectedAgent) return;
+			await deletePart(selectedAgent.directory, sessionId, messageId, partId);
 		},
 		[selectedAgent, deletePart],
-	)
+	);
 
 	const handleSendMessage = useCallback(
 		async (
 			agent: Agent,
 			message: string,
 			options?: {
-				model?: ModelRef
-				agentName?: string
-				variant?: string
-				files?: FileAttachment[]
+				model?: ModelRef;
+				agentName?: string;
+				variant?: string;
+				files?: FileAttachment[];
 			},
 		) => {
 			log.debug("handleSendMessage", {
@@ -235,22 +261,28 @@ export function SessionView({ sessionId }: SessionViewProps) {
 				model: options?.model,
 				agentName: options?.agentName,
 				variant: options?.variant,
-			})
+			});
 			try {
 				await sendPrompt(agent.directory, agent.sessionId, message, {
 					model: options?.model,
 					agent: options?.agentName || undefined,
 					variant: options?.variant,
 					files: options?.files,
-				})
-				log.debug("handleSendMessage completed", { sessionId: agent.sessionId })
+				});
+				log.debug("handleSendMessage completed", {
+					sessionId: agent.sessionId,
+				});
 			} catch (err) {
-				log.error("handleSendMessage failed", { sessionId: agent.sessionId }, err)
-				throw err
+				log.error(
+					"handleSendMessage failed",
+					{ sessionId: agent.sessionId },
+					err,
+				);
+				throw err;
 			}
 		},
 		[sendPrompt],
-	)
+	);
 
 	// Session not yet resolved — show spinner while the fallback fetch runs
 	if (!selectedAgent && resolving) {
@@ -258,7 +290,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 			<div className="flex h-full items-center justify-center">
 				<div className="size-4 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
 			</div>
-		)
+		);
 	}
 
 	// Fallback fetch complete but session genuinely not found
@@ -266,13 +298,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
 		return (
 			<div className="flex h-full items-center justify-center">
 				<div className="text-center">
-					<p className="text-sm font-medium text-muted-foreground">Session not found</p>
+					<p className="text-sm font-medium text-muted-foreground">
+						{t("common.errors.sessionNotFound")}
+					</p>
 					<p className="mt-1 text-xs text-muted-foreground/60">
 						This session may have been deleted or is not yet loaded
 					</p>
 				</div>
 			</div>
-		)
+		);
 	}
 
 	return (
@@ -305,5 +339,5 @@ export function SessionView({ sessionId }: SessionViewProps) {
 			onForkFromTurn={handleForkFromTurn}
 			onDeletePart={handleDeletePart}
 		/>
-	)
+	);
 }

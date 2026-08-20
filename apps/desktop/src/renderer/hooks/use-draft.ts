@@ -1,10 +1,10 @@
-import { atom, useAtomValue } from "jotai"
-import { useCallback, useEffect, useMemo, useRef } from "react"
-import { clearDraftAtom, draftsAtom, setDraftAtom } from "../atoms/preferences"
-import { appStore } from "../atoms/store"
+import { atom, useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { clearDraftAtom, draftsAtom, setDraftAtom } from "../atoms/preferences";
+import { appStore } from "../atoms/store";
 
 /** Key used for the new-chat (landing page) draft */
-export const NEW_CHAT_DRAFT_KEY = "__new_chat__"
+export const NEW_CHAT_DRAFT_KEY = "__new_chat__";
 
 /**
  * Returns the current draft text for a given key (reactive).
@@ -12,8 +12,11 @@ export const NEW_CHAT_DRAFT_KEY = "__new_chat__"
  * do not cause re-renders. Only re-renders when this specific key's value changes.
  */
 export function useDraft(key: string): string {
-	const keyedAtom = useMemo(() => atom((get) => get(draftsAtom)[key] ?? ""), [key])
-	return useAtomValue(keyedAtom)
+	const keyedAtom = useMemo(
+		() => atom((get) => get(draftsAtom)[key] ?? ""),
+		[key],
+	);
+	return useAtomValue(keyedAtom);
 }
 
 /**
@@ -25,7 +28,7 @@ export function useDraft(key: string): string {
  * and reactive updates would cause unnecessary parent re-renders.
  */
 export function useDraftSnapshot(key: string): string {
-	return useMemo(() => appStore.get(draftsAtom)[key] ?? "", [key])
+	return useMemo(() => appStore.get(draftsAtom)[key] ?? "", [key]);
 }
 
 /**
@@ -33,53 +36,53 @@ export function useDraftSnapshot(key: string): string {
  * plus a clearDraft function for immediate cleanup.
  */
 export function useDraftActions(key: string) {
-	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const latestTextRef = useRef<string | null>(null)
-	const keyRef = useRef(key)
-	keyRef.current = key
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const latestTextRef = useRef<string | null>(null);
+	const keyRef = useRef(key);
+	keyRef.current = key;
 
 	const flush = useCallback(() => {
 		if (timerRef.current !== null) {
-			clearTimeout(timerRef.current)
-			timerRef.current = null
+			clearTimeout(timerRef.current);
+			timerRef.current = null;
 		}
 		if (latestTextRef.current !== null) {
-			const text = latestTextRef.current
-			latestTextRef.current = null
+			const text = latestTextRef.current;
+			latestTextRef.current = null;
 			if (text) {
-				appStore.set(setDraftAtom, { key: keyRef.current, text })
+				appStore.set(setDraftAtom, { key: keyRef.current, text });
 			} else {
-				appStore.set(clearDraftAtom, keyRef.current)
+				appStore.set(clearDraftAtom, keyRef.current);
 			}
 		}
-	}, [])
+	}, []);
 
 	const setDraft = useCallback(
 		(text: string) => {
-			latestTextRef.current = text
+			latestTextRef.current = text;
 			if (timerRef.current !== null) {
-				clearTimeout(timerRef.current)
+				clearTimeout(timerRef.current);
 			}
-			timerRef.current = setTimeout(flush, 500)
+			timerRef.current = setTimeout(flush, 500);
 		},
 		[flush],
-	)
+	);
 
 	const clearDraft = useCallback(() => {
 		if (timerRef.current !== null) {
-			clearTimeout(timerRef.current)
-			timerRef.current = null
+			clearTimeout(timerRef.current);
+			timerRef.current = null;
 		}
-		latestTextRef.current = null
-		appStore.set(clearDraftAtom, keyRef.current)
-	}, [])
+		latestTextRef.current = null;
+		appStore.set(clearDraftAtom, keyRef.current);
+	}, []);
 
 	// Flush pending draft on unmount
 	useEffect(() => {
 		return () => {
-			flush()
-		}
-	}, [flush])
+			flush();
+		};
+	}, [flush]);
 
-	return { setDraft, clearDraft }
+	return { setDraft, clearDraft };
 }

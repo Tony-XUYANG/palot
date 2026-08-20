@@ -4,9 +4,10 @@ import {
 	RefreshCwIcon,
 	SparklesIcon,
 	XIcon,
-} from "lucide-react"
-import { useState } from "react"
-import { useUpdater } from "../hooks/use-updater"
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useUpdater } from "../hooks/use-updater";
 
 /**
  * Floating toast-style update notification that appears in the bottom-right
@@ -20,13 +21,26 @@ import { useUpdater } from "../hooks/use-updater"
  * attempting an in-place install via Squirrel.Mac.
  */
 export function UpdateBanner() {
-	const { status, version, progress, canAutoInstall, downloadUpdate, installUpdate, openReleasePage } =
-		useUpdater()
-	const [dismissed, setDismissed] = useState(false)
+	const { t } = useTranslation();
+	const {
+		status,
+		version,
+		progress,
+		canAutoInstall,
+		downloadUpdate,
+		installUpdate,
+		openReleasePage,
+	} = useUpdater();
+	const [dismissed, setDismissed] = useState(false);
 
 	// Don't show for idle/checking/error states, or if dismissed
-	if (dismissed || status === "idle" || status === "checking" || status === "error") {
-		return null
+	if (
+		dismissed ||
+		status === "idle" ||
+		status === "checking" ||
+		status === "error"
+	) {
+		return null;
 	}
 
 	return (
@@ -37,12 +51,20 @@ export function UpdateBanner() {
 						<div className="mb-3 flex items-start justify-between gap-2">
 							<div className="flex items-start gap-2.5">
 								<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-									<SparklesIcon className="size-4 text-primary" aria-hidden="true" />
+									<SparklesIcon
+										className="size-4 text-primary"
+										aria-hidden="true"
+									/>
 								</div>
 								<div className="min-w-0">
-									<p className="text-sm font-medium leading-tight">Update available</p>
+									<p className="text-sm font-medium leading-tight">
+										{t("update.available")}
+									</p>
 									<p className="mt-0.5 text-xs text-muted-foreground">
-										{version ? `Version ${version}` : "A new version"} is ready to download
+										{version
+											? t("update.version", { version })
+											: t("update.newVersion")}{" "}
+										{t("update.readyToDownload")}
 									</p>
 								</div>
 							</div>
@@ -50,7 +72,7 @@ export function UpdateBanner() {
 								type="button"
 								onClick={() => setDismissed(true)}
 								className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-								aria-label="Dismiss update notification"
+								aria-label={t("update.dismiss")}
 							>
 								<XIcon className="size-3.5" aria-hidden="true" />
 							</button>
@@ -62,7 +84,7 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<ArrowDownToLineIcon className="size-3.5" aria-hidden="true" />
-								Download update
+								{t("update.install")}
 							</button>
 						) : (
 							<button
@@ -71,7 +93,7 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<ExternalLinkIcon className="size-3.5" aria-hidden="true" />
-								Download from GitHub
+								{t("update.downloadGithub")}
 							</button>
 						)}
 					</>
@@ -88,10 +110,16 @@ export function UpdateBanner() {
 							</div>
 							<div className="min-w-0">
 								<p className="text-sm font-medium leading-tight">
-									Downloading{version ? ` v${version}` : ""}
+									{t("update.downloading", {
+										version: version ? ` v${version}` : "",
+									})}
 								</p>
 								<p className="mt-0.5 text-xs text-muted-foreground">
-									{progress ? `${Math.round(progress.percent)}% complete` : "Starting download..."}
+									{progress
+										? t("update.percentComplete", {
+												percent: Math.round(progress.percent),
+											})
+										: t("update.startingDownload")}
 								</p>
 							</div>
 						</div>
@@ -109,14 +137,27 @@ export function UpdateBanner() {
 						<div className="mb-3 flex items-start justify-between gap-2">
 							<div className="flex items-start gap-2.5">
 								<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-									<RefreshCwIcon className="size-4 text-primary" aria-hidden="true" />
+									<RefreshCwIcon
+										className="size-4 text-primary"
+										aria-hidden="true"
+									/>
 								</div>
 								<div className="min-w-0">
-									<p className="text-sm font-medium leading-tight">Ready to install</p>
+									<p className="text-sm font-medium leading-tight">
+										{t("update.ready")}
+									</p>
 									<p className="mt-0.5 text-xs text-muted-foreground">
 										{canAutoInstall
-											? `${version ? `Version ${version}` : "Update"} downloaded. Restart to apply.`
-											: `${version ? `Version ${version}` : "Update"} is available. Download from GitHub to update.`}
+											? t("update.downloadedRestart", {
+													version: version
+														? t("update.version", { version })
+														: t("update.updateWord"),
+												})
+											: t("update.downloadGithubDescription", {
+													version: version
+														? t("update.version", { version })
+														: t("update.updateWord"),
+												})}
 									</p>
 								</div>
 							</div>
@@ -124,7 +165,7 @@ export function UpdateBanner() {
 								type="button"
 								onClick={() => setDismissed(true)}
 								className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
-								aria-label="Dismiss update notification"
+								aria-label={t("update.dismiss")}
 							>
 								<XIcon className="size-3.5" aria-hidden="true" />
 							</button>
@@ -136,7 +177,7 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<RefreshCwIcon className="size-3.5" aria-hidden="true" />
-								Restart now
+								{t("update.restartNow")}
 							</button>
 						) : (
 							<button
@@ -145,12 +186,12 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<ExternalLinkIcon className="size-3.5" aria-hidden="true" />
-								Download from GitHub
+								{t("update.downloadGithub")}
 							</button>
 						)}
 					</>
 				)}
 			</div>
 		</div>
-	)
+	);
 }

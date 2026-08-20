@@ -9,12 +9,12 @@
  * and worktree operations target the correct OpenCode instance.
  */
 
-import type { OpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { createOpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { createLogger } from "../logger"
-import { getServerUrl } from "../opencode-manager"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { createLogger } from "../logger";
+import { getServerUrl } from "../opencode-manager";
 
-const log = createLogger("automation-client")
+const log = createLogger("automation-client");
 
 /**
  * Creates an OpenCode SDK client for automation use in the main process.
@@ -22,18 +22,20 @@ const log = createLogger("automation-client")
  * @param directory  Project directory to scope the client to
  * @returns SDK client, or null if no server is running
  */
-export function createAutomationClient(directory: string): OpencodeClient | null {
-	const url = getServerUrl()
+export function createAutomationClient(
+	directory: string,
+): OpencodeClient | null {
+	const url = getServerUrl();
 	if (!url) {
-		log.warn("Cannot create automation client: no OpenCode server running")
-		return null
+		log.warn("Cannot create automation client: no OpenCode server running");
+		return null;
 	}
 
-	log.debug("Creating automation SDK client", { url, directory })
+	log.debug("Creating automation SDK client", { url, directory });
 	return createOpencodeClient({
 		baseUrl: url,
 		directory,
-	})
+	});
 }
 
 /**
@@ -41,11 +43,13 @@ export function createAutomationClient(directory: string): OpencodeClient | null
  * Used for global operations like subscribing to SSE events.
  */
 export function createBaseAutomationClient(): OpencodeClient | null {
-	const url = getServerUrl()
+	const url = getServerUrl();
 	if (!url) {
-		log.warn("Cannot create base automation client: no OpenCode server running")
-		return null
+		log.warn(
+			"Cannot create base automation client: no OpenCode server running",
+		);
+		return null;
 	}
 
-	return createOpencodeClient({ baseUrl: url })
+	return createOpencodeClient({ baseUrl: url });
 }

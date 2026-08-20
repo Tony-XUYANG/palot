@@ -8,37 +8,37 @@
  *
  */
 
-import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron"
-import { createLogger } from "./logger"
+import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
+import { createLogger } from "./logger";
 
-const log = createLogger("liquid-glass")
+const log = createLogger("liquid-glass");
 
 // ============================================================
 // Types
 // ============================================================
 
-export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque"
+export type WindowChromeTier = "liquid-glass" | "vibrancy" | "opaque";
 
 export interface WindowChromeResult {
-	tier: WindowChromeTier
-	options: Partial<BrowserWindowConstructorOptions>
+	tier: WindowChromeTier;
+	options: Partial<BrowserWindowConstructorOptions>;
 }
 
 // ============================================================
 // Liquid glass support detection (cached singleton)
 // ============================================================
 
-let _glassSupport: boolean | null = null
+let _glassSupport: boolean | null = null;
 // biome-ignore lint: dynamic import type for optional macOS-only native module
-let _glassModule: any = null
-let _resolvedTier: WindowChromeTier = "opaque"
+let _glassModule: any = null;
+let _resolvedTier: WindowChromeTier = "opaque";
 
 /**
  * Get the last resolved chrome tier.
  * Available after resolveWindowChrome() has been called.
  */
 export function getResolvedChromeTier(): WindowChromeTier {
-	return _resolvedTier
+	return _resolvedTier;
 }
 
 /**
@@ -46,31 +46,31 @@ export function getResolvedChromeTier(): WindowChromeTier {
  * Result is cached after first call.
  */
 export async function isLiquidGlassSupported(): Promise<boolean> {
-	if (_glassSupport !== null) return _glassSupport
+	if (_glassSupport !== null) return _glassSupport;
 
 	try {
 		// Dynamic import — electron-liquid-glass is a macOS-only optional native module
 		// and may not be present on other platforms or in CI environments.
 		// Use a variable to prevent static module resolution in tsgo on Linux CI.
-		const moduleName = "electron-liquid-glass"
-		const mod = await import(/* @vite-ignore */ moduleName)
-		_glassModule = mod
-		const glass = mod.default
-		_glassSupport = glass.isGlassSupported() as boolean
-		log.info(`Liquid glass supported: ${_glassSupport}`)
+		const moduleName = "electron-liquid-glass";
+		const mod = await import(/* @vite-ignore */ moduleName);
+		_glassModule = mod;
+		const glass = mod.default;
+		_glassSupport = glass.isGlassSupported() as boolean;
+		log.info(`Liquid glass supported: ${_glassSupport}`);
 	} catch (err) {
-		log.warn("Failed to load electron-liquid-glass:", err)
-		_glassSupport = false
+		log.warn("Failed to load electron-liquid-glass:", err);
+		_glassSupport = false;
 	}
 
-	return _glassSupport as boolean
+	return _glassSupport as boolean;
 }
 
 /**
  * Get the cached liquid glass module, or null if not available.
  */
 function getGlassModule() {
-	return _glassModule
+	return _glassModule;
 }
 
 // ============================================================
@@ -84,13 +84,15 @@ function getGlassModule() {
  * @param isOpaque - Whether the user has opted for opaque windows
  * @returns BrowserWindow options to spread into the constructor
  */
-export async function resolveWindowChrome(isOpaque: boolean): Promise<WindowChromeResult> {
-	const isMac = process.platform === "darwin"
+export async function resolveWindowChrome(
+	isOpaque: boolean,
+): Promise<WindowChromeResult> {
+	const isMac = process.platform === "darwin";
 
 	// Tier 3: Opaque — user preference or non-macOS
 	if (isOpaque || !isMac) {
-		log.info("Using opaque window chrome (tier 3)")
-		_resolvedTier = "opaque"
+		log.info("Using opaque window chrome (tier 3)");
+		_resolvedTier = "opaque";
 		return {
 			tier: "opaque",
 			options: {
@@ -99,16 +101,16 @@ export async function resolveWindowChrome(isOpaque: boolean): Promise<WindowChro
 					trafficLightPosition: { x: 15, y: 15 },
 				}),
 			},
-		}
+		};
 	}
 
 	// Check liquid glass support
-	const glassSupported = await isLiquidGlassSupported()
+	const glassSupported = await isLiquidGlassSupported();
 
 	// Tier 1: Liquid Glass — macOS 26+ (Tahoe)
 	if (glassSupported) {
-		log.info("Using liquid glass window chrome (tier 1)")
-		_resolvedTier = "liquid-glass"
+		log.info("Using liquid glass window chrome (tier 1)");
+		_resolvedTier = "liquid-glass";
 		return {
 			tier: "liquid-glass",
 			options: {
@@ -116,12 +118,12 @@ export async function resolveWindowChrome(isOpaque: boolean): Promise<WindowChro
 				titleBarStyle: "hiddenInset" as const,
 				trafficLightPosition: { x: 15, y: 15 },
 			},
-		}
+		};
 	}
 
 	// Tier 2: Vibrancy — older macOS
-	log.info("Using vibrancy window chrome (tier 2)")
-	_resolvedTier = "vibrancy"
+	log.info("Using vibrancy window chrome (tier 2)");
+	_resolvedTier = "vibrancy";
 	return {
 		tier: "vibrancy",
 		options: {
@@ -130,7 +132,7 @@ export async function resolveWindowChrome(isOpaque: boolean): Promise<WindowChro
 			titleBarStyle: "hiddenInset" as const,
 			trafficLightPosition: { x: 15, y: 15 },
 		},
-	}
+	};
 }
 
 // ============================================================
@@ -147,46 +149,51 @@ export async function resolveWindowChrome(isOpaque: boolean): Promise<WindowChro
  * @param win - The BrowserWindow to apply glass to
  * @param isOpaque - Whether to use opaque mode (passes opaque flag to native)
  */
-export async function installLiquidGlass(win: BrowserWindow, isOpaque: boolean): Promise<void> {
-	const mod = getGlassModule()
+export async function installLiquidGlass(
+	win: BrowserWindow,
+	isOpaque: boolean,
+): Promise<void> {
+	const mod = getGlassModule();
 	if (!mod) {
-		log.warn("Cannot install liquid glass — module not loaded")
-		return
+		log.warn("Cannot install liquid glass — module not loaded");
+		return;
 	}
 
-	const glass = mod.default
+	const glass = mod.default;
 
 	// Ensure the page has loaded before applying glass
 	const applyGlass = () => {
 		try {
-			win.setWindowButtonVisibility(true)
+			win.setWindowButtonVisibility(true);
 
-			const handle = win.getNativeWindowHandle()
-			const viewId = glass.addView(handle, isOpaque ? { opaque: true } : {})
+			const handle = win.getNativeWindowHandle();
+			const viewId = glass.addView(handle, isOpaque ? { opaque: true } : {});
 
 			if (viewId === -1) {
 				// Glass failed — fall back to vibrancy
-				log.warn("Liquid glass addView returned -1, falling back to vibrancy")
-				win.setVibrancy("menu")
-				return
+				log.warn("Liquid glass addView returned -1, falling back to vibrancy");
+				win.setVibrancy("menu");
+				return;
 			}
 
-			log.info(`Liquid glass installed (viewId: ${viewId}, opaque: ${isOpaque})`)
+			log.info(
+				`Liquid glass installed (viewId: ${viewId}, opaque: ${isOpaque})`,
+			);
 		} catch (err) {
-			log.error("Failed to install liquid glass:", err)
+			log.error("Failed to install liquid glass:", err);
 			// Fall back to vibrancy on error
 			try {
-				win.setVibrancy("menu")
+				win.setVibrancy("menu");
 			} catch {
 				// Ignore vibrancy fallback errors
 			}
 		}
-	}
+	};
 
 	// Apply glass once the page finishes loading
 	if (win.webContents.isLoading()) {
-		win.webContents.once("did-finish-load", applyGlass)
+		win.webContents.once("did-finish-load", applyGlass);
 	} else {
-		applyGlass()
+		applyGlass();
 	}
 }

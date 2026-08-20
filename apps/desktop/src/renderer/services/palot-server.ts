@@ -6,25 +6,25 @@
  * so the desktop app doesn't need Bun types.
  */
 
-import { createClient } from "@palot/server/client"
+import { createClient } from "@palot/server/client";
 
-const BASE_URL = "http://localhost:3100"
+const BASE_URL = "http://localhost:3100";
 
 /**
  * Pre-typed Hono RPC client.
  * All routes are fully typed — autocomplete on paths, inferred request/response types.
  */
-export const client = createClient(BASE_URL)
+export const client = createClient(BASE_URL);
 
 /**
  * Fetches all running OpenCode servers (detected + managed).
  */
 export async function fetchServers() {
-	const res = await client.api.servers.$get()
+	const res = await client.api.servers.$get();
 	if (!res.ok) {
-		throw new Error(`Server list failed: ${res.status} ${res.statusText}`)
+		throw new Error(`Server list failed: ${res.status} ${res.statusText}`);
 	}
-	return res.json()
+	return res.json();
 }
 
 /**
@@ -32,12 +32,14 @@ export async function fetchServers() {
  * Calls `GET /api/servers/opencode` on the Palot backend.
  */
 export async function fetchOpenCodeUrl(): Promise<{ url: string }> {
-	const res = await client.api.servers.opencode.$get()
+	const res = await client.api.servers.opencode.$get();
 	if (!res.ok) {
-		const data = await res.json()
-		throw new Error("error" in data ? data.error : "Failed to get OpenCode server URL")
+		const data = await res.json();
+		throw new Error(
+			"error" in data ? data.error : "Failed to get OpenCode server URL",
+		);
 	}
-	return res.json()
+	return res.json();
 }
 
 /**
@@ -45,33 +47,40 @@ export async function fetchOpenCodeUrl(): Promise<{ url: string }> {
  * from the backend, which reads ~/.local/state/opencode/model.json.
  */
 export async function fetchModelState(): Promise<{
-	recent: { providerID: string; modelID: string }[]
-	favorite: { providerID: string; modelID: string }[]
-	variant: Record<string, string | undefined>
+	recent: { providerID: string; modelID: string }[];
+	favorite: { providerID: string; modelID: string }[];
+	variant: Record<string, string | undefined>;
 }> {
-	const res = await client.api["model-state"].$get()
+	const res = await client.api["model-state"].$get();
 	if (!res.ok) {
-		throw new Error(`Model state fetch failed: ${res.status} ${res.statusText}`)
+		throw new Error(
+			`Model state fetch failed: ${res.status} ${res.statusText}`,
+		);
 	}
-	return res.json()
+	return res.json();
 }
 
 /**
  * Updates the recent model list via the backend server.
  * Adds the model to the front, deduplicates, caps at 10.
  */
-export async function updateModelRecent(model: { providerID: string; modelID: string }): Promise<{
-	recent: { providerID: string; modelID: string }[]
-	favorite: { providerID: string; modelID: string }[]
-	variant: Record<string, string | undefined>
+export async function updateModelRecent(model: {
+	providerID: string;
+	modelID: string;
+}): Promise<{
+	recent: { providerID: string; modelID: string }[];
+	favorite: { providerID: string; modelID: string }[];
+	variant: Record<string, string | undefined>;
 }> {
 	const res = await client.api["model-state"].recent.$post({
 		json: model,
-	})
+	});
 	if (!res.ok) {
-		throw new Error(`Model state update failed: ${res.status} ${res.statusText}`)
+		throw new Error(
+			`Model state update failed: ${res.status} ${res.statusText}`,
+		);
 	}
-	return res.json()
+	return res.json();
 }
 
 /**
@@ -79,9 +88,9 @@ export async function updateModelRecent(model: { providerID: string; modelID: st
  */
 export async function checkServerHealth() {
 	try {
-		const res = await client.health.$get()
-		return res.ok
+		const res = await client.health.$get();
+		return res.ok;
 	} catch {
-		return false
+		return false;
 	}
 }

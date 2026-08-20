@@ -12,33 +12,34 @@ import {
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-} from "@palot/ui/components/dialog"
-import { Input } from "@palot/ui/components/input"
-import { ScrollArea } from "@palot/ui/components/scroll-area"
-import { cn } from "@palot/ui/lib/utils"
-import { useQuery } from "@tanstack/react-query"
-import fuzzysort from "fuzzysort"
-import { BookOpenIcon, SearchIcon } from "lucide-react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { getProjectClient } from "../../services/connection-manager"
+} from "@palot/ui/components/dialog";
+import { Input } from "@palot/ui/components/input";
+import { ScrollArea } from "@palot/ui/components/scroll-area";
+import { cn } from "@palot/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import fuzzysort from "fuzzysort";
+import { BookOpenIcon, SearchIcon } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getProjectClient } from "../../services/connection-manager";
 
 // ============================================================
 // Types
 // ============================================================
 
 interface Skill {
-	name: string
-	description: string
-	location: string
+	name: string;
+	description: string;
+	location: string;
 }
 
 interface SkillPickerDialogProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	/** Project directory for fetching skills */
-	directory: string | null
+	directory: string | null;
 	/** Called when a skill is selected — inserts `/skillname ` into input */
-	onSelect: (skillName: string) => void
+	onSelect: (skillName: string) => void;
 }
 
 // ============================================================
@@ -49,16 +50,16 @@ function useSkills(directory: string | null, enabled: boolean) {
 	const { data, isLoading } = useQuery({
 		queryKey: ["skills", directory],
 		queryFn: async () => {
-			const client = getProjectClient(directory!)
-			if (!client) return []
-			const result = await client.app.skills()
-			return (result.data ?? []) as Skill[]
+			const client = getProjectClient(directory!);
+			if (!client) return [];
+			const result = await client.app.skills();
+			return (result.data ?? []) as Skill[];
 		},
 		enabled: !!directory && enabled,
 		staleTime: 30_000,
-	})
+	});
 
-	return { skills: data ?? [], isLoading }
+	return { skills: data ?? [], isLoading };
 }
 
 // ============================================================
@@ -71,85 +72,86 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 	directory,
 	onSelect,
 }: SkillPickerDialogProps) {
-	const [search, setSearch] = useState("")
-	const [activeIndex, setActiveIndex] = useState(0)
-	const searchRef = useRef<HTMLInputElement>(null)
-	const listRef = useRef<HTMLDivElement>(null)
+	const { t } = useTranslation();
+	const [search, setSearch] = useState("");
+	const [activeIndex, setActiveIndex] = useState(0);
+	const searchRef = useRef<HTMLInputElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
 
-	const { skills, isLoading } = useSkills(directory, open)
+	const { skills, isLoading } = useSkills(directory, open);
 
 	// Fuzzy filter
 	const filtered = useMemo<Skill[]>(() => {
-		if (!search) return skills
+		if (!search) return skills;
 		const results = fuzzysort.go(search, skills, {
 			keys: ["name", "description"],
 			threshold: 0.3,
-		})
-		return results.map((r) => r.obj)
-	}, [skills, search])
+		});
+		return results.map((r) => r.obj);
+	}, [skills, search]);
 
 	// Reset state when dialog opens
 	useEffect(() => {
 		if (open) {
-			setSearch("")
-			setActiveIndex(0)
+			setSearch("");
+			setActiveIndex(0);
 			// Focus search input after animation
 			requestAnimationFrame(() => {
-				searchRef.current?.focus()
-			})
+				searchRef.current?.focus();
+			});
 		}
-	}, [open])
+	}, [open]);
 
 	// Reset active index on filter change
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on filter change
 	useEffect(() => {
-		setActiveIndex(0)
-	}, [filtered.length, search])
+		setActiveIndex(0);
+	}, [filtered.length, search]);
 
 	// Scroll active item into view
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — scroll when active index changes
 	useEffect(() => {
-		const list = listRef.current
-		if (!list) return
-		const active = list.querySelector("[data-active=true]")
+		const list = listRef.current;
+		if (!list) return;
+		const active = list.querySelector("[data-active=true]");
 		if (active) {
-			active.scrollIntoView({ block: "nearest" })
+			active.scrollIntoView({ block: "nearest" });
 		}
-	}, [activeIndex])
+	}, [activeIndex]);
 
 	const handleSelect = useCallback(
 		(skill: Skill) => {
-			onSelect(skill.name)
-			onOpenChange(false)
+			onSelect(skill.name);
+			onOpenChange(false);
 		},
 		[onSelect, onOpenChange],
-	)
+	);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
-			if (filtered.length === 0) return
+			if (filtered.length === 0) return;
 
 			switch (e.key) {
 				case "ArrowDown": {
-					e.preventDefault()
-					setActiveIndex((i) => (i + 1) % filtered.length)
-					break
+					e.preventDefault();
+					setActiveIndex((i) => (i + 1) % filtered.length);
+					break;
 				}
 				case "ArrowUp": {
-					e.preventDefault()
-					setActiveIndex((i) => (i - 1 + filtered.length) % filtered.length)
-					break
+					e.preventDefault();
+					setActiveIndex((i) => (i - 1 + filtered.length) % filtered.length);
+					break;
 				}
 				case "Enter": {
-					e.preventDefault()
-					const selected = filtered[activeIndex]
-					if (selected) handleSelect(selected)
-					break
+					e.preventDefault();
+					const selected = filtered[activeIndex];
+					if (selected) handleSelect(selected);
+					break;
 				}
 			}
 		},
 		[filtered, activeIndex, handleSelect],
-	)
+	);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,9 +159,11 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 				<DialogHeader className="p-4 pb-0">
 					<DialogTitle className="flex items-center gap-2 text-base">
 						<BookOpenIcon className="size-4" />
-						Skills
+						{t("chat.skills.title")}
 					</DialogTitle>
-					<DialogDescription>Select a skill to use in your prompt</DialogDescription>
+					<DialogDescription>
+						{t("chat.skills.description")}
+					</DialogDescription>
 				</DialogHeader>
 
 				{/* Search */}
@@ -170,7 +174,7 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						onKeyDown={handleKeyDown}
-						placeholder="Search skills..."
+						placeholder={t("chat.skills.search")}
 						className="pl-9"
 					/>
 				</div>
@@ -180,13 +184,15 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 					<div ref={listRef}>
 						{isLoading && (
 							<div className="py-8 text-center text-sm text-muted-foreground">
-								Loading skills...
+								{t("chat.skills.loading")}
 							</div>
 						)}
 
 						{!isLoading && filtered.length === 0 && (
 							<div className="py-8 text-center text-sm text-muted-foreground">
-								{search ? "No skills found" : "No skills available"}
+								{search
+									? t("chat.skills.noneFound")
+									: t("chat.skills.noneAvailable")}
 							</div>
 						)}
 
@@ -197,7 +203,9 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 								data-active={idx === activeIndex}
 								className={cn(
 									"flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left transition-colors",
-									idx === activeIndex ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+									idx === activeIndex
+										? "bg-accent text-accent-foreground"
+										: "hover:bg-muted",
 								)}
 								onClick={() => handleSelect(skill)}
 								onMouseEnter={() => setActiveIndex(idx)}
@@ -214,5 +222,5 @@ export const SkillPickerDialog = memo(function SkillPickerDialog({
 				</ScrollArea>
 			</DialogContent>
 		</Dialog>
-	)
-})
+	);
+});

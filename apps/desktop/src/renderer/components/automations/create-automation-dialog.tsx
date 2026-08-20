@@ -5,8 +5,8 @@
  * pre-fills fields from the automation, and shows Delete/Test/Pause actions.
  */
 
-import { Badge } from "@palot/ui/components/badge"
-import { Button } from "@palot/ui/components/button"
+import { Badge } from "@palot/ui/components/badge";
+import { Button } from "@palot/ui/components/button";
 import {
 	Combobox,
 	ComboboxContent,
@@ -14,19 +14,19 @@ import {
 	ComboboxInput,
 	ComboboxItem,
 	ComboboxList,
-} from "@palot/ui/components/combobox"
+} from "@palot/ui/components/combobox";
 import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@palot/ui/components/dialog"
-import { Input } from "@palot/ui/components/input"
-import { Label } from "@palot/ui/components/label"
-import { Separator } from "@palot/ui/components/separator"
-import { Textarea } from "@palot/ui/components/textarea"
-import { useAtomValue } from "jotai"
+} from "@palot/ui/components/dialog";
+import { Input } from "@palot/ui/components/input";
+import { Label } from "@palot/ui/components/label";
+import { Separator } from "@palot/ui/components/separator";
+import { Textarea } from "@palot/ui/components/textarea";
+import { useAtomValue } from "jotai";
 import {
 	FolderIcon,
 	FolderOpenIcon,
@@ -34,52 +34,64 @@ import {
 	PlayIcon,
 	Trash2Icon,
 	TriangleIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
-import type { Automation } from "../../../preload/api"
-import { activeServerConfigAtom } from "../../atoms/connection"
-import { discoveryProjectsAtom } from "../../atoms/discovery"
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import type { Automation } from "../../../preload/api";
+import { activeServerConfigAtom } from "../../atoms/connection";
+import { discoveryProjectsAtom } from "../../atoms/discovery";
+import type { ModelRef } from "../../hooks/use-opencode-data";
 import {
+	getModelVariants,
 	useModelState,
 	useOpenCodeAgents,
 	useProviders,
-} from "../../hooks/use-opencode-data"
+} from "../../hooks/use-opencode-data";
 import {
 	createAutomation,
 	deleteAutomation,
 	pickDirectory,
 	runAutomationNow,
 	updateAutomation,
-} from "../../services/backend"
-import type { ModelRef } from "../../hooks/use-opencode-data"
-import { AgentSelector, ModelSelector, VariantSelector } from "../chat/prompt-toolbar"
-import { SchedulePicker } from "./schedule-picker"
-import { getModelVariants } from "../../hooks/use-opencode-data"
+} from "../../services/backend";
+import {
+	AgentSelector,
+	ModelSelector,
+	VariantSelector,
+} from "../chat/prompt-toolbar";
+import { SchedulePicker } from "./schedule-picker";
 
 interface CreateAutomationDialogProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	/** When set, the dialog is in "edit" mode and pre-fills from this automation. */
-	editAutomation?: Automation | null
+	editAutomation?: Automation | null;
 }
 
-const DEFAULT_RRULE = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"
+const DEFAULT_RRULE = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0";
 
 // ============================================================
 // Helpers
 // ============================================================
 
-function formatDate(ts: number): string {
-	return new Date(ts).toLocaleDateString("en-US", {
+function formatDate(ts: number, locale: string): string {
+	return new Date(ts).toLocaleDateString(locale, {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
-	})
+	});
 }
 
-function ProjectChip({ path, onRemove }: { path: string; onRemove: () => void }) {
-	const name = path.split("/").pop() ?? path
+function ProjectChip({
+	path,
+	onRemove,
+}: {
+	path: string;
+	onRemove: () => void;
+}) {
+	const { t } = useTranslation();
+	const name = path.split("/").pop() ?? path;
 	return (
 		<span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs">
 			{name}
@@ -87,12 +99,12 @@ function ProjectChip({ path, onRemove }: { path: string; onRemove: () => void })
 				type="button"
 				onClick={onRemove}
 				className="ml-0.5 text-muted-foreground hover:text-foreground"
-				aria-label={`Remove ${name}`}
+				aria-label={`${t("common.actions.delete")} ${name}`}
 			>
 				&times;
 			</button>
 		</span>
-	)
+	);
 }
 
 // ============================================================
@@ -104,92 +116,99 @@ export function CreateAutomationDialog({
 	onOpenChange,
 	editAutomation,
 }: CreateAutomationDialogProps) {
-	const isEditing = !!editAutomation
+	const { t, i18n } = useTranslation();
+	const isEditing = !!editAutomation;
 
-	const [name, setName] = useState("")
-	const [prompt, setPrompt] = useState("")
-	const [workspaces, setWorkspaces] = useState<string[]>([])
-	const [rrule, setRrule] = useState(DEFAULT_RRULE)
-	const [isSubmitting, setIsSubmitting] = useState(false)
-	const [isTesting, setIsTesting] = useState(false)
+	const [name, setName] = useState("");
+	const [prompt, setPrompt] = useState("");
+	const [workspaces, setWorkspaces] = useState<string[]>([]);
+	const [rrule, setRrule] = useState(DEFAULT_RRULE);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isTesting, setIsTesting] = useState(false);
 
 	// Model / agent / variant state
-	const [selectedModel, setSelectedModel] = useState<ModelRef | null>(null)
-	const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
-	const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined)
+	const [selectedModel, setSelectedModel] = useState<ModelRef | null>(null);
+	const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+	const [selectedVariant, setSelectedVariant] = useState<string | undefined>(
+		undefined,
+	);
 
 	// Use the first workspace (or null) to scope provider/agent fetching.
 	// Providers are server-level and consistent across directories; this is
 	// the same pattern used by the new-chat screen.
-	const directory = workspaces[0] ?? null
+	const directory = workspaces[0] ?? null;
 
-	const { data: providers } = useProviders(directory)
-	const { agents } = useOpenCodeAgents(directory)
-	const { recentModels } = useModelState()
+	const { data: providers } = useProviders(directory);
+	const { agents } = useOpenCodeAgents(directory);
+	const { recentModels } = useModelState();
 
 	// Compute available variants for the selected model
 	const variants = useMemo(() => {
-		if (!selectedModel || !providers) return []
-		return getModelVariants(selectedModel.providerID, selectedModel.modelID, providers.providers)
-	}, [selectedModel, providers])
+		if (!selectedModel || !providers) return [];
+		return getModelVariants(
+			selectedModel.providerID,
+			selectedModel.modelID,
+			providers.providers,
+		);
+	}, [selectedModel, providers]);
 
 	// Reset variant when model changes and the selected variant is no longer valid
 	useEffect(() => {
 		if (selectedVariant && !variants.includes(selectedVariant)) {
-			setSelectedVariant(undefined)
+			setSelectedVariant(undefined);
 		}
-	}, [variants, selectedVariant])
+	}, [variants, selectedVariant]);
 
 	// Pre-fill form when editing
 	useEffect(() => {
 		if (open && editAutomation) {
-			setName(editAutomation.name)
-			setPrompt(editAutomation.prompt)
-			setWorkspaces([...editAutomation.workspaces])
-			setRrule(editAutomation.schedule.rrule)
+			setName(editAutomation.name);
+			setPrompt(editAutomation.prompt);
+			setWorkspaces([...editAutomation.workspaces]);
+			setRrule(editAutomation.schedule.rrule);
 			// Pre-fill model/agent/variant from execution config
-			const exec = editAutomation.execution
+			const exec = editAutomation.execution;
 			if (exec.model) {
-				const slashIdx = exec.model.indexOf("/")
+				const slashIdx = exec.model.indexOf("/");
 				if (slashIdx > 0) {
 					setSelectedModel({
 						providerID: exec.model.slice(0, slashIdx),
 						modelID: exec.model.slice(slashIdx + 1),
-					})
+					});
 				}
 			} else {
-				setSelectedModel(null)
+				setSelectedModel(null);
 			}
-			setSelectedAgent(exec.agent ?? null)
-			setSelectedVariant(exec.variant ?? undefined)
+			setSelectedAgent(exec.agent ?? null);
+			setSelectedVariant(exec.variant ?? undefined);
 		} else if (open && !editAutomation) {
-			setName("")
-			setPrompt("")
-			setWorkspaces([])
-			setRrule(DEFAULT_RRULE)
-			setSelectedModel(null)
-			setSelectedAgent(null)
-			setSelectedVariant(undefined)
+			setName("");
+			setPrompt("");
+			setWorkspaces([]);
+			setRrule(DEFAULT_RRULE);
+			setSelectedModel(null);
+			setSelectedAgent(null);
+			setSelectedVariant(undefined);
 		}
-	}, [open, editAutomation])
+	}, [open, editAutomation]);
 
-	const canSave = name.trim().length > 0 && prompt.trim().length > 0
+	const canSave = name.trim().length > 0 && prompt.trim().length > 0;
 
 	const buildExecutionPatch = useCallback(() => {
 		const modelStr = selectedModel
 			? `${selectedModel.providerID}/${selectedModel.modelID}`
-			: undefined
+			: undefined;
 		return {
 			effort: "medium" as const,
 			...(modelStr ? { model: modelStr } : {}),
 			...(selectedAgent ? { agent: selectedAgent } : {}),
 			...(selectedVariant ? { variant: selectedVariant } : {}),
-		}
-	}, [selectedModel, selectedAgent, selectedVariant])
+		};
+	}, [selectedModel, selectedAgent, selectedVariant]);
 
 	const handleSubmit = useCallback(async () => {
-		if (!canSave || isSubmitting) return
-		setIsSubmitting(true)
+		if (!canSave || isSubmitting) return;
+		setIsSubmitting(true);
 		try {
 			if (isEditing && editAutomation) {
 				await updateAutomation({
@@ -202,7 +221,7 @@ export function CreateAutomationDialog({
 					},
 					workspaces,
 					execution: buildExecutionPatch(),
-				})
+				});
 			} else {
 				await createAutomation({
 					name: name.trim(),
@@ -213,15 +232,20 @@ export function CreateAutomationDialog({
 					},
 					workspaces,
 					execution: buildExecutionPatch(),
-				})
+				});
 			}
-			onOpenChange(false)
+			onOpenChange(false);
 		} catch (err) {
-			toast.error(isEditing ? "Failed to save automation" : "Failed to create automation", {
-				description: err instanceof Error ? err.message : undefined,
-			})
+			toast.error(
+				isEditing
+					? t("automations.saveFailed")
+					: t("automations.createFailed"),
+				{
+					description: err instanceof Error ? err.message : undefined,
+				},
+			);
 		} finally {
-			setIsSubmitting(false)
+			setIsSubmitting(false);
 		}
 	}, [
 		canSave,
@@ -234,15 +258,16 @@ export function CreateAutomationDialog({
 		workspaces,
 		onOpenChange,
 		buildExecutionPatch,
-	])
+		t,
+	]);
 
-	const activeServer = useAtomValue(activeServerConfigAtom)
-	const isRemote = activeServer.type !== "local"
-	const [remotePathInput, setRemotePathInput] = useState("")
-	const [showRemoteInput, setShowRemoteInput] = useState(false)
+	const activeServer = useAtomValue(activeServerConfigAtom);
+	const isRemote = activeServer.type !== "local";
+	const [remotePathInput, setRemotePathInput] = useState("");
+	const [showRemoteInput, setShowRemoteInput] = useState(false);
 
 	// Discovered projects from OpenCode SDK
-	const discoveredProjects = useAtomValue(discoveryProjectsAtom)
+	const discoveredProjects = useAtomValue(discoveryProjectsAtom);
 	const availableProjects = useMemo(
 		() =>
 			discoveredProjects
@@ -253,98 +278,108 @@ export function CreateAutomationDialog({
 					path: p.worktree,
 				})),
 		[discoveredProjects, workspaces],
-	)
+	);
 
 	const handleCancel = useCallback(() => {
-		onOpenChange(false)
-	}, [onOpenChange])
+		onOpenChange(false);
+	}, [onOpenChange]);
 
 	const handleAddProject = useCallback(async () => {
 		if (isRemote) {
 			// Remote server: show inline text input for typing the path
-			setShowRemoteInput(true)
-			return
+			setShowRemoteInput(true);
+			return;
 		}
 		// Local server: use native folder picker
-		const dir = await pickDirectory()
+		const dir = await pickDirectory();
 		if (dir && !workspaces.includes(dir)) {
-			setWorkspaces((prev) => [...prev, dir])
+			setWorkspaces((prev) => [...prev, dir]);
 		}
-	}, [isRemote, workspaces])
+	}, [isRemote, workspaces]);
 
 	const handleAddRemotePath = useCallback(() => {
-		const trimmed = remotePathInput.trim()
+		const trimmed = remotePathInput.trim();
 		if (trimmed && !workspaces.includes(trimmed)) {
-			setWorkspaces((prev) => [...prev, trimmed])
+			setWorkspaces((prev) => [...prev, trimmed]);
 		}
-		setRemotePathInput("")
-		setShowRemoteInput(false)
-	}, [remotePathInput, workspaces])
+		setRemotePathInput("");
+		setShowRemoteInput(false);
+	}, [remotePathInput, workspaces]);
 
 	const handleRemoveProject = useCallback((path: string) => {
-		setWorkspaces((prev) => prev.filter((w) => w !== path))
-	}, [])
+		setWorkspaces((prev) => prev.filter((w) => w !== path));
+	}, []);
 
 	const handleDelete = useCallback(async () => {
-		if (!editAutomation) return
+		if (!editAutomation) return;
 		try {
-			await deleteAutomation(editAutomation.id)
-			onOpenChange(false)
+			await deleteAutomation(editAutomation.id);
+			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to delete automation", {
+			toast.error(t("automations.deleteFailed"), {
 				description: err instanceof Error ? err.message : undefined,
-			})
+			});
 		}
-	}, [editAutomation, onOpenChange])
+	}, [editAutomation, onOpenChange, t]);
 
 	const handleTest = useCallback(async () => {
-		if (!editAutomation || isTesting) return
-		setIsTesting(true)
+		if (!editAutomation || isTesting) return;
+		setIsTesting(true);
 		try {
-			await runAutomationNow(editAutomation.id)
-			toast.success("Automation run started", {
-				description: "Check the inbox for results.",
-			})
-			onOpenChange(false)
+			await runAutomationNow(editAutomation.id);
+			toast.success(t("automations.runStarted"), {
+				description: t("automations.checkInbox"),
+			});
+			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to run automation", {
+			toast.error(t("automations.runFailed"), {
 				description: err instanceof Error ? err.message : undefined,
-			})
+			});
 		} finally {
-			setIsTesting(false)
+			setIsTesting(false);
 		}
-	}, [editAutomation, isTesting, onOpenChange])
+	}, [editAutomation, isTesting, onOpenChange, t]);
 
 	const handleTogglePause = useCallback(async () => {
-		if (!editAutomation) return
+		if (!editAutomation) return;
 		try {
 			await updateAutomation({
 				id: editAutomation.id,
 				status: editAutomation.status === "paused" ? "active" : "paused",
-			})
-			onOpenChange(false)
+			});
+			onOpenChange(false);
 		} catch (err) {
-			toast.error("Failed to update automation", {
+			toast.error(t("automations.updateFailed"), {
 				description: err instanceof Error ? err.message : undefined,
-			})
+			});
 		}
-	}, [editAutomation, onOpenChange])
+	}, [editAutomation, onOpenChange, t]);
 
-	const isPaused = editAutomation?.status === "paused"
+	const isPaused = editAutomation?.status === "paused";
 
 	// Default agent for the AgentSelector fallback display
-	const defaultAgent = agents[0]?.name
+	const defaultAgent = agents[0]?.name;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<div className="flex items-start justify-between gap-4">
-						<DialogTitle>{isEditing ? "Edit automation" : "Create automation"}</DialogTitle>
+						<DialogTitle>
+							{isEditing ? t("automations.editTitle") : t("automations.create")}
+						</DialogTitle>
 						{isEditing && editAutomation && (
 							<div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-								<span>Started {formatDate(editAutomation.createdAt)}</span>
-								<span>{editAutomation.runCount} runs</span>
+								<span>
+									{t("automations.started", {
+										date: formatDate(editAutomation.createdAt, i18n.language),
+									})}
+								</span>
+								<span>
+									{t("automations.runCount", {
+										count: editAutomation.runCount,
+									})}
+								</span>
 								<Badge
 									variant={isPaused ? "secondary" : "default"}
 									className="gap-1 px-1.5 py-0 text-[10px]"
@@ -352,7 +387,7 @@ export function CreateAutomationDialog({
 									<span
 										className={`inline-block size-1.5 rounded-full ${isPaused ? "bg-yellow-500" : "bg-green-500"}`}
 									/>
-									{isPaused ? "Paused" : "Active"}
+									{isPaused ? t("automations.paused") : t("automations.active")}
 								</Badge>
 							</div>
 						)}
@@ -362,29 +397,32 @@ export function CreateAutomationDialog({
 				<div className="space-y-5">
 					{/* Name */}
 					<div className="space-y-2">
-						<Label htmlFor="automation-name">Name</Label>
+						<Label htmlFor="automation-name">{t("automations.name")}</Label>
 						<Input
 							id="automation-name"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							placeholder="Check for sentry issues"
+							placeholder={t("automations.namePlaceholder")}
 							autoFocus
 						/>
 					</div>
 
 					{/* Projects */}
 					<div className="space-y-2">
-						<Label>Projects</Label>
+						<Label>{t("automations.projects")}</Label>
 						<p className="text-xs text-muted-foreground">
-							If you want an automation to run on a specific branch, you can specify it in your
-							prompt.
+							{t("automations.branchHint")}
 						</p>
 
 						{/* Selected projects as chips */}
 						{workspaces.length > 0 && (
 							<div className="flex flex-wrap items-center gap-1.5">
 								{workspaces.map((w) => (
-									<ProjectChip key={w} path={w} onRemove={() => handleRemoveProject(w)} />
+									<ProjectChip
+										key={w}
+										path={w}
+										onRemove={() => handleRemoveProject(w)}
+									/>
 								))}
 							</div>
 						)}
@@ -395,11 +433,14 @@ export function CreateAutomationDialog({
 								value={null}
 								onValueChange={(value) => {
 									if (value && !workspaces.includes(value)) {
-										setWorkspaces((prev) => [...prev, value])
+										setWorkspaces((prev) => [...prev, value]);
 									}
 								}}
 							>
-								<ComboboxInput placeholder="Search projects..." showClear={false} />
+								<ComboboxInput
+									placeholder={t("automations.searchProjects")}
+									showClear={false}
+								/>
 								<ComboboxContent>
 									<ComboboxList>
 										{availableProjects.map((project) => (
@@ -409,7 +450,9 @@ export function CreateAutomationDialog({
 													className="size-3.5 shrink-0 text-muted-foreground"
 												/>
 												<div className="flex flex-col gap-0.5 overflow-hidden">
-													<span className="truncate text-sm">{project.label}</span>
+													<span className="truncate text-sm">
+														{project.label}
+													</span>
 													{project.label !== project.path && (
 														<span className="truncate text-xs text-muted-foreground">
 															{project.path}
@@ -418,7 +461,7 @@ export function CreateAutomationDialog({
 												</div>
 											</ComboboxItem>
 										))}
-										<ComboboxEmpty>No projects found</ComboboxEmpty>
+										<ComboboxEmpty>{t("automations.noProjects")}</ComboboxEmpty>
 									</ComboboxList>
 								</ComboboxContent>
 							</Combobox>
@@ -432,14 +475,15 @@ export function CreateAutomationDialog({
 									className="size-3.5 shrink-0 text-muted-foreground"
 								/>
 								<Input
-									placeholder="/home/user/projects/my-app"
+									placeholder={t("automations.pathPlaceholder")}
 									value={remotePathInput}
 									onChange={(e) => setRemotePathInput(e.target.value)}
 									onKeyDown={(e) => {
-										if (e.key === "Enter" && remotePathInput.trim()) handleAddRemotePath()
+										if (e.key === "Enter" && remotePathInput.trim())
+											handleAddRemotePath();
 										if (e.key === "Escape") {
-											setShowRemoteInput(false)
-											setRemotePathInput("")
+											setShowRemoteInput(false);
+											setRemotePathInput("");
 										}
 									}}
 									className="h-7 min-w-0 flex-1 text-xs"
@@ -452,7 +496,7 @@ export function CreateAutomationDialog({
 									disabled={!remotePathInput.trim()}
 									onClick={handleAddRemotePath}
 								>
-									Add
+									{t("common.actions.create")}
 								</Button>
 							</div>
 						) : (
@@ -462,26 +506,27 @@ export function CreateAutomationDialog({
 								className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
 							>
 								<FolderOpenIcon aria-hidden="true" className="size-3.5" />
-								{isRemote ? "Add custom path" : "Browse for folder"}
+								{isRemote
+									? t("automations.addCustomPath")
+									: t("automations.browseFolder")}
 							</button>
 						)}
 
 						{isEditing && (
 							<p className="text-xs text-muted-foreground">
-								Automations run in the background on dedicated worktrees. Automations in
-								non-version-controlled projects run directly in the project directory.
+								{t("automations.backgroundDescription")}
 							</p>
 						)}
 					</div>
 
 					{/* Prompt */}
 					<div className="space-y-2">
-						<Label htmlFor="automation-prompt">Prompt</Label>
+						<Label htmlFor="automation-prompt">{t("automations.prompt")}</Label>
 						<Textarea
 							id="automation-prompt"
 							value={prompt}
 							onChange={(e) => setPrompt(e.target.value)}
-							placeholder="look for crashes in $Sentry"
+							placeholder={t("automations.promptPlaceholder")}
 							className="min-h-[100px]"
 						/>
 					</div>
@@ -491,10 +536,10 @@ export function CreateAutomationDialog({
 
 					{/* Model / Agent / Variant */}
 					<div className="space-y-2">
-						<Label>Agent &amp; model</Label>
+						<Label>{t("automations.agentAndModel")}</Label>
 						<p className="text-xs text-muted-foreground">
-							Choose which agent mode and model to use. Defaults to your server configuration.{" "}
-							{!directory && "Add a project above to load available models."}
+							{t("automations.modelDescription")} {" "}
+							{!directory ? t("automations.addProjectForModels") : null}
 						</p>
 						<div className="flex flex-wrap items-center gap-1 rounded-md border px-1 py-1">
 							{agents.length > 0 && (
@@ -505,7 +550,10 @@ export function CreateAutomationDialog({
 										defaultAgent={defaultAgent}
 										onSelectAgent={setSelectedAgent}
 									/>
-									<Separator orientation="vertical" className="mx-0.5 my-1 self-stretch" />
+									<Separator
+										orientation="vertical"
+										className="mx-0.5 my-1 self-stretch"
+									/>
 								</>
 							)}
 							<ModelSelector
@@ -517,7 +565,10 @@ export function CreateAutomationDialog({
 							/>
 							{variants.length > 0 && (
 								<>
-									<Separator orientation="vertical" className="mx-0.5 my-1 self-stretch" />
+									<Separator
+										orientation="vertical"
+										className="mx-0.5 my-1 self-stretch"
+									/>
 									<VariantSelector
 										variants={variants}
 										selectedVariant={selectedVariant}
@@ -541,7 +592,7 @@ export function CreateAutomationDialog({
 									onClick={handleDelete}
 								>
 									<Trash2Icon className="size-3.5" />
-									Delete
+									{t("common.actions.delete")}
 								</Button>
 								<Button
 									variant="ghost"
@@ -551,15 +602,22 @@ export function CreateAutomationDialog({
 									disabled={isTesting}
 								>
 									<TriangleIcon className="size-3 rotate-90 fill-current" />
-									{isTesting ? "Running..." : "Test"}
+									{isTesting
+										? t("automations.testing")
+										: t("automations.test")}
 								</Button>
-								<Button variant="ghost" size="sm" className="gap-1.5" onClick={handleTogglePause}>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="gap-1.5"
+									onClick={handleTogglePause}
+								>
 									{isPaused ? (
 										<PlayIcon className="size-3.5" />
 									) : (
 										<PauseIcon className="size-3.5" />
 									)}
-									{isPaused ? "Resume" : "Pause"}
+									{isPaused ? t("automations.resume") : t("automations.pause")}
 								</Button>
 							</>
 						)}
@@ -568,20 +626,20 @@ export function CreateAutomationDialog({
 					{/* Right side: cancel / save */}
 					<div className="flex items-center gap-2">
 						<Button variant="ghost" onClick={handleCancel}>
-							Cancel
+							{t("common.actions.cancel")}
 						</Button>
 						<Button onClick={handleSubmit} disabled={!canSave || isSubmitting}>
 							{isSubmitting
 								? isEditing
-									? "Saving..."
-									: "Creating..."
+									? t("automations.saving")
+									: t("automations.creating")
 								: isEditing
-									? "Save"
-									: "Create"}
+									? t("common.actions.save")
+									: t("common.actions.create")}
 						</Button>
 					</div>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	)
+	);
 }

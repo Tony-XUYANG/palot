@@ -2,31 +2,31 @@
  * React hooks for accessing automation state.
  */
 
-import { useAtomValue } from "jotai"
+import { useAtomValue } from "jotai";
 import {
 	activeAutomationCountAtom,
 	automationRunsAtom,
 	automationsAtom,
 	pendingRunCountAtom,
 	unreadRunCountAtom,
-} from "../atoms/automations"
+} from "../atoms/automations";
 
 export function useAutomations() {
-	return useAtomValue(automationsAtom)
+	return useAtomValue(automationsAtom);
 }
 
 export function useAutomationRuns() {
-	return useAtomValue(automationRunsAtom)
+	return useAtomValue(automationRunsAtom);
 }
 
 export function useActiveAutomationCount() {
-	return useAtomValue(activeAutomationCountAtom)
+	return useAtomValue(activeAutomationCountAtom);
 }
 
 export function usePendingRunCount() {
-	return useAtomValue(pendingRunCountAtom)
+	return useAtomValue(pendingRunCountAtom);
 }
 
 export function useUnreadRunCount() {
-	return useAtomValue(unreadRunCountAtom)
+	return useAtomValue(unreadRunCountAtom);
 }

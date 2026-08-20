@@ -5,48 +5,51 @@
  * so the "Next in 32m" text stays fresh without relying on parent polls.
  */
 
-import { useEffect, useState } from "react"
-import { formatCountdown } from "../lib/time-format"
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { formatCountdown } from "../lib/time-format";
 
 export function useCountdown(futureTimestamp: number | null): string | null {
+	const { i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	const [label, setLabel] = useState(() =>
-		futureTimestamp ? formatCountdown(futureTimestamp) : null,
-	)
+		futureTimestamp ? formatCountdown(futureTimestamp, locale) : null,
+	);
 
 	useEffect(() => {
 		if (!futureTimestamp) {
-			setLabel(null)
-			return
+			setLabel(null);
+			return;
 		}
 
 		// Compute immediately
-		setLabel(formatCountdown(futureTimestamp))
+		setLabel(formatCountdown(futureTimestamp, locale));
 
 		function tick() {
-			setLabel(formatCountdown(futureTimestamp!))
+			setLabel(formatCountdown(futureTimestamp!, locale));
 		}
 
 		// Tick every 30s for general countdowns, every 5s when under 2 minutes
 		function getInterval(): number {
-			const diff = futureTimestamp! - Date.now()
-			if (diff <= 0) return 5_000
-			if (diff < 120_000) return 5_000
-			return 30_000
+			const diff = futureTimestamp! - Date.now();
+			if (diff <= 0) return 5_000;
+			if (diff < 120_000) return 5_000;
+			return 30_000;
 		}
 
-		let timerId: ReturnType<typeof setTimeout>
+		let timerId: ReturnType<typeof setTimeout>;
 
 		function schedule() {
 			timerId = setTimeout(() => {
-				tick()
-				schedule()
-			}, getInterval())
+				tick();
+				schedule();
+			}, getInterval());
 		}
 
-		schedule()
+		schedule();
 
-		return () => clearTimeout(timerId)
-	}, [futureTimestamp])
+		return () => clearTimeout(timerId);
+	}, [futureTimestamp, locale]);
 
-	return label
+	return label;
 }

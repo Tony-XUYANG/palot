@@ -1,7 +1,7 @@
-import { MessageResponse } from "@palot/ui/components/ai-elements/message"
-import { cn } from "@palot/ui/lib/utils"
-import { useNavigate, useParams } from "@tanstack/react-router"
-import { useAtomValue } from "jotai"
+import { MessageResponse } from "@palot/ui/components/ai-elements/message";
+import { cn } from "@palot/ui/lib/utils";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
 import {
 	ArrowRightIcon,
 	ChevronDownIcon,
@@ -11,23 +11,31 @@ import {
 	MessageCircleQuestionIcon,
 	ShieldAlertIcon,
 	ZapIcon,
-} from "lucide-react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { messagesFamily } from "../../atoms/messages"
-import { partsFamily } from "../../atoms/parts"
-import { sessionFamily } from "../../atoms/sessions"
-import { appStore } from "../../atoms/store"
-import { getStreamingPartsForSession, streamingVersionFamily } from "../../atoms/streaming"
-import { useToolElapsedTime } from "../../hooks/use-elapsed-time"
-import type { ToolPart, ToolState } from "../../lib/types"
-import { getToolDuration, getToolInfo, getToolSubtitle } from "./chat-tool-call"
-import { getToolCategory, TOOL_CATEGORY_COLORS } from "./tool-card"
+} from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { messagesFamily } from "../../atoms/messages";
+import { partsFamily } from "../../atoms/parts";
+import { sessionFamily } from "../../atoms/sessions";
+import { appStore } from "../../atoms/store";
+import {
+	getStreamingPartsForSession,
+	streamingVersionFamily,
+} from "../../atoms/streaming";
+import { useToolElapsedTime } from "../../hooks/use-elapsed-time";
+import type { ToolPart, ToolState } from "../../lib/types";
+import {
+	getToolDuration,
+	getToolInfo,
+	getToolSubtitle,
+} from "./chat-tool-call";
+import { getToolCategory, TOOL_CATEGORY_COLORS } from "./tool-card";
 
 // ============================================================
 // Collapse state for three-tier agent card
 // ============================================================
 
-type CollapseState = "closed" | "summary" | "expanded"
+type CollapseState = "closed" | "summary" | "expanded";
 
 /**
  * Extract the first meaningful plain-text line from a markdown string.
@@ -35,7 +43,7 @@ type CollapseState = "closed" | "summary" | "expanded"
  * and skips blank/decoration-only lines.
  */
 function extractFirstLine(md: string): string | undefined {
-	const lines = md.split("\n")
+	const lines = md.split("\n");
 	for (const raw of lines) {
 		const line = raw
 			.replace(/^#{1,6}\s+/, "") // strip heading markers
@@ -45,10 +53,10 @@ function extractFirstLine(md: string): string | undefined {
 			.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // strip links → keep label
 			.replace(/^[-*+]\s+/, "") // strip list markers
 			.replace(/^\d+\.\s+/, "") // strip ordered list markers
-			.trim()
-		if (line.length > 0) return line
+			.trim();
+		if (line.length > 0) return line;
 	}
-	return undefined
+	return undefined;
 }
 
 // ============================================================
@@ -56,7 +64,7 @@ function extractFirstLine(md: string): string | undefined {
 // ============================================================
 
 interface SubAgentCardProps {
-	part: ToolPart
+	part: ToolPart;
 }
 
 /**
@@ -74,40 +82,52 @@ interface SubAgentCardProps {
  * While running the card is fully expanded. On completion it auto-collapses
  * to the summary state (or closed if there's no text).
  */
-export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAgentCardProps) {
-	const navigate = useNavigate()
-	const { projectSlug } = useParams({ strict: false }) as { projectSlug?: string }
+export const SubAgentCard = memo(function SubAgentCard({
+	part: propPart,
+}: SubAgentCardProps) {
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const { projectSlug } = useParams({ strict: false }) as {
+		projectSlug?: string;
+	};
 
 	// Read the live tool part directly from the store so we always have the
 	// latest state (status, metadata, output) even when the parent turn's
 	// structural sharing keeps the prop stale.
-	const messageParts = useAtomValue(partsFamily(propPart.messageID))
+	const messageParts = useAtomValue(partsFamily(propPart.messageID));
 	const livePart = useMemo(
-		() => messageParts?.find((p): p is ToolPart => p.id === propPart.id && p.type === "tool"),
+		() =>
+			messageParts?.find(
+				(p): p is ToolPart => p.id === propPart.id && p.type === "tool",
+			),
 		[messageParts, propPart.id],
-	)
-	const part = livePart ?? propPart
+	);
+	const part = livePart ?? propPart;
 
 	// Count how many sibling task tools exist in the same message.
 	// When there are parallel sub-agents, we start in "summary" instead of
 	// "expanded" to avoid a noisy wall of live tool activity.
 	const hasParallelSiblings = useMemo(
-		() => (messageParts?.filter((p) => p.type === "tool" && p.tool === "task").length ?? 0) > 1,
+		() =>
+			(messageParts?.filter((p) => p.type === "tool" && p.tool === "task")
+				.length ?? 0) > 1,
 		[messageParts],
-	)
+	);
 
 	// Derive sessionId from the live part's metadata so it becomes available
 	// as soon as the server populates it, even if the parent doesn't re-render.
 	const sessionId = useMemo(() => {
-		if (part.tool !== "task") return undefined
-		const state = part.state as ToolState & { metadata?: Record<string, unknown> }
-		return (state.metadata?.sessionId as string | undefined) ?? undefined
-	}, [part])
+		if (part.tool !== "task") return undefined;
+		const state = part.state as ToolState & {
+			metadata?: Record<string, unknown>;
+		};
+		return (state.metadata?.sessionId as string | undefined) ?? undefined;
+	}, [part]);
 
 	const handleNavigate = useCallback(
 		(e: React.MouseEvent) => {
 			// Prevent the click from toggling the collapsible
-			e.stopPropagation()
+			e.stopPropagation();
 			if (sessionId) {
 				navigate({
 					to: "/project/$projectSlug/session/$sessionId",
@@ -115,30 +135,34 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 						projectSlug: projectSlug ?? "unknown",
 						sessionId,
 					},
-				})
+				});
 			}
 		},
 		[sessionId, navigate, projectSlug],
-	)
+	);
 
 	const taskTitle =
 		(part.state.input?.description as string) ??
 		("title" in part.state ? part.state.title : undefined) ??
-		"Sub-agent"
-	const agentType = (part.state.input?.subagent_type as string) ?? "general"
+		"Sub-agent";
+	const agentType = (part.state.input?.subagent_type as string) ?? "general";
 
 	// Determine if the sub-agent is still running
-	const isRunning = part.state.status === "running" || part.state.status === "pending"
-	const isError = part.state.status === "error"
-	const isCompleted = part.state.status === "completed"
+	const isRunning =
+		part.state.status === "running" || part.state.status === "pending";
+	const isError = part.state.status === "error";
+	const isCompleted = part.state.status === "completed";
 
 	// Detect pending interactive requests (permissions / questions) on the child session.
 	// This lets the card header show a "waiting" indicator while the user hasn't
 	// yet responded in the parent session's input area.
-	const childSessionEntry = useAtomValue(sessionFamily(sessionId ?? ""))
-	const childHasPendingPermission = (childSessionEntry?.permissions.length ?? 0) > 0
-	const childHasPendingQuestion = (childSessionEntry?.questions.length ?? 0) > 0
-	const childIsWaiting = isRunning && (childHasPendingPermission || childHasPendingQuestion)
+	const childSessionEntry = useAtomValue(sessionFamily(sessionId ?? ""));
+	const childHasPendingPermission =
+		(childSessionEntry?.permissions.length ?? 0) > 0;
+	const childHasPendingQuestion =
+		(childSessionEntry?.questions.length ?? 0) > 0;
+	const childIsWaiting =
+		isRunning && (childHasPendingPermission || childHasPendingQuestion);
 
 	// ── Three-state collapse ───────────────────────────────────
 	// "closed"   → header only
@@ -146,8 +170,8 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 	// "expanded" → header + tools + full markdown text
 	const [collapseState, setCollapseState] = useState<CollapseState>(
 		hasParallelSiblings ? "summary" : "expanded",
-	)
-	const wasRunningRef = useRef(isRunning)
+	);
+	const wasRunningRef = useRef(isRunning);
 
 	useEffect(() => {
 		// When transitioning from running → completed/error,
@@ -155,111 +179,117 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 		if (wasRunningRef.current && !isRunning) {
 			// We defer to next render so latestText is populated
 			requestAnimationFrame(() => {
-				setCollapseState((prev) => (prev === "expanded" ? "summary" : prev))
-			})
+				setCollapseState((prev) => (prev === "expanded" ? "summary" : prev));
+			});
 		}
-		wasRunningRef.current = isRunning
-	}, [isRunning])
+		wasRunningRef.current = isRunning;
+	}, [isRunning]);
 
 	const handleHeaderToggle = useCallback(() => {
 		setCollapseState((prev) => {
-			if (prev === "closed") return isRunning ? "expanded" : "summary"
+			if (prev === "closed") return isRunning ? "expanded" : "summary";
 			// Both "summary" and "expanded" collapse to "closed"
-			return "closed"
-		})
-	}, [isRunning])
+			return "closed";
+		});
+	}, [isRunning]);
 
 	const handleShowMore = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation()
-		setCollapseState("expanded")
-	}, [])
+		e.stopPropagation();
+		setCollapseState("expanded");
+	}, []);
 
 	const handleShowLess = useCallback((e: React.MouseEvent) => {
-		e.stopPropagation()
-		setCollapseState("summary")
-	}, [])
+		e.stopPropagation();
+		setCollapseState("summary");
+	}, []);
 
 	// ── Duration ───────────────────────────────────────────────
-	const duration = getToolDuration(part)
-	const elapsedTime = useToolElapsedTime(part)
+	const duration = getToolDuration(part);
+	const elapsedTime = useToolElapsedTime(part);
 
 	// Access child session data from the store.
-	const childMessages = useAtomValue(messagesFamily(sessionId ?? ""))
+	const childMessages = useAtomValue(messagesFamily(sessionId ?? ""));
 
 	// Subscribe to the per-session streaming version so we only re-render
 	// when this child session streams, not when any other session streams.
-	const streamingVersion = useAtomValue(streamingVersionFamily(sessionId ?? ""))
+	const streamingVersion = useAtomValue(
+		streamingVersionFamily(sessionId ?? ""),
+	);
 
 	// Derive child session's activity.
 	// Optimized: iterates messages backwards and collects only what's needed
 	// (last 3 tool parts, last text, status) without building a full allParts array.
 	const { latestToolParts, latestText, childStatus } = useMemo(() => {
 		if (!childMessages || childMessages.length === 0) {
-			return { latestToolParts: [], latestText: undefined, childStatus: undefined }
+			return {
+				latestToolParts: [],
+				latestText: undefined,
+				childStatus: undefined,
+			};
 		}
 
 		// Reference streamingVersion so the linter sees it as used and it triggers recomputation.
-		void streamingVersion
-		const streaming = getStreamingPartsForSession(sessionId ?? "")
+		void streamingVersion;
+		const streaming = getStreamingPartsForSession(sessionId ?? "");
 
 		// Single-pass collection: walk all messages forward, but only keep
 		// the last 3 tool parts and overwrite latestText + status as we go.
 		// This avoids building a temporary allParts array.
-		const toolParts: ToolPart[] = []
-		let latestText: string | undefined
-		let lastStatus: string | undefined
+		const toolParts: ToolPart[] = [];
+		let latestText: string | undefined;
+		let lastStatus: string | undefined;
 
 		for (const msg of childMessages) {
-			const baseParts = appStore.get(partsFamily(msg.id))
-			if (!baseParts) continue
-			const overrides = streaming[msg.id]
+			const baseParts = appStore.get(partsFamily(msg.id));
+			if (!baseParts) continue;
+			const overrides = streaming[msg.id];
 
 			for (const bp of baseParts) {
-				const p = overrides?.[bp.id] ?? bp
+				const p = overrides?.[bp.id] ?? bp;
 				if (p.type === "tool" && p.tool !== "todoread") {
-					toolParts.push(p)
+					toolParts.push(p);
 				}
 				// Track last text part (overwrites as we move forward)
 				if (p.type === "text" && !p.synthetic && p.text.trim()) {
-					latestText = p.text.trim()
+					latestText = p.text.trim();
 				}
 				// Track status from the last meaningful part
 				if (p.type === "tool") {
 					switch (p.tool) {
 						case "task":
-							lastStatus = "Delegating..."
-							break
+							lastStatus = t("chat.subAgent.delegating");
+							break;
 						case "todowrite":
 						case "todoread":
-							lastStatus = "Planning..."
-							break
+							lastStatus = t("chat.subAgent.planning");
+							break;
 						case "read":
-							lastStatus = "Reading files..."
-							break
+							lastStatus = t("chat.subAgent.readingFiles");
+							break;
 						case "list":
 						case "grep":
 						case "glob":
-							lastStatus = "Searching codebase..."
-							break
+							lastStatus = t("chat.subAgent.searchingCodebase");
+							break;
 						case "webfetch":
-							lastStatus = "Fetching web content..."
-							break
+							lastStatus = t("chat.subAgent.fetchingWeb");
+							break;
 						case "edit":
 						case "write":
 						case "apply_patch":
-							lastStatus = "Making edits..."
-							break
+							lastStatus = t("chat.subAgent.makingEdits");
+							break;
 						case "bash":
-							lastStatus = "Running command..."
-							break
+							lastStatus = t("chat.subAgent.runningCommand");
+							break;
 						default:
-							lastStatus = `Running ${p.tool}...`
-							break
+							lastStatus = t("chat.subAgent.runningTool", { tool: p.tool });
+							break;
 					}
 				} else if (p.type === "reasoning") {
-					lastStatus = "Thinking..."
+					lastStatus = t("chat.subAgent.thinking");
 				} else if (p.type === "text") {
-					lastStatus = "Composing response..."
+					lastStatus = t("chat.subAgent.composing");
 				}
 			}
 		}
@@ -267,30 +297,36 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 		return {
 			latestToolParts: toolParts.slice(-3),
 			latestText,
-			childStatus: lastStatus ?? "Working...",
-		}
-	}, [childMessages, streamingVersion, sessionId])
+			childStatus: lastStatus ?? t("chat.subAgent.working"),
+		};
+	}, [childMessages, streamingVersion, sessionId, t]);
 
 	// Extract first meaningful line for the summary teaser.
 	// "hasMore" is true when the full text has content beyond the first line.
-	const firstLine = useMemo(() => extractFirstLine(latestText ?? ""), [latestText])
+	const firstLine = useMemo(
+		() => extractFirstLine(latestText ?? ""),
+		[latestText],
+	);
 	const hasMore = useMemo(() => {
-		if (!latestText || !firstLine) return false
+		if (!latestText || !firstLine) return false;
 		// If there's any non-trivial content beyond the first line, we have more
-		const rest = latestText.slice(latestText.indexOf(firstLine) + firstLine.length).trim()
-		return rest.length > 0
-	}, [latestText, firstLine])
+		const rest = latestText
+			.slice(latestText.indexOf(firstLine) + firstLine.length)
+			.trim();
+		return rest.length > 0;
+	}, [latestText, firstLine]);
 
 	// If there's no text and we're in summary mode, fall back to closed
 	// (summary with nothing to show is pointless)
 	useEffect(() => {
 		if (collapseState === "summary" && !firstLine) {
-			setCollapseState("closed")
+			setCollapseState("closed");
 		}
-	}, [collapseState, firstLine])
+	}, [collapseState, firstLine]);
 
-	const showSummary = collapseState === "summary" || collapseState === "expanded"
-	const showExpanded = collapseState === "expanded"
+	const showSummary =
+		collapseState === "summary" || collapseState === "expanded";
+	const showExpanded = collapseState === "expanded";
 
 	return (
 		<div
@@ -320,41 +356,62 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 					<ZapIcon
 						className={cn(
 							"size-3.5 shrink-0",
-							isRunning ? "text-violet-400 animate-pulse" : "text-muted-foreground",
+							isRunning
+								? "text-violet-400 animate-pulse"
+								: "text-muted-foreground",
 						)}
 					/>
-					<span className="text-xs font-medium text-foreground/80">Agent</span>
-					<span className="shrink-0 text-xs text-muted-foreground/60">({agentType})</span>
+					<span className="text-xs font-medium text-foreground/80">
+						{t("common.terms.agent")}
+					</span>
+					<span className="shrink-0 text-xs text-muted-foreground/60">
+						({agentType})
+					</span>
 					{/* Truncated task title in header */}
-					<span className="min-w-0 truncate text-xs text-muted-foreground/50">{taskTitle}</span>
+					<span className="min-w-0 truncate text-xs text-muted-foreground/50">
+						{taskTitle}
+					</span>
 				</button>
 				{/* Right side: status / duration / open button — outside trigger */}
 				<div className="flex shrink-0 items-center gap-2.5">
-				{/* Waiting indicator: shown when sub-agent has a pending permission or question */}
-				{childIsWaiting && childHasPendingPermission && (
-					<span className="flex items-center gap-1 text-[11px] font-medium text-amber-400">
-						<ShieldAlertIcon className="size-3 shrink-0" aria-hidden="true" />
-						Needs approval
-					</span>
-				)}
-				{childIsWaiting && childHasPendingQuestion && !childHasPendingPermission && (
-					<span className="flex items-center gap-1 text-[11px] font-medium text-amber-400">
-						<MessageCircleQuestionIcon className="size-3 shrink-0" aria-hidden="true" />
-						Asking a question
-					</span>
-				)}
-				{isRunning && !childIsWaiting && childStatus && (
-					<span className="text-[11px] text-muted-foreground/60">{childStatus}</span>
-				)}
-				{isRunning && elapsedTime && (
-					<span className="text-[11px] tabular-nums text-muted-foreground/40">
-						{elapsedTime}
-					</span>
-				)}
-				{isRunning && !childIsWaiting && <Loader2Icon className="size-3 animate-spin text-muted-foreground/40" />}
-				{childIsWaiting && <Loader2Icon className="size-3 animate-spin text-amber-400/60" />}
+					{/* Waiting indicator: shown when sub-agent has a pending permission or question */}
+					{childIsWaiting && childHasPendingPermission && (
+						<span className="flex items-center gap-1 text-[11px] font-medium text-amber-400">
+							<ShieldAlertIcon className="size-3 shrink-0" aria-hidden="true" />
+							{t("chat.subAgent.needsApproval")}
+						</span>
+					)}
+					{childIsWaiting &&
+						childHasPendingQuestion &&
+						!childHasPendingPermission && (
+							<span className="flex items-center gap-1 text-[11px] font-medium text-amber-400">
+								<MessageCircleQuestionIcon
+									className="size-3 shrink-0"
+									aria-hidden="true"
+								/>
+								{t("chat.subAgent.askingQuestion")}
+							</span>
+						)}
+					{isRunning && !childIsWaiting && childStatus && (
+						<span className="text-[11px] text-muted-foreground/60">
+							{childStatus}
+						</span>
+					)}
+					{isRunning && elapsedTime && (
+						<span className="text-[11px] tabular-nums text-muted-foreground/40">
+							{elapsedTime}
+						</span>
+					)}
+					{isRunning && !childIsWaiting && (
+						<Loader2Icon className="size-3 animate-spin text-muted-foreground/40" />
+					)}
+					{childIsWaiting && (
+						<Loader2Icon className="size-3 animate-spin text-amber-400/60" />
+					)}
 					{!isRunning && duration && (
-						<span className="text-[11px] text-muted-foreground/40">{duration}</span>
+						<span className="text-[11px] text-muted-foreground/40">
+							{duration}
+						</span>
 					)}
 					{sessionId && (
 						<button
@@ -362,7 +419,7 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 							onClick={handleNavigate}
 							className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
 						>
-							Open
+							{t("common.actions.open")}
 							<ArrowRightIcon className="size-3" />
 						</button>
 					)}
@@ -381,7 +438,7 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 							onClick={handleShowMore}
 							className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary/70 transition-colors hover:text-primary"
 						>
-							Show more
+							{t("chat.subAgent.showMore")}
 							<ChevronDownIcon className="size-3" />
 						</button>
 					)}
@@ -396,12 +453,14 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 						<div className="border-t border-border/30 px-3.5 py-2">
 							<div className="space-y-1">
 								{latestToolParts.map((tp) => {
-									const { icon: TpIcon, title } = getToolInfo(tp.tool)
-									const tpSubtitle = getToolSubtitle(tp)
-									const category = getToolCategory(tp.tool)
-									const borderColor = TOOL_CATEGORY_COLORS[category]
-									const tpRunning = tp.state.status === "running" || tp.state.status === "pending"
-									const tpError = tp.state.status === "error"
+									const { icon: TpIcon, title } = getToolInfo(tp.tool);
+									const tpSubtitle = getToolSubtitle(tp);
+									const category = getToolCategory(tp.tool);
+									const borderColor = TOOL_CATEGORY_COLORS[category];
+									const tpRunning =
+										tp.state.status === "running" ||
+										tp.state.status === "pending";
+									const tpError = tp.state.status === "error";
 
 									return (
 										<div
@@ -435,7 +494,7 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 												</span>
 											)}
 										</div>
-									)
+									);
 								})}
 							</div>
 						</div>
@@ -458,7 +517,7 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 									onClick={handleShowLess}
 									className="mt-2 inline-flex items-center gap-0.5 text-[10px] font-medium text-primary/70 transition-colors hover:text-primary"
 								>
-									Show less
+									{t("chat.subAgent.showLess")}
 									<ChevronUpIcon className="size-3" />
 								</button>
 							)}
@@ -468,13 +527,17 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 					{/* Completion / error state */}
 					{isCompleted && !latestToolParts.length && !latestText && (
 						<div className="border-t border-border/30 px-3.5 py-2">
-							<span className="text-[11px] text-muted-foreground/50">Completed</span>
+							<span className="text-[11px] text-muted-foreground/50">
+								{t("chat.tool.completed")}
+							</span>
 						</div>
 					)}
 					{isError && (
 						<div className="border-t border-red-500/20 bg-red-500/5 px-3.5 py-2">
 							<span className="text-[11px] text-red-400">
-								{part.state.status === "error" ? part.state.error : "Sub-agent failed"}
+								{part.state.status === "error"
+									? part.state.error
+									: t("chat.subAgent.failed")}
 							</span>
 						</div>
 					)}
@@ -485,10 +548,12 @@ export const SubAgentCard = memo(function SubAgentCard({ part: propPart }: SubAg
 			{showSummary && !showExpanded && isError && (
 				<div className="border-t border-red-500/20 bg-red-500/5 px-3.5 py-2">
 					<span className="text-[11px] text-red-400">
-						{part.state.status === "error" ? part.state.error : "Sub-agent failed"}
+						{part.state.status === "error"
+							? part.state.error
+							: t("chat.subAgent.failed")}
 					</span>
 				</div>
 			)}
 		</div>
-	)
-})
+	);
+});

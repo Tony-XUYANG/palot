@@ -7,22 +7,23 @@
  * - ReviewPanelComments: pills displayed in the panel
  * - useDiffComments hook: manages comment CRUD
  */
-import { atom, useAtomValue, useSetAtom } from "jotai"
-import { atomFamily } from "jotai/utils"
-import { MessageSquarePlusIcon, XIcon } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import { atomFamily } from "jotai/utils";
+import { MessageSquarePlusIcon, XIcon } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // ============================================================
 // Types
 // ============================================================
 
 export interface DiffComment {
-	id: string
-	filePath: string
-	lineNumber: number
-	side: "additions" | "deletions"
-	content: string
-	createdAt: number
+	id: string;
+	filePath: string;
+	lineNumber: number;
+	side: "additions" | "deletions";
+	content: string;
+	createdAt: number;
 }
 
 // ============================================================
@@ -30,45 +31,47 @@ export interface DiffComment {
 // ============================================================
 
 /** Per-session comment store */
-export const diffCommentsFamily = atomFamily((_sessionId: string) => atom<DiffComment[]>([]))
+export const diffCommentsFamily = atomFamily((_sessionId: string) =>
+	atom<DiffComment[]>([]),
+);
 
 // ============================================================
 // Hook
 // ============================================================
 
 export function useDiffComments(sessionId: string) {
-	const comments = useAtomValue(diffCommentsFamily(sessionId))
-	const setComments = useSetAtom(diffCommentsFamily(sessionId))
+	const comments = useAtomValue(diffCommentsFamily(sessionId));
+	const setComments = useSetAtom(diffCommentsFamily(sessionId));
 
 	const addComment = useCallback(
 		(input: {
-			filePath: string
-			lineNumber: number
-			side: "additions" | "deletions"
-			content: string
+			filePath: string;
+			lineNumber: number;
+			side: "additions" | "deletions";
+			content: string;
 		}) => {
 			const comment: DiffComment = {
 				id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 				...input,
 				createdAt: Date.now(),
-			}
-			setComments((prev) => [...prev, comment])
+			};
+			setComments((prev) => [...prev, comment]);
 		},
 		[setComments],
-	)
+	);
 
 	const removeComment = useCallback(
 		(commentId: string) => {
-			setComments((prev) => prev.filter((c) => c.id !== commentId))
+			setComments((prev) => prev.filter((c) => c.id !== commentId));
 		},
 		[setComments],
-	)
+	);
 
 	const clearComments = useCallback(() => {
-		setComments([])
-	}, [setComments])
+		setComments([]);
+	}, [setComments]);
 
-	return { comments, addComment, removeComment, clearComments }
+	return { comments, addComment, removeComment, clearComments };
 }
 
 // ============================================================
@@ -76,14 +79,16 @@ export function useDiffComments(sessionId: string) {
 // ============================================================
 
 interface DiffCommentButtonProps {
-	filePath: string
-	getHoveredLine: () => { lineNumber: number; side: "additions" | "deletions" } | undefined
+	filePath: string;
+	getHoveredLine: () =>
+		| { lineNumber: number; side: "additions" | "deletions" }
+		| undefined;
 	onAddComment: (comment: {
-		filePath: string
-		lineNumber: number
-		side: "additions" | "deletions"
-		content: string
-	}) => void
+		filePath: string;
+		lineNumber: number;
+		side: "additions" | "deletions";
+		content: string;
+	}) => void;
 }
 
 export function DiffCommentButton({
@@ -91,54 +96,58 @@ export function DiffCommentButton({
 	getHoveredLine,
 	onAddComment,
 }: DiffCommentButtonProps) {
-	const [showInput, setShowInput] = useState(false)
-	const [value, setValue] = useState("")
-	const lineInfoRef = useRef<{ lineNumber: number; side: "additions" | "deletions" } | null>(null)
-	const inputRef = useRef<HTMLTextAreaElement>(null)
+	const { t } = useTranslation();
+	const [showInput, setShowInput] = useState(false);
+	const [value, setValue] = useState("");
+	const lineInfoRef = useRef<{
+		lineNumber: number;
+		side: "additions" | "deletions";
+	} | null>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 
 	const handleClick = useCallback(() => {
-		const info = getHoveredLine()
-		if (!info) return
+		const info = getHoveredLine();
+		if (!info) return;
 		lineInfoRef.current = {
 			lineNumber: info.lineNumber,
 			side: info.side,
-		}
-		setShowInput(true)
-		setValue("")
-		requestAnimationFrame(() => inputRef.current?.focus())
-	}, [getHoveredLine])
+		};
+		setShowInput(true);
+		setValue("");
+		requestAnimationFrame(() => inputRef.current?.focus());
+	}, [getHoveredLine]);
 
 	const handleSubmit = useCallback(() => {
-		const trimmed = value.trim()
-		if (!trimmed || !lineInfoRef.current) return
+		const trimmed = value.trim();
+		if (!trimmed || !lineInfoRef.current) return;
 		onAddComment({
 			filePath,
 			lineNumber: lineInfoRef.current.lineNumber,
 			side: lineInfoRef.current.side,
 			content: trimmed,
-		})
-		setShowInput(false)
-		setValue("")
-	}, [value, filePath, onAddComment])
+		});
+		setShowInput(false);
+		setValue("");
+	}, [value, filePath, onAddComment]);
 
 	const handleCancel = useCallback(() => {
-		setShowInput(false)
-		setValue("")
-	}, [])
+		setShowInput(false);
+		setValue("");
+	}, []);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault()
-				handleSubmit()
+				e.preventDefault();
+				handleSubmit();
 			}
 			if (e.key === "Escape") {
-				e.preventDefault()
-				handleCancel()
+				e.preventDefault();
+				handleCancel();
 			}
 		},
 		[handleSubmit, handleCancel],
-	)
+	);
 
 	if (showInput) {
 		return (
@@ -151,7 +160,7 @@ export function DiffCommentButton({
 					value={value}
 					onChange={(e) => setValue(e.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder="Request change..."
+					placeholder={t("review.requestChange")}
 					className="w-full resize-none rounded-md border border-border bg-muted/50 px-2.5 py-1.5 font-sans text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
 					rows={2}
 				/>
@@ -161,7 +170,7 @@ export function DiffCommentButton({
 						onClick={handleCancel}
 						className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 					>
-						Cancel
+						{t("common.actions.cancel")}
 					</button>
 					<button
 						type="button"
@@ -169,11 +178,11 @@ export function DiffCommentButton({
 						disabled={!value.trim()}
 						className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
 					>
-						Comment
+						{t("review.comment")}
 					</button>
 				</div>
 			</div>
-		)
+		);
 	}
 
 	return (
@@ -181,11 +190,11 @@ export function DiffCommentButton({
 			type="button"
 			onClick={handleClick}
 			className="flex size-4 items-center justify-center rounded bg-primary text-primary-foreground opacity-0 transition-opacity hover:bg-primary/90 group-hover:opacity-100"
-			title="Add comment"
+			title={t("review.addComment")}
 		>
 			<MessageSquarePlusIcon className="size-2.5" />
 		</button>
-	)
+	);
 }
 
 // ============================================================
@@ -193,12 +202,17 @@ export function DiffCommentButton({
 // ============================================================
 
 interface ReviewPanelCommentsProps {
-	comments: DiffComment[]
-	onRemove: (commentId: string) => void
-	onClear: () => void
+	comments: DiffComment[];
+	onRemove: (commentId: string) => void;
+	onClear: () => void;
 }
 
-export function ReviewPanelComments({ comments, onRemove, onClear }: ReviewPanelCommentsProps) {
+export function ReviewPanelComments({
+	comments,
+	onRemove,
+	onClear,
+}: ReviewPanelCommentsProps) {
+	const { t } = useTranslation();
 	return (
 		<div className="shrink-0 border-b border-border px-3 py-2">
 			<div className="flex items-center justify-between">
@@ -210,7 +224,7 @@ export function ReviewPanelComments({ comments, onRemove, onClear }: ReviewPanel
 					onClick={onClear}
 					className="text-[10px] text-muted-foreground/60 transition-colors hover:text-foreground"
 				>
-					Clear all
+					{t("review.clearAll")}
 				</button>
 			</div>
 			<div className="mt-1.5 flex flex-wrap gap-1">
@@ -219,17 +233,17 @@ export function ReviewPanelComments({ comments, onRemove, onClear }: ReviewPanel
 				))}
 			</div>
 		</div>
-	)
+	);
 }
 
 function CommentPill({
 	comment,
 	onRemove,
 }: {
-	comment: DiffComment
-	onRemove: (id: string) => void
+	comment: DiffComment;
+	onRemove: (id: string) => void;
 }) {
-	const fileName = comment.filePath.split("/").pop() ?? comment.filePath
+	const fileName = comment.filePath.split("/").pop() ?? comment.filePath;
 
 	return (
 		<span className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] leading-tight">
@@ -237,7 +251,9 @@ function CommentPill({
 				{fileName}:{comment.lineNumber}
 			</span>
 			<span className="truncate text-foreground" title={comment.content}>
-				{comment.content.length > 30 ? `${comment.content.slice(0, 30)}...` : comment.content}
+				{comment.content.length > 30
+					? `${comment.content.slice(0, 30)}...`
+					: comment.content}
 			</span>
 			<button
 				type="button"
@@ -247,7 +263,7 @@ function CommentPill({
 				<XIcon className="size-2.5" />
 			</button>
 		</span>
-	)
+	);
 }
 
 // ============================================================
@@ -259,13 +275,13 @@ function CommentPill({
  * Returns empty string if no comments exist.
  */
 export function serializeCommentsForChat(comments: DiffComment[]): string {
-	if (comments.length === 0) return ""
+	if (comments.length === 0) return "";
 
-	const lines = ["[Code Review Comments]", ""]
+	const lines = ["[Code Review Comments]", ""];
 	for (const c of comments) {
-		const side = c.side === "additions" ? "new" : "old"
-		lines.push(`- ${c.filePath}:${c.lineNumber} (${side}): ${c.content}`)
+		const side = c.side === "additions" ? "new" : "old";
+		lines.push(`- ${c.filePath}:${c.lineNumber} (${side}): ${c.content}`);
 	}
-	lines.push("")
-	return lines.join("\n")
+	lines.push("");
+	return lines.join("\n");
 }

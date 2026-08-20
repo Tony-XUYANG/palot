@@ -1,51 +1,52 @@
-import { app, BrowserWindow, Notification, net } from "electron"
-import { createLogger } from "./logger"
-import { getNotificationSettings } from "./settings-store"
+import { app, BrowserWindow, Notification, net } from "electron";
+import { tMain } from "./i18n";
+import { createLogger } from "./logger";
+import { getNotificationSettings } from "./settings-store";
 
-const log = createLogger("notifications")
+const log = createLogger("notifications");
 
 // ============================================================
 // Types
 // ============================================================
 
 export interface NotificationRequest {
-	type: "permission" | "question" | "completed" | "error"
-	sessionId: string
-	title: string
-	body: string
+	type: "permission" | "question" | "completed" | "error";
+	sessionId: string;
+	title: string;
+	body: string;
 	/** Directory associated with the session (used for permission reply). */
-	directory?: string
+	directory?: string;
 	meta?: {
-		permissionId?: string
-		requestId?: string
-		sessionTitle?: string
-	}
+		permissionId?: string;
+		requestId?: string;
+		sessionTitle?: string;
+	};
 }
 
 /** The OpenCode server URL, set by the notification watcher when it connects. */
-let serverUrl: string | null = null
+let serverUrl: string | null = null;
 
 /** Set the OpenCode server URL for use in notification action replies. */
 export function setServerUrl(url: string | null): void {
-	serverUrl = url
+	serverUrl = url;
 }
 
 // ============================================================
 // State
 // ============================================================
 
-const BATCH_WINDOW_MS = 3_000
-const COOLDOWN_MS = 30_000
+const BATCH_WINDOW_MS = 3_000;
+const COOLDOWN_MS = 30_000;
 
 /** Tracks when we last showed a notification per session+type to prevent spam. */
-const lastShown = new Map<string, number>()
+const lastShown = new Map<string, number>();
 
 /** Batches rapid-fire permission notifications per session. */
-const batchQueue = new Map<string, NotificationRequest[]>()
-const batchTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const batchQueue = new Map<string, NotificationRequest[]>();
+const batchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /** Active notifications keyed by session ID for dismiss-on-navigate. */
-const activeNotifications = new Map<string, Notification>()
+const activeNotifications = new Map<string, Notification>();
 
 // ============================================================
 // Public API
@@ -62,44 +63,50 @@ const activeNotifications = new Map<string, Notification>()
  */
 export function showNotification(request: NotificationRequest): void {
 	if (!Notification.isSupported()) {
-		log.debug("Notification API not supported on this host")
-		return
+		log.debug("Notification API not supported on this host");
+		return;
 	}
 
 	// Check if this notification type is enabled in settings
-	const prefs = getNotificationSettings()
-	if (request.type === "permission" && !prefs.permissions) return
-	if (request.type === "question" && !prefs.questions) return
-	if (request.type === "error" && !prefs.errors) return
+	const prefs = getNotificationSettings();
+	if (request.type === "permission" && !prefs.permissions) return;
+	if (request.type === "question" && !prefs.questions) return;
+	if (request.type === "error" && !prefs.errors) return;
 	if (request.type === "completed") {
-		if (prefs.completionMode === "off") return
+		if (prefs.completionMode === "off") return;
 		// "always" mode: skip the focused check below
 		// "unfocused" mode: normal behavior (suppress when focused)
 	}
 
 	// Suppression: app is focused and not minimized
-	const win = BrowserWindow.getAllWindows()[0]
-	const isFocused = win?.isFocused() && !win.isMinimized()
-	if (isFocused && !(request.type === "completed" && prefs.completionMode === "always")) {
-		log.debug("Suppressed (window focused)", { type: request.type, session: request.sessionId })
-		return
+	const win = BrowserWindow.getAllWindows()[0];
+	const isFocused = win?.isFocused() && !win.isMinimized();
+	if (
+		isFocused &&
+		!(request.type === "completed" && prefs.completionMode === "always")
+	) {
+		log.debug("Suppressed (window focused)", {
+			type: request.type,
+			session: request.sessionId,
+		});
+		return;
 	}
 
 	// Suppression: cooldown per session+type
-	const key = `${request.sessionId}:${request.type}`
-	const last = lastShown.get(key) ?? 0
+	const key = `${request.sessionId}:${request.type}`;
+	const last = lastShown.get(key) ?? 0;
 	if (Date.now() - last < COOLDOWN_MS) {
-		log.debug("Suppressed (cooldown)", { key })
-		return
+		log.debug("Suppressed (cooldown)", { key });
+		return;
 	}
 
 	// Batch permissions for the same session
 	if (request.type === "permission") {
-		batchPermissionNotification(request)
-		return
+		batchPermissionNotification(request);
+		return;
 	}
 
-	fireNotification(request)
+	fireNotification(request);
 }
 
 /**
@@ -107,10 +114,10 @@ export function showNotification(request: NotificationRequest): void {
  * Called when the user navigates to the session in the UI.
  */
 export function dismissNotification(sessionId: string): void {
-	const notification = activeNotifications.get(sessionId)
+	const notification = activeNotifications.get(sessionId);
 	if (notification) {
-		notification.close()
-		activeNotifications.delete(sessionId)
+		notification.close();
+		activeNotifications.delete(sessionId);
 	}
 }
 
@@ -118,20 +125,20 @@ export function dismissNotification(sessionId: string): void {
  * Update the dock badge count (macOS) or app badge (Linux/Windows).
  */
 export function updateBadgeCount(count: number): void {
-	const prefs = getNotificationSettings()
+	const prefs = getNotificationSettings();
 	if (!prefs.dockBadge) {
 		// Clear any existing badge when disabled
 		if (process.platform === "darwin") {
-			app.dock?.setBadge("")
+			app.dock?.setBadge("");
 		} else {
-			app.setBadgeCount(0)
+			app.setBadgeCount(0);
 		}
-		return
+		return;
 	}
 	if (process.platform === "darwin") {
-		app.dock?.setBadge(count > 0 ? String(count) : "")
+		app.dock?.setBadge(count > 0 ? String(count) : "");
 	} else {
-		app.setBadgeCount(count)
+		app.setBadgeCount(count);
 	}
 }
 
@@ -140,18 +147,21 @@ export function updateBadgeCount(count: number): void {
 // ============================================================
 
 function fireNotification(request: NotificationRequest): void {
-	const key = `${request.sessionId}:${request.type}`
-	lastShown.set(key, Date.now())
+	const key = `${request.sessionId}:${request.type}`;
+	lastShown.set(key, Date.now());
 
 	// Close any existing notification for this session
-	activeNotifications.get(request.sessionId)?.close()
+	activeNotifications.get(request.sessionId)?.close();
 
 	// Build notification options — add action buttons for permissions on macOS.
 	// Actions require: (1) signed app, (2) NSUserNotificationAlertStyle=alert in Info.plist.
 	// On unsigned dev builds, actions are silently ignored (no crash).
-	const isMac = process.platform === "darwin"
+	const isMac = process.platform === "darwin";
 	const hasPermissionActions =
-		isMac && request.type === "permission" && request.meta?.permissionId && serverUrl
+		isMac &&
+		request.type === "permission" &&
+		request.meta?.permissionId &&
+		serverUrl;
 
 	const notification = new Notification({
 		title: request.title,
@@ -159,52 +169,61 @@ function fireNotification(request: NotificationRequest): void {
 		silent: false,
 		...(hasPermissionActions && {
 			actions: [
-				{ type: "button" as const, text: "Allow" },
-				{ type: "button" as const, text: "Deny" },
+				{ type: "button" as const, text: tMain("common.actions.allow") },
+				{ type: "button" as const, text: tMain("common.actions.deny") },
 			],
 		}),
-	})
+	});
 
 	notification.on("click", () => {
-		navigateToSession(request.sessionId)
-		activeNotifications.delete(request.sessionId)
-	})
+		navigateToSession(request.sessionId);
+		activeNotifications.delete(request.sessionId);
+	});
 
 	notification.on("close", () => {
-		activeNotifications.delete(request.sessionId)
-	})
+		activeNotifications.delete(request.sessionId);
+	});
 
 	// macOS action button handler — Approve or Deny directly from the notification
 	if (hasPermissionActions) {
 		notification.on("action", (_event, index) => {
-			const permissionId = request.meta?.permissionId
-			if (!permissionId || !serverUrl) return
+			const permissionId = request.meta?.permissionId;
+			if (!permissionId || !serverUrl) return;
 
 			// index 0 = "Allow", index 1 = "Deny"
-			const response = index === 0 ? "once" : "reject"
-			replyToPermission(serverUrl, request.sessionId, permissionId, response, request.directory)
-		})
+			const response = index === 0 ? "once" : "reject";
+			replyToPermission(
+				serverUrl,
+				request.sessionId,
+				permissionId,
+				response,
+				request.directory,
+			);
+		});
 	}
 
-	activeNotifications.set(request.sessionId, notification)
-	notification.show()
+	activeNotifications.set(request.sessionId, notification);
+	notification.show();
 
 	// Platform attention signals for blocking events
 	if (request.type === "permission" || request.type === "question") {
-		bounceDock()
-		flashWindow()
+		bounceDock();
+		flashWindow();
 	}
 
-	log.info("Notification shown", { type: request.type, session: request.sessionId })
+	log.info("Notification shown", {
+		type: request.type,
+		session: request.sessionId,
+	});
 }
 
 /** Navigate the renderer to a specific session (used on notification click). */
 function navigateToSession(sessionId: string): void {
-	const win = BrowserWindow.getAllWindows()[0]
+	const win = BrowserWindow.getAllWindows()[0];
 	if (win) {
-		if (win.isMinimized()) win.restore()
-		win.focus()
-		win.webContents.send("notification:navigate", { sessionId })
+		if (win.isMinimized()) win.restore();
+		win.focus();
+		win.webContents.send("notification:navigate", { sessionId });
 	}
 }
 
@@ -220,75 +239,79 @@ async function replyToPermission(
 	directory?: string,
 ): Promise<void> {
 	try {
-		const endpoint = `${url}/session/${sessionId}/permissions/${permissionId}`
-		const headers: Record<string, string> = { "Content-Type": "application/json" }
+		const endpoint = `${url}/session/${sessionId}/permissions/${permissionId}`;
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+		};
 		if (directory) {
-			headers["x-opencode-directory"] = directory
+			headers["x-opencode-directory"] = directory;
 		}
 		const res = await net.fetch(endpoint, {
 			method: "POST",
 			headers,
 			body: JSON.stringify({ response }),
-		})
+		});
 		if (!res.ok) {
-			const body = await res.text()
-			log.error("Permission reply failed", { status: res.status, body })
+			const body = await res.text();
+			log.error("Permission reply failed", { status: res.status, body });
 		} else {
 			log.info("Permission replied via notification action", {
 				sessionId,
 				permissionId,
 				response,
-			})
+			});
 		}
 	} catch (err) {
-		log.error("Failed to reply to permission from notification", err)
+		log.error("Failed to reply to permission from notification", err);
 	}
 }
 
 function batchPermissionNotification(request: NotificationRequest): void {
-	const queue = batchQueue.get(request.sessionId) ?? []
-	queue.push(request)
-	batchQueue.set(request.sessionId, queue)
+	const queue = batchQueue.get(request.sessionId) ?? [];
+	queue.push(request);
+	batchQueue.set(request.sessionId, queue);
 
 	// Reset the batch timer
-	const existingTimer = batchTimers.get(request.sessionId)
-	if (existingTimer) clearTimeout(existingTimer)
+	const existingTimer = batchTimers.get(request.sessionId);
+	if (existingTimer) clearTimeout(existingTimer);
 
 	batchTimers.set(
 		request.sessionId,
 		setTimeout(() => {
-			const batched = batchQueue.get(request.sessionId) ?? []
-			batchQueue.delete(request.sessionId)
-			batchTimers.delete(request.sessionId)
+			const batched = batchQueue.get(request.sessionId) ?? [];
+			batchQueue.delete(request.sessionId);
+			batchTimers.delete(request.sessionId);
 
-			if (batched.length === 0) return
+			if (batched.length === 0) return;
 			if (batched.length === 1) {
-				fireNotification(batched[0])
-				return
+				fireNotification(batched[0]);
+				return;
 			}
 
 			fireNotification({
 				type: "permission",
 				sessionId: request.sessionId,
-				title: "Agent needs permissions",
-				body: `${batched.length} pending approvals`,
+				title: tMain("native.notifications.agentNeedsPermissions"),
+				body: tMain("native.notifications.pendingApprovals", {
+					count: batched.length,
+				}),
 				meta: batched[0].meta,
-			})
+			});
 		}, BATCH_WINDOW_MS),
-	)
+	);
 }
 
 function bounceDock(): void {
-	if (process.platform !== "darwin") return
-	const win = BrowserWindow.getAllWindows()[0]
+	if (process.platform !== "darwin") return;
+	const win = BrowserWindow.getAllWindows()[0];
 	if (win && !win.isFocused()) {
-		app.dock?.bounce("informational")
+		app.dock?.bounce("informational");
 	}
 }
 
 function flashWindow(): void {
-	const win = BrowserWindow.getAllWindows()[0]
-	if (!win || win.isFocused()) return
-	win.flashFrame(true)
-	win.once("focus", () => win.flashFrame(false))
+	const win = BrowserWindow.getAllWindows()[0];
+	if (!win || win.isFocused()) return;
+	win.flashFrame(true);
+	win.once("focus", () => win.flashFrame(false));
 }

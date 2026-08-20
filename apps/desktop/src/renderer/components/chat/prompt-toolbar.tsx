@@ -8,18 +8,22 @@ import {
 	SearchableListPopoverSearch,
 	SearchableListPopoverTrigger,
 	useSearchableListPopoverSearch,
-} from "@palot/ui/components/searchable-list-popover"
+} from "@palot/ui/components/searchable-list-popover";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@palot/ui/components/select"
-import { Separator } from "@palot/ui/components/separator"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { cn } from "@palot/ui/lib/utils"
-import { useAtomValue } from "jotai"
+} from "@palot/ui/components/select";
+import { Separator } from "@palot/ui/components/separator";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { cn } from "@palot/ui/lib/utils";
+import { useAtomValue } from "jotai";
 import {
 	CheckIcon,
 	ChevronDownIcon,
@@ -28,11 +32,12 @@ import {
 	MaximizeIcon,
 	MonitorIcon,
 	SparklesIcon,
-} from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
-import { messagesFamily } from "../../atoms/messages"
-import type { DisplayMode } from "../../atoms/preferences"
-import { useDisplayMode, useSetDisplayMode } from "../../hooks/use-agents"
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { messagesFamily } from "../../atoms/messages";
+import type { DisplayMode } from "../../atoms/preferences";
+import { useDisplayMode, useSetDisplayMode } from "../../hooks/use-agents";
 import type {
 	CompactionConfig,
 	ModelRef,
@@ -40,19 +45,19 @@ import type {
 	SdkAgent,
 	SdkProvider,
 	VcsData,
-} from "../../hooks/use-opencode-data"
-import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data"
+} from "../../hooks/use-opencode-data";
+import { getModelVariants, parseModelRef } from "../../hooks/use-opencode-data";
 import {
 	resolveAvailableCodexModelCandidates,
 	resolveVerifiedChinaModelCandidates,
-} from "../../lib/providers"
+} from "../../lib/providers";
 import {
 	computeContextUsage,
 	formatPercentage,
 	type ModelLimitInfo,
 	shortModelName,
-} from "../../lib/session-metrics"
-import { ProviderIcon } from "../settings/provider-icon"
+} from "../../lib/session-metrics";
+import { ProviderIcon } from "../settings/provider-icon";
 
 // ============================================================
 // Shared toolbar trigger styles
@@ -60,25 +65,25 @@ import { ProviderIcon } from "../settings/provider-icon"
 
 /** Base classes shared by ALL toolbar triggers (Popover + Select). */
 const TOOLBAR_TRIGGER_BASE_CN =
-	"flex h-7 items-center gap-1 rounded-md border-none bg-transparent px-2 text-xs shadow-none transition-colors"
+	"flex h-7 items-center gap-1 rounded-md border-none bg-transparent px-2 text-xs shadow-none transition-colors";
 
 /**
  * Classes for SelectTrigger overrides. Uses `!` modifier to beat the base
  * component's `py-2 pl-2.5 pr-2 dark:bg-input/30 dark:hover:bg-input/50`.
  */
 const TOOLBAR_TRIGGER_CN =
-	"h-7! gap-1 border-none bg-transparent! hover:bg-muted! px-2! py-0! text-xs shadow-none transition-colors"
+	"h-7! gap-1 border-none bg-transparent! hover:bg-muted! px-2! py-0! text-xs shadow-none transition-colors";
 
 // ============================================================
 // Agent Selector
 // ============================================================
 
 interface AgentSelectorProps {
-	agents: SdkAgent[]
-	selectedAgent: string | null
-	defaultAgent?: string
-	onSelectAgent: (agentName: string) => void
-	disabled?: boolean
+	agents: SdkAgent[];
+	selectedAgent: string | null;
+	defaultAgent?: string;
+	onSelectAgent: (agentName: string) => void;
+	disabled?: boolean;
 }
 
 export function AgentSelector({
@@ -88,23 +93,23 @@ export function AgentSelector({
 	onSelectAgent,
 	disabled,
 }: AgentSelectorProps) {
-	if (agents.length === 0) return null
+	if (agents.length === 0) return null;
 
 	// Resolve which agent to display. If the preferred name doesn't match any
 	// available agent (e.g. stale session data, config reload), fall back to a
 	// known-valid agent so the Radix Select always has a matching SelectItem.
-	const preferred = selectedAgent ?? defaultAgent ?? agents[0]?.name ?? "build"
+	const preferred = selectedAgent ?? defaultAgent ?? agents[0]?.name ?? "build";
 	const currentAgentObj =
 		agents.find((a) => a.name === preferred) ??
 		agents.find((a) => a.name === defaultAgent) ??
-		agents[0]
-	const currentAgent = currentAgentObj?.name ?? preferred
+		agents[0];
+	const currentAgent = currentAgentObj?.name ?? preferred;
 
 	return (
 		<Select
 			value={currentAgent}
 			onValueChange={(v) => {
-				if (v !== null) onSelectAgent(v)
+				if (v !== null) onSelectAgent(v);
 			}}
 			disabled={disabled}
 		>
@@ -135,7 +140,7 @@ export function AgentSelector({
 				))}
 			</SelectContent>
 		</Select>
-	)
+	);
 }
 
 // ============================================================
@@ -144,16 +149,16 @@ export function AgentSelector({
 
 interface ModelOption {
 	/** Composite value: "providerID/modelID" */
-	value: string
-	providerID: string
-	modelID: string
-	displayName: string
-	providerName: string
-	reasoning: boolean
+	value: string;
+	providerID: string;
+	modelID: string;
+	displayName: string;
+	providerName: string;
+	reasoning: boolean;
 }
 
 function flattenModels(providers: SdkProvider[]): ModelOption[] {
-	const models: ModelOption[] = []
+	const models: ModelOption[] = [];
 	for (const provider of providers) {
 		for (const [key, model] of Object.entries(provider.models)) {
 			models.push({
@@ -163,35 +168,35 @@ function flattenModels(providers: SdkProvider[]): ModelOption[] {
 				displayName: model.name,
 				providerName: provider.name,
 				reasoning: model.capabilities?.reasoning ?? false,
-			})
+			});
 		}
 	}
-	return models
+	return models;
 }
 
 function groupByProvider(models: ModelOption[]): Map<string, ModelOption[]> {
-	const groups = new Map<string, ModelOption[]>()
+	const groups = new Map<string, ModelOption[]>();
 	for (const model of models) {
-		const existing = groups.get(model.providerName)
+		const existing = groups.get(model.providerName);
 		if (existing) {
-			existing.push(model)
+			existing.push(model);
 		} else {
-			groups.set(model.providerName, [model])
+			groups.set(model.providerName, [model]);
 		}
 	}
-	return groups
+	return groups;
 }
 
 interface ModelSelectorProps {
-	providers: ProvidersData | null
+	providers: ProvidersData | null;
 	/** The resolved effective model (after agent/config/default resolution) */
-	effectiveModel: ModelRef | null
+	effectiveModel: ModelRef | null;
 	/** Whether the user has explicitly overridden the model */
-	hasOverride: boolean
-	onSelectModel: (model: ModelRef | null) => void
+	hasOverride: boolean;
+	onSelectModel: (model: ModelRef | null) => void;
 	/** Recent models from model.json (most recently used first) */
-	recentModels?: ModelRef[]
-	disabled?: boolean
+	recentModels?: ModelRef[];
+	disabled?: boolean;
 }
 
 export function ModelSelector({
@@ -201,63 +206,77 @@ export function ModelSelector({
 	recentModels,
 	disabled,
 }: ModelSelectorProps) {
-	const models = useMemo(() => (providers ? flattenModels(providers.providers) : []), [providers])
+	const { t } = useTranslation();
+	const models = useMemo(
+		() => (providers ? flattenModels(providers.providers) : []),
+		[providers],
+	);
 	const recommendationGroups = useMemo(() => {
-		const modelsByValue = new Map(models.map((model) => [model.value, model]))
-		const resolveModels = (recommendations: ReadonlyArray<{ providerID: string; modelID: string }>) =>
+		const modelsByValue = new Map(models.map((model) => [model.value, model]));
+		const resolveModels = (
+			recommendations: ReadonlyArray<{ providerID: string; modelID: string }>,
+		) =>
 			recommendations
-				.map((model) => modelsByValue.get(`${model.providerID}/${model.modelID}`))
-				.filter((model): model is ModelOption => model !== undefined)
+				.map((model) =>
+					modelsByValue.get(`${model.providerID}/${model.modelID}`),
+				)
+				.filter((model): model is ModelOption => model !== undefined);
 		return {
 			codex: resolveModels(
-				providers ? resolveAvailableCodexModelCandidates(providers.providers) : [],
+				providers
+					? resolveAvailableCodexModelCandidates(providers.providers)
+					: [],
 			),
 			china: resolveModels(
-				providers ? resolveVerifiedChinaModelCandidates(providers.providers) : [],
+				providers
+					? resolveVerifiedChinaModelCandidates(providers.providers)
+					: [],
 			),
-		}
-	}, [models, providers])
+		};
+	}, [models, providers]);
 
 	// Build "Last used" group from recentModels (up to 3, only models that exist in providers)
 	const lastUsedModels = useMemo(() => {
-		if (!recentModels || recentModels.length === 0) return []
+		if (!recentModels || recentModels.length === 0) return [];
 		return recentModels
 			.slice(0, 3)
 			.map((ref) =>
-				models.find((m) => m.providerID === ref.providerID && m.modelID === ref.modelID),
+				models.find(
+					(m) => m.providerID === ref.providerID && m.modelID === ref.modelID,
+				),
 			)
-			.filter((m): m is ModelOption => m != null)
-	}, [recentModels, models])
+			.filter((m): m is ModelOption => m != null);
+	}, [recentModels, models]);
 
 	const activeValue = effectiveModel
 		? `${effectiveModel.providerID}/${effectiveModel.modelID}`
-		: null
+		: null;
 
 	const activeModel = useMemo(
 		() => models.find((m) => m.value === activeValue) ?? null,
 		[models, activeValue],
-	)
+	);
 
-	const [open, setOpen] = useState(false)
+	const [open, setOpen] = useState(false);
 
 	const handleSelect = useCallback(
 		(value: string) => {
-			const ref = parseModelRef(value)
+			const ref = parseModelRef(value);
 			if (ref) {
-				onSelectModel(ref)
+				onSelectModel(ref);
 			}
-			setOpen(false)
+			setOpen(false);
 		},
 		[onSelectModel],
-	)
+	);
 
 	if (!providers || models.length === 0) {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
 				<SparklesIcon className="size-3" />
-				<span>No models</span>
+				<span>{t("chat.noModels")}</span>
 			</div>
-		)
+		);
 	}
 
 	return (
@@ -271,16 +290,20 @@ export function ModelSelector({
 			>
 				{activeModel ? (
 					<>
-						<ProviderIcon id={activeModel.providerID} name={activeModel.providerName} size="xs" />
+						<ProviderIcon
+							id={activeModel.providerID}
+							name={activeModel.providerName}
+							size="xs"
+						/>
 						<span>{activeModel.displayName}</span>
 					</>
 				) : (
-					<span className="text-muted-foreground">Select model...</span>
+					<span className="text-muted-foreground">{t("chat.selectModel")}</span>
 				)}
 				<ChevronDownIcon className="size-4 shrink-0 text-muted-foreground pointer-events-none" />
 			</SearchableListPopoverTrigger>
 			<SearchableListPopoverContent side="top" align="start">
-				<SearchableListPopoverSearch placeholder="Search models..." />
+				<SearchableListPopoverSearch placeholder={t("chat.searchModels")} />
 				<ModelSelectorList
 					models={models}
 					lastUsedModels={lastUsedModels}
@@ -291,7 +314,7 @@ export function ModelSelector({
 				/>
 			</SearchableListPopoverContent>
 		</SearchableListPopover>
-	)
+	);
 }
 
 /** Inner list component — reads search from context */
@@ -303,37 +326,43 @@ function ModelSelectorList({
 	activeValue,
 	onSelect,
 }: {
-	models: ModelOption[]
-	lastUsedModels: ModelOption[]
-	codexRecommendedModels: ModelOption[]
-	chinaRecommendedModels: ModelOption[]
-	activeValue: string | null
-	onSelect: (value: string) => void
+	models: ModelOption[];
+	lastUsedModels: ModelOption[];
+	codexRecommendedModels: ModelOption[];
+	chinaRecommendedModels: ModelOption[];
+	activeValue: string | null;
+	onSelect: (value: string) => void;
 }) {
-	const search = useSearchableListPopoverSearch()
+	const { t } = useTranslation();
+	const search = useSearchableListPopoverSearch();
 
 	const filteredModels = useMemo(() => {
-		if (!search) return models
-		const q = search.toLowerCase()
+		if (!search) return models;
+		const q = search.toLowerCase();
 		return models.filter(
 			(m) =>
 				m.displayName.toLowerCase().includes(q) ||
 				m.providerName.toLowerCase().includes(q) ||
 				m.modelID.toLowerCase().includes(q),
-		)
-	}, [models, search])
+		);
+	}, [models, search]);
 
-	const grouped = useMemo(() => groupByProvider(filteredModels), [filteredModels])
+	const grouped = useMemo(
+		() => groupByProvider(filteredModels),
+		[filteredModels],
+	);
 
 	return (
 		<SearchableListPopoverList>
 			{filteredModels.length === 0 ? (
-				<SearchableListPopoverEmpty>No models found</SearchableListPopoverEmpty>
+				<SearchableListPopoverEmpty>
+					{t("chat.noModelsFound")}
+				</SearchableListPopoverEmpty>
 			) : (
 				<>
 					{/* Last used group — only shown when not searching */}
 					{!search && lastUsedModels.length > 0 && (
-						<SearchableListPopoverGroup label="Last used">
+						<SearchableListPopoverGroup label={t("chat.lastUsed")}>
 							{lastUsedModels.map((model) => (
 								<SearchableListPopoverItem
 									key={`recent-${model.value}`}
@@ -361,13 +390,13 @@ function ModelSelectorList({
 					{!search ? (
 						<>
 							<RecommendedModelGroup
-								label="OpenAI Codex (Optional)"
+								label={t("settings.providers.codexTitle")}
 								models={codexRecommendedModels}
 								activeValue={activeValue}
 								onSelect={onSelect}
 							/>
 							<RecommendedModelGroup
-								label="Verified China models"
+								label={t("settings.providers.recommendedChina")}
 								models={chinaRecommendedModels}
 								activeValue={activeValue}
 								onSelect={onSelect}
@@ -376,42 +405,52 @@ function ModelSelectorList({
 					) : null}
 
 					{/* Provider-grouped models */}
-					{Array.from(grouped.entries()).map(([providerName, providerModels]) => {
-						// Get the provider ID from the first model in the group to look up the icon
-						const providerId = providerModels[0]?.providerID
-						return (
-							<SearchableListPopoverGroup
-								key={providerName}
-								label={
-									<>
-										{providerId && <ProviderIcon id={providerId} name={providerName} size="xs" />}
-										<span>{providerName}</span>
-									</>
-								}
-							>
-								{providerModels.map((model) => (
-									<SearchableListPopoverItem
-										key={model.value}
-										onSelect={() => onSelect(model.value)}
-									>
-										<span className="min-w-0 flex-1 truncate">{model.displayName}</span>
-										{model.reasoning && (
-											<span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground/60">
-												reasoning
+					{Array.from(grouped.entries()).map(
+						([providerName, providerModels]) => {
+							// Get the provider ID from the first model in the group to look up the icon
+							const providerId = providerModels[0]?.providerID;
+							return (
+								<SearchableListPopoverGroup
+									key={providerName}
+									label={
+										<>
+											{providerId && (
+												<ProviderIcon
+													id={providerId}
+													name={providerName}
+													size="xs"
+												/>
+											)}
+											<span>{providerName}</span>
+										</>
+									}
+								>
+									{providerModels.map((model) => (
+										<SearchableListPopoverItem
+											key={model.value}
+											onSelect={() => onSelect(model.value)}
+										>
+											<span className="min-w-0 flex-1 truncate">
+												{model.displayName}
 											</span>
-										)}
-										{model.value === activeValue && (
-											<CheckIcon className="size-3.5 shrink-0 text-primary" />
-										)}
-									</SearchableListPopoverItem>
-								))}
-							</SearchableListPopoverGroup>
-						)
-					})}
+											{model.reasoning && (
+												<span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground/60">
+													reasoning
+												</span>
+											)}
+											{model.value === activeValue && (
+												<CheckIcon className="size-3.5 shrink-0 text-primary" />
+											)}
+										</SearchableListPopoverItem>
+									))}
+								</SearchableListPopoverGroup>
+							);
+						},
+					)}
 				</>
 			)}
 		</SearchableListPopoverList>
-	)
+	);
 }
 
 function RecommendedModelGroup({
@@ -420,12 +459,12 @@ function RecommendedModelGroup({
 	activeValue,
 	onSelect,
 }: {
-	label: string
-	models: ModelOption[]
-	activeValue: string | null
-	onSelect: (value: string) => void
+	label: string;
+	models: ModelOption[];
+	activeValue: string | null;
+	onSelect: (value: string) => void;
 }) {
-	if (models.length === 0) return null
+	if (models.length === 0) return null;
 
 	return (
 		<SearchableListPopoverGroup label={label}>
@@ -434,7 +473,11 @@ function RecommendedModelGroup({
 					key={`recommended-${model.value}`}
 					onSelect={() => onSelect(model.value)}
 				>
-					<ProviderIcon id={model.providerID} name={model.providerName} size="xs" />
+					<ProviderIcon
+						id={model.providerID}
+						name={model.providerName}
+						size="xs"
+					/>
 					<div className="min-w-0 flex-1">
 						<div className="truncate">{model.displayName}</div>
 						<div className="truncate text-[10px] text-muted-foreground/40">
@@ -447,7 +490,7 @@ function RecommendedModelGroup({
 				</SearchableListPopoverItem>
 			))}
 		</SearchableListPopoverGroup>
-	)
+	);
 }
 
 // ============================================================
@@ -456,11 +499,11 @@ function RecommendedModelGroup({
 
 interface VariantSelectorProps {
 	/** Available variant names for the current model */
-	variants: string[]
+	variants: string[];
 	/** Currently selected variant (undefined = model default) */
-	selectedVariant: string | undefined
-	onSelectVariant: (variant: string | undefined) => void
-	disabled?: boolean
+	selectedVariant: string | undefined;
+	onSelectVariant: (variant: string | undefined) => void;
+	disabled?: boolean;
 }
 
 export function VariantSelector({
@@ -469,28 +512,35 @@ export function VariantSelector({
 	onSelectVariant,
 	disabled,
 }: VariantSelectorProps) {
+	const { t } = useTranslation();
 	// Base UI Select needs an explicit items map so SelectValue can resolve
 	// labels before the popup is opened (items only mount inside the portal).
 	const items = useMemo(() => {
-		const map: Record<string, string> = { __default__: "Default variant" }
+		const map: Record<string, string> = {
+			__default__: t("chat.defaultVariant"),
+		};
 		for (const v of variants) {
-			map[v] = v.charAt(0).toUpperCase() + v.slice(1)
+			map[v] = v.charAt(0).toUpperCase() + v.slice(1);
 		}
-		return map
-	}, [variants])
+		return map;
+	}, [variants]);
 
-	if (variants.length === 0) return null
+	if (variants.length === 0) return null;
 
 	// "default" is a sentinel for "no variant override".
 	// If the selected variant isn't in the available list (e.g. stale restore),
 	// fall back to default so the <Select> doesn't show an empty/broken state.
 	const value =
-		selectedVariant && variants.includes(selectedVariant) ? selectedVariant : "__default__"
+		selectedVariant && variants.includes(selectedVariant)
+			? selectedVariant
+			: "__default__";
 
 	return (
 		<Select
 			value={value}
-			onValueChange={(v) => onSelectVariant(v === "__default__" ? undefined : (v ?? undefined))}
+			onValueChange={(v) =>
+				onSelectVariant(v === "__default__" ? undefined : (v ?? undefined))
+			}
 			disabled={disabled}
 			items={items}
 		>
@@ -504,7 +554,9 @@ export function VariantSelector({
 				className="min-w-[160px]"
 			>
 				<SelectItem value="__default__">
-					<span className="text-muted-foreground">Default variant</span>
+					<span className="text-muted-foreground">
+						{t("chat.defaultVariant")}
+					</span>
 				</SelectItem>
 				{variants.map((variant) => (
 					<SelectItem key={variant} value={variant}>
@@ -513,7 +565,7 @@ export function VariantSelector({
 				))}
 			</SelectContent>
 		</Select>
-	)
+	);
 }
 
 // ============================================================
@@ -522,29 +574,29 @@ export function VariantSelector({
 
 export interface PromptToolbarProps {
 	/** Available agents from OpenCode */
-	agents: SdkAgent[]
+	agents: SdkAgent[];
 	/** Currently selected agent name */
-	selectedAgent: string | null
+	selectedAgent: string | null;
 	/** Default agent from config */
-	defaultAgent?: string
-	onSelectAgent: (agentName: string) => void
+	defaultAgent?: string;
+	onSelectAgent: (agentName: string) => void;
 
 	/** Provider data for model selector */
-	providers: ProvidersData | null
+	providers: ProvidersData | null;
 	/** The resolved effective model */
-	effectiveModel: ModelRef | null
+	effectiveModel: ModelRef | null;
 	/** Whether the user has explicitly overridden the model */
-	hasModelOverride: boolean
-	onSelectModel: (model: ModelRef | null) => void
+	hasModelOverride: boolean;
+	onSelectModel: (model: ModelRef | null) => void;
 
 	/** Recent models from model.json */
-	recentModels?: ModelRef[]
+	recentModels?: ModelRef[];
 
 	/** Currently selected variant */
-	selectedVariant: string | undefined
-	onSelectVariant: (variant: string | undefined) => void
+	selectedVariant: string | undefined;
+	onSelectVariant: (variant: string | undefined) => void;
 
-	disabled?: boolean
+	disabled?: boolean;
 }
 
 /**
@@ -567,12 +619,16 @@ export function PromptToolbar({
 }: PromptToolbarProps) {
 	// Compute variants for the current effective model
 	const variants = useMemo(() => {
-		if (!effectiveModel || !providers) return []
-		return getModelVariants(effectiveModel.providerID, effectiveModel.modelID, providers.providers)
-	}, [effectiveModel, providers])
+		if (!effectiveModel || !providers) return [];
+		return getModelVariants(
+			effectiveModel.providerID,
+			effectiveModel.modelID,
+			providers.providers,
+		);
+	}, [effectiveModel, providers]);
 
-	const hasAgents = agents.length > 0
-	const hasVariants = variants.length > 0
+	const hasAgents = agents.length > 0;
+	const hasVariants = variants.length > 0;
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center gap-0.5">
@@ -586,7 +642,12 @@ export function PromptToolbar({
 				/>
 			)}
 
-			{hasAgents && <Separator orientation="vertical" className="mx-0.5 my-2 self-stretch" />}
+			{hasAgents && (
+				<Separator
+					orientation="vertical"
+					className="mx-0.5 my-2 self-stretch"
+				/>
+			)}
 
 			<ModelSelector
 				providers={providers}
@@ -597,7 +658,12 @@ export function PromptToolbar({
 				disabled={disabled}
 			/>
 
-			{hasVariants && <Separator orientation="vertical" className="mx-0.5 my-2 self-stretch" />}
+			{hasVariants && (
+				<Separator
+					orientation="vertical"
+					className="mx-0.5 my-2 self-stretch"
+				/>
+			)}
 
 			{hasVariants && (
 				<VariantSelector
@@ -608,7 +674,7 @@ export function PromptToolbar({
 				/>
 			)}
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -616,33 +682,29 @@ export function PromptToolbar({
 // ============================================================
 
 interface StatusBarProps {
-	vcs: VcsData | null
-	isConnected: boolean
+	vcs: VcsData | null;
+	isConnected: boolean;
 	/** Whether the session is currently running */
-	isWorking?: boolean
+	isWorking?: boolean;
 	/** Number of Escape presses toward abort (0 = none, 1 = first press) */
-	interruptCount?: number
+	interruptCount?: number;
 	/** Optional slot to replace the default branch display (e.g. interactive BranchPicker) */
-	branchSlot?: React.ReactNode
+	branchSlot?: React.ReactNode;
 	/** Optional extra slot rendered on the left side (e.g. worktree toggle) */
-	extraSlot?: React.ReactNode
+	extraSlot?: React.ReactNode;
 	/** Session ID for context usage computation */
-	sessionId?: string
+	sessionId?: string;
 	/** Provider data for context limit lookup */
-	providers?: ProvidersData | null
+	providers?: ProvidersData | null;
 	/** Compaction config from OpenCode for accurate threshold calculation */
-	compaction?: CompactionConfig
+	compaction?: CompactionConfig;
 }
 
-const DISPLAY_MODE_CYCLE: DisplayMode[] = ["default", "verbose"]
-const DISPLAY_MODE_LABELS: Record<DisplayMode, string> = {
-	default: "Default",
-	verbose: "Verbose",
-}
+const DISPLAY_MODE_CYCLE: DisplayMode[] = ["default", "verbose"];
 const DISPLAY_MODE_ICONS: Record<DisplayMode, typeof ListIcon> = {
 	default: ListIcon,
 	verbose: MaximizeIcon,
-}
+};
 
 export function StatusBar({
 	vcs,
@@ -655,16 +717,18 @@ export function StatusBar({
 	providers,
 	compaction,
 }: StatusBarProps) {
-	const displayMode = useDisplayMode()
-	const setDisplayMode = useSetDisplayMode()
+	const { t } = useTranslation();
+	const displayMode = useDisplayMode();
+	const displayModeLabel = t(`chat.display.${displayMode}`);
+	const setDisplayMode = useSetDisplayMode();
 
 	const cycleDisplayMode = useCallback(() => {
-		const currentIndex = DISPLAY_MODE_CYCLE.indexOf(displayMode)
-		const nextIndex = (currentIndex + 1) % DISPLAY_MODE_CYCLE.length
-		setDisplayMode(DISPLAY_MODE_CYCLE[nextIndex])
-	}, [displayMode, setDisplayMode])
+		const currentIndex = DISPLAY_MODE_CYCLE.indexOf(displayMode);
+		const nextIndex = (currentIndex + 1) % DISPLAY_MODE_CYCLE.length;
+		setDisplayMode(DISPLAY_MODE_CYCLE[nextIndex]);
+	}, [displayMode, setDisplayMode]);
 
-	const DisplayModeIcon = DISPLAY_MODE_ICONS[displayMode]
+	const DisplayModeIcon = DISPLAY_MODE_ICONS[displayMode];
 
 	return (
 		<div className="flex min-w-0 items-center gap-3 overflow-hidden px-2 pt-2 text-[11px] text-muted-foreground/60">
@@ -673,14 +737,14 @@ export function StatusBar({
 				{extraSlot ?? (
 					<div className="flex items-center gap-1">
 						<MonitorIcon className="size-3" />
-						<span>Local</span>
+						<span>{t("chat.local")}</span>
 					</div>
 				)}
 
 				{!isConnected && (
 					<div className="flex items-center gap-1 text-yellow-500/70">
 						<span className="inline-block size-1.5 rounded-full bg-yellow-500/70" />
-						<span>Disconnected</span>
+						<span>{t("common.states.disconnected")}</span>
 					</div>
 				)}
 
@@ -693,7 +757,9 @@ export function StatusBar({
 							esc
 						</kbd>
 						<span>
-							{interruptCount && interruptCount > 0 ? "press again to stop" : "interrupt"}
+							{interruptCount && interruptCount > 0
+								? t("chat.display.pressAgain")
+								: t("chat.display.interrupt")}
 						</span>
 					</div>
 				)}
@@ -706,10 +772,10 @@ export function StatusBar({
 					type="button"
 					onClick={cycleDisplayMode}
 					className="flex items-center gap-1 transition-colors hover:text-foreground"
-					title={`Display: ${DISPLAY_MODE_LABELS[displayMode]} (click to cycle)`}
+					title={t("chat.display.tooltip", { mode: displayModeLabel })}
 				>
 					<DisplayModeIcon className="size-3" />
-					<span>{DISPLAY_MODE_LABELS[displayMode]}</span>
+					<span>{displayModeLabel}</span>
 				</button>
 
 				{/* Context window usage */}
@@ -732,7 +798,7 @@ export function StatusBar({
 						)}
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -752,47 +818,51 @@ function ContextUsageIndicator({
 	providers,
 	compaction,
 }: {
-	sessionId: string
-	providers?: ProvidersData | null
-	compaction?: CompactionConfig
+	sessionId: string;
+	providers?: ProvidersData | null;
+	compaction?: CompactionConfig;
 }) {
-	const messages = useAtomValue(messagesFamily(sessionId))
+	const { t } = useTranslation();
+	const messages = useAtomValue(messagesFamily(sessionId));
 
 	const getModelLimit = useCallback(
 		(providerID: string, modelID: string): ModelLimitInfo | undefined => {
-			if (!providers?.providers) return undefined
+			if (!providers?.providers) return undefined;
 			for (const provider of providers.providers) {
-				if (provider.id !== providerID) continue
-				const model = provider.models[modelID]
-				if (model?.limit?.context) return model.limit
+				if (provider.id !== providerID) continue;
+				const model = provider.models[modelID];
+				if (model?.limit?.context) return model.limit;
 			}
-			return undefined
+			return undefined;
 		},
 		[providers],
-	)
+	);
 
 	const compactionOptions = useMemo(
-		() => (compaction ? { auto: compaction.auto, reserved: compaction.reserved } : undefined),
+		() =>
+			compaction
+				? { auto: compaction.auto, reserved: compaction.reserved }
+				: undefined,
 		[compaction],
-	)
+	);
 
 	const usage = useMemo(
 		() => computeContextUsage(messages, getModelLimit, compactionOptions),
 		[messages, getModelLimit, compactionOptions],
-	)
+	);
 
-	if (!usage) return null
+	if (!usage) return null;
 
-	const pct = usage.percentage
-	const color = pct >= 90 ? "text-red-400" : pct >= 70 ? "text-yellow-400" : ""
+	const pct = usage.percentage;
+	const color = pct >= 90 ? "text-red-400" : pct >= 70 ? "text-yellow-400" : "";
 
-	const compPct = usage.compactionPercentage
+	const compPct = usage.compactionPercentage;
 	const compColor =
 		compPct != null && compPct >= 100
 			? "text-red-400"
 			: compPct != null && compPct >= 80
 				? "text-yellow-400"
-				: "text-background/60"
+				: "text-background/60";
 
 	return (
 		<Tooltip>
@@ -811,31 +881,37 @@ function ContextUsageIndicator({
 			</TooltipTrigger>
 			<TooltipContent side="top" align="end">
 				<div className="space-y-1.5 text-xs">
-					<p className="font-medium">Context Window</p>
+					<p className="font-medium">{t("chat.contextWindow")}</p>
 					<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-background/60">
-						<span>Usage</span>
-						<span className="text-right tabular-nums">{formatPercentage(pct)}</span>
-						<span>Tokens</span>
+						<span>{t("chat.usage")}</span>
+						<span className="text-right tabular-nums">
+							{formatPercentage(pct)}
+						</span>
+						<span>{t("chat.tokens")}</span>
 						<span className="text-right tabular-nums">
 							{usage.lastMessageTokens.toLocaleString()}
 						</span>
-						<span>Limit</span>
-						<span className="text-right tabular-nums">{usage.contextLimit.toLocaleString()}</span>
-						<span>Model</span>
+						<span>{t("chat.limit")}</span>
+						<span className="text-right tabular-nums">
+							{usage.contextLimit.toLocaleString()}
+						</span>
+						<span>{t("chat.model")}</span>
 						<span className="text-right">{shortModelName(usage.modelID)}</span>
 					</div>
 					{usage.compactionThreshold != null && compPct != null && (
 						<div className="border-t border-background/15 pt-1">
 							<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-background/60">
-								<span>Compaction</span>
-								<span className={cn("text-right tabular-nums", compColor)}>
-									{compPct >= 100 ? "now" : `at ${usage.compactionThreshold.toLocaleString()}`}
-								</span>
-								<span>Remaining</span>
+								<span>{t("chat.compaction")}</span>
 								<span className={cn("text-right tabular-nums", compColor)}>
 									{compPct >= 100
-										? "overflowed"
-										: `${(usage.compactionThreshold - usage.lastMessageTokens).toLocaleString()} tokens`}
+										? t("native.tray.now")
+										: `${t("chat.at")} ${usage.compactionThreshold.toLocaleString()}`}
+								</span>
+								<span>{t("chat.remaining")}</span>
+								<span className={cn("text-right tabular-nums", compColor)}>
+									{compPct >= 100
+										? t("chat.overflowed")
+										: `${(usage.compactionThreshold - usage.lastMessageTokens).toLocaleString()} ${t("chat.tokens")}`}
 								</span>
 							</div>
 						</div>
@@ -843,7 +919,7 @@ function ContextUsageIndicator({
 				</div>
 			</TooltipContent>
 		</Tooltip>
-	)
+	);
 }
 
 // ============================================================
@@ -855,16 +931,21 @@ function ContextCircle({
 	size = 12,
 	strokeWidth = 1.5,
 }: {
-	percentage: number
-	size?: number
-	strokeWidth?: number
+	percentage: number;
+	size?: number;
+	strokeWidth?: number;
 }) {
-	const radius = (size - strokeWidth) / 2
-	const circumference = 2 * Math.PI * radius
-	const offset = circumference - (Math.min(percentage, 100) / 100) * circumference
+	const radius = (size - strokeWidth) / 2;
+	const circumference = 2 * Math.PI * radius;
+	const offset =
+		circumference - (Math.min(percentage, 100) / 100) * circumference;
 
 	const strokeColor =
-		percentage >= 90 ? "stroke-red-400" : percentage >= 70 ? "stroke-yellow-400" : "stroke-current"
+		percentage >= 90
+			? "stroke-red-400"
+			: percentage >= 70
+				? "stroke-yellow-400"
+				: "stroke-current";
 
 	return (
 		<svg
@@ -895,5 +976,5 @@ function ContextCircle({
 				transform={`rotate(-90 ${size / 2} ${size / 2})`}
 			/>
 		</svg>
-	)
+	);
 }

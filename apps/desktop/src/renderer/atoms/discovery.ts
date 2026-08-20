@@ -1,5 +1,5 @@
-import { atom } from "jotai"
-import type { OpenCodeProject } from "../lib/types"
+import { atom } from "jotai";
+import type { OpenCodeProject } from "../lib/types";
 
 // ============================================================
 // Types
@@ -23,7 +23,7 @@ export type DiscoveryPhase =
 	| "loading-projects"
 	| "loading-sessions"
 	| "ready"
-	| "error"
+	| "error";
 
 /**
  * State for discovered project/session data.
@@ -34,13 +34,13 @@ export type DiscoveryPhase =
  * session atom family by the connection manager.
  */
 export interface DiscoveryState {
-	loaded: boolean
-	loading: boolean
-	error: string | null
+	loaded: boolean;
+	loading: boolean;
+	error: string | null;
 	/** Granular startup phase for loading UI */
-	phase: DiscoveryPhase
+	phase: DiscoveryPhase;
 	/** Projects discovered from the OpenCode API (Project type from SDK) */
-	projects: OpenCodeProject[]
+	projects: OpenCodeProject[];
 }
 
 // ============================================================
@@ -53,10 +53,10 @@ export const discoveryAtom = atom<DiscoveryState>({
 	error: null,
 	phase: "idle",
 	projects: [],
-})
+});
 
 // Convenience selectors
-export const discoveryLoadedAtom = atom((get) => get(discoveryAtom).loaded)
-export const discoveryLoadingAtom = atom((get) => get(discoveryAtom).loading)
-export const discoveryPhaseAtom = atom((get) => get(discoveryAtom).phase)
-export const discoveryProjectsAtom = atom((get) => get(discoveryAtom).projects)
+export const discoveryLoadedAtom = atom((get) => get(discoveryAtom).loaded);
+export const discoveryLoadingAtom = atom((get) => get(discoveryAtom).loading);
+export const discoveryPhaseAtom = atom((get) => get(discoveryAtom).phase);
+export const discoveryProjectsAtom = atom((get) => get(discoveryAtom).projects);

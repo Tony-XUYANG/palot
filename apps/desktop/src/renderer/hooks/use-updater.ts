@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react"
-import type { UpdateState } from "../../preload/api"
-import { isElectron } from "../services/backend"
+import { useCallback, useEffect, useState } from "react";
+import type { UpdateState } from "../../preload/api";
+import { isElectron } from "../services/backend";
 
-const defaultState: UpdateState = { status: "idle", canAutoInstall: true }
+const defaultState: UpdateState = { status: "idle", canAutoInstall: true };
 
 /**
  * Hook that tracks the auto-updater state from the main process.
@@ -15,45 +15,45 @@ const defaultState: UpdateState = { status: "idle", canAutoInstall: true }
  * In browser mode (non-Electron), always returns idle state and no-op actions.
  */
 export function useUpdater() {
-	const [state, setState] = useState<UpdateState>(defaultState)
+	const [state, setState] = useState<UpdateState>(defaultState);
 
 	// Fetch initial state and subscribe to changes
 	useEffect(() => {
-		if (!isElectron) return
+		if (!isElectron) return;
 
 		// Get current state on mount
 		window.palot
 			.getUpdateState()
 			.then(setState)
-			.catch(() => {})
+			.catch(() => {});
 
 		// Subscribe to state changes pushed from main process
 		const unsubscribe = window.palot.onUpdateStateChanged((newState) => {
-			setState(newState)
-		})
+			setState(newState);
+		});
 
-		return unsubscribe
-	}, [])
+		return unsubscribe;
+	}, []);
 
 	const checkForUpdates = useCallback(async () => {
-		if (!isElectron) return
-		await window.palot.checkForUpdates()
-	}, [])
+		if (!isElectron) return;
+		await window.palot.checkForUpdates();
+	}, []);
 
 	const downloadUpdate = useCallback(async () => {
-		if (!isElectron) return
-		await window.palot.downloadUpdate()
-	}, [])
+		if (!isElectron) return;
+		await window.palot.downloadUpdate();
+	}, []);
 
 	const installUpdate = useCallback(() => {
-		if (!isElectron) return
-		window.palot.installUpdate()
-	}, [])
+		if (!isElectron) return;
+		window.palot.installUpdate();
+	}, []);
 
 	const openReleasePage = useCallback(async () => {
-		if (!isElectron) return
-		await window.palot.openReleasePage()
-	}, [])
+		if (!isElectron) return;
+		await window.palot.openReleasePage();
+	}, []);
 
 	return {
 		...state,
@@ -61,5 +61,5 @@ export function useUpdater() {
 		downloadUpdate,
 		installUpdate,
 		openReleasePage,
-	}
+	};
 }

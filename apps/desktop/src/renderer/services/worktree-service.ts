@@ -6,12 +6,12 @@
  * OpenCode servers without any upstream code changes.
  */
 
-import type { OpencodeClient, Worktree } from "@opencode-ai/sdk/v2/client"
-import { createLogger } from "../lib/logger"
-import { isElectron } from "./backend"
-import { getProjectClient } from "./connection-manager"
+import type { OpencodeClient, Worktree } from "@opencode-ai/sdk/v2/client";
+import { createLogger } from "../lib/logger";
+import { isElectron } from "./backend";
+import { getProjectClient } from "./connection-manager";
 
-const log = createLogger("worktree-service")
+const log = createLogger("worktree-service");
 
 // ============================================================
 // Types
@@ -20,21 +20,21 @@ const log = createLogger("worktree-service")
 /** Result shaped for the existing Palot UI (compatible with new-chat.tsx flow) */
 export interface WorktreeResult {
 	/** Absolute path to the worktree root (git worktree directory) */
-	worktreeRoot: string
+	worktreeRoot: string;
 	/**
 	 * Workspace path within the worktree, accounting for monorepo subdirectories.
 	 * If the source was /repo/packages/app, this points to /worktree/packages/app.
 	 */
-	worktreeWorkspace: string
+	worktreeWorkspace: string;
 	/** The branch name created (e.g. "opencode/fix-auth-bug") */
-	branchName: string
+	branchName: string;
 }
 
 /** Result from the remote apply-to-local operation */
 export interface RemoteApplyResult {
-	success: boolean
-	message: string
-	error?: string
+	success: boolean;
+	message: string;
+	error?: string;
 }
 
 // ============================================================
@@ -72,7 +72,7 @@ const ADJECTIVES = [
 	"solar",
 	"void",
 	"warp",
-] as const
+] as const;
 
 const NOUNS = [
 	"apex",
@@ -106,10 +106,10 @@ const NOUNS = [
 	"spark",
 	"vortex",
 	"zenith",
-] as const
+] as const;
 
 function pick<const T extends readonly string[]>(list: T): string {
-	return list[Math.floor(Math.random() * list.length)]
+	return list[Math.floor(Math.random() * list.length)];
 }
 
 /**
@@ -120,7 +120,7 @@ function pick<const T extends readonly string[]>(list: T): string {
  * so we don't need to deduplicate on the client side.
  */
 export function randomWorktreeName(): string {
-	return `${pick(ADJECTIVES)}-${pick(NOUNS)}`
+	return `${pick(ADJECTIVES)}-${pick(NOUNS)}`;
 }
 
 // ============================================================
@@ -141,7 +141,7 @@ function buildEnvSyncCommand(sourceDir: string, worktreeDir: string): string {
 		`  case "$f" in *.example|*.sample) continue;; esac`,
 		`  cp "$f" "${worktreeDir}/" 2>/dev/null`,
 		"done",
-	].join(" ")
+	].join(" ");
 }
 
 /**
@@ -150,16 +150,16 @@ function buildEnvSyncCommand(sourceDir: string, worktreeDir: string): string {
  * returns "packages/app". Returns "" if sourceDir IS the repo root.
  */
 function computeSubPath(repoRoot: string, sourceDir: string): string {
-	const normalizedRoot = repoRoot.replace(/\/+$/, "")
-	const normalizedSource = sourceDir.replace(/\/+$/, "")
+	const normalizedRoot = repoRoot.replace(/\/+$/, "");
+	const normalizedSource = sourceDir.replace(/\/+$/, "");
 
-	if (normalizedSource === normalizedRoot) return ""
+	if (normalizedSource === normalizedRoot) return "";
 
 	if (normalizedSource.startsWith(`${normalizedRoot}/`)) {
-		return normalizedSource.slice(normalizedRoot.length + 1)
+		return normalizedSource.slice(normalizedRoot.length + 1);
 	}
 
-	return ""
+	return "";
 }
 
 /**
@@ -172,24 +172,27 @@ async function waitForWorktreeReady(
 	directory: string,
 	timeoutMs = 60_000,
 ): Promise<void> {
-	const start = Date.now()
-	const pollIntervalMs = 500
+	const start = Date.now();
+	const pollIntervalMs = 500;
 
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const result = await client.worktree.list()
-			const sandboxes = (result.data ?? []) as string[]
+			const result = await client.worktree.list();
+			const sandboxes = (result.data ?? []) as string[];
 			if (sandboxes.includes(directory)) {
-				log.debug("Worktree ready (found in sandbox list)", { directory })
-				return
+				log.debug("Worktree ready (found in sandbox list)", { directory });
+				return;
 			}
 		} catch {
 			// Ignore poll errors, keep trying
 		}
-		await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+		await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 	}
 
-	log.warn("Worktree readiness check timed out, proceeding anyway", { directory, timeoutMs })
+	log.warn("Worktree readiness check timed out, proceeding anyway", {
+		directory,
+		timeoutMs,
+	});
 }
 
 // ============================================================
@@ -208,9 +211,9 @@ export async function createWorktree(
 	sourceDir: string,
 	sessionSlug: string,
 ): Promise<WorktreeResult> {
-	const client = getProjectClient(projectDir)
+	const client = getProjectClient(projectDir);
 	if (!client) {
-		throw new Error("Not connected to server")
+		throw new Error("Not connected to server");
 	}
 
 	try {
@@ -219,36 +222,38 @@ export async function createWorktree(
 				name: sessionSlug,
 				startCommand: buildEnvSyncCommand(sourceDir, "$PWD"),
 			},
-		})
+		});
 
-		const data = result.data as Worktree | undefined
+		const data = result.data as Worktree | undefined;
 		if (!data?.directory) {
-			throw new Error("Worktree API returned unexpected response")
+			throw new Error("Worktree API returned unexpected response");
 		}
 
 		log.info("Worktree created via API", {
 			name: data.name,
 			branch: data.branch,
 			directory: data.directory,
-		})
+		});
 
 		// Wait for the worktree to be fully bootstrapped
-		await waitForWorktreeReady(client, data.directory)
+		await waitForWorktreeReady(client, data.directory);
 
 		// Compute the workspace subpath for monorepo support
-		const subPath = computeSubPath(projectDir, sourceDir)
-		const worktreeWorkspace = subPath ? `${data.directory}/${subPath}` : data.directory
+		const subPath = computeSubPath(projectDir, sourceDir);
+		const worktreeWorkspace = subPath
+			? `${data.directory}/${subPath}`
+			: data.directory;
 
 		return {
 			worktreeRoot: data.directory,
 			worktreeWorkspace,
 			branchName: data.branch,
-		}
+		};
 	} catch (err) {
-		log.error("Worktree creation failed", err)
+		log.error("Worktree creation failed", err);
 		throw new Error(
 			`Failed to create worktree: ${err instanceof Error ? err.message : "Unknown error"}`,
-		)
+		);
 	}
 }
 
@@ -256,61 +261,67 @@ export async function createWorktree(
  * Lists worktree directories for a project via the OpenCode API.
  */
 export async function listWorktrees(projectDir: string): Promise<string[]> {
-	const client = getProjectClient(projectDir)
+	const client = getProjectClient(projectDir);
 	if (!client) {
-		return []
+		return [];
 	}
 
 	try {
-		const result = await client.worktree.list()
-		return (result.data ?? []) as string[]
+		const result = await client.worktree.list();
+		return (result.data ?? []) as string[];
 	} catch {
-		log.debug("Worktree list API not available")
-		return []
+		log.debug("Worktree list API not available");
+		return [];
 	}
 }
 
 /**
  * Removes a worktree via the OpenCode API.
  */
-export async function removeWorktree(projectDir: string, worktreeDir: string): Promise<void> {
-	const client = getProjectClient(projectDir)
+export async function removeWorktree(
+	projectDir: string,
+	worktreeDir: string,
+): Promise<void> {
+	const client = getProjectClient(projectDir);
 	if (!client) {
-		throw new Error("Not connected to server")
+		throw new Error("Not connected to server");
 	}
 
 	try {
 		await client.worktree.remove({
 			worktreeRemoveInput: { directory: worktreeDir },
-		})
-		log.info("Worktree removed via API", { worktreeDir })
+		});
+		log.info("Worktree removed via API", { worktreeDir });
 	} catch (err) {
-		log.error("Worktree removal failed", err)
+		log.error("Worktree removal failed", err);
 		throw new Error(
 			`Failed to remove worktree: ${err instanceof Error ? err.message : "Unknown error"}`,
-		)
+		);
 	}
 }
 
 /**
  * Resets a worktree back to the default branch via the OpenCode API.
  */
-export async function resetWorktree(projectDir: string, worktreeDir: string): Promise<void> {
-	const client = getProjectClient(projectDir)
+export async function resetWorktree(
+	projectDir: string,
+	worktreeDir: string,
+): Promise<void> {
+	const client = getProjectClient(projectDir);
 	if (!client) {
-		throw new Error("Not connected to server")
+		throw new Error("Not connected to server");
 	}
 
 	try {
 		await client.worktree.reset({
 			worktreeResetInput: { directory: worktreeDir },
-		})
-		log.info("Worktree reset via API", { worktreeDir })
+		});
+		log.info("Worktree reset via API", { worktreeDir });
 	} catch (err) {
-		log.error("Worktree reset failed", err)
+		log.error("Worktree reset failed", err);
 		throw new Error(
 			`Failed to reset worktree: ${err instanceof Error ? err.message : "Unknown error"}`,
-		)
+		);
 	}
 }
 
@@ -334,9 +345,9 @@ export async function applyRemoteDiffToLocal(
 	sessionId: string,
 	localDir: string,
 ): Promise<RemoteApplyResult> {
-	const client = getProjectClient(projectDir)
+	const client = getProjectClient(projectDir);
 	if (!client) {
-		return { success: false, message: "", error: "Not connected to server" }
+		return { success: false, message: "", error: "Not connected to server" };
 	}
 
 	if (!isElectron) {
@@ -344,67 +355,74 @@ export async function applyRemoteDiffToLocal(
 			success: false,
 			message: "",
 			error: "Local git access required (Electron only)",
-		}
+		};
 	}
 
 	try {
-		log.info("Fetching remote diff for apply-to-local", { sessionId })
-		const result = await client.session.diff({ sessionID: sessionId })
-		const diffs = result.data as unknown
+		log.info("Fetching remote diff for apply-to-local", { sessionId });
+		const result = await client.session.diff({ sessionID: sessionId });
+		const diffs = result.data as unknown;
 
 		if (!diffs || (Array.isArray(diffs) && diffs.length === 0)) {
-			return { success: true, message: "No changes to apply" }
+			return { success: true, message: "No changes to apply" };
 		}
 
 		// Build a unified diff string from the API response
-		let diffText: string
+		let diffText: string;
 		if (typeof diffs === "string") {
-			diffText = diffs
+			diffText = diffs;
 		} else if (Array.isArray(diffs)) {
 			diffText = diffs
 				.map((d) => {
-					if (typeof d === "string") return d
+					if (typeof d === "string") return d;
 					if (typeof d === "object" && d !== null && "diff" in d) {
-						return (d as { diff: string }).diff
+						return (d as { diff: string }).diff;
 					}
-					return ""
+					return "";
 				})
 				.filter(Boolean)
-				.join("\n")
+				.join("\n");
 		} else {
-			return { success: false, message: "", error: "Unexpected diff response format" }
+			return {
+				success: false,
+				message: "",
+				error: "Unexpected diff response format",
+			};
 		}
 
 		if (!diffText.trim()) {
-			return { success: true, message: "No changes to apply" }
+			return { success: true, message: "No changes to apply" };
 		}
 
 		log.info("Remote diff fetched, applying locally", {
 			diffLength: diffText.length,
 			localDir,
-		})
+		});
 
-		const { gitApplyDiffText } = await import("./backend")
-		const applyResult = await gitApplyDiffText(localDir, diffText)
+		const { gitApplyDiffText } = await import("./backend");
+		const applyResult = await gitApplyDiffText(localDir, diffText);
 
 		if (applyResult.success) {
 			return {
 				success: true,
 				message: `Applied ${applyResult.filesApplied.length} file${applyResult.filesApplied.length !== 1 ? "s" : ""} to local`,
-			}
+			};
 		}
 
 		return {
 			success: false,
 			message: "",
 			error: applyResult.error ?? "Failed to apply diff",
-		}
+		};
 	} catch (err) {
-		log.error("Remote apply-to-local failed", err)
+		log.error("Remote apply-to-local failed", err);
 		return {
 			success: false,
 			message: "",
-			error: err instanceof Error ? err.message : "Failed to fetch or apply remote diff",
-		}
+			error:
+				err instanceof Error
+					? err.message
+					: "Failed to fetch or apply remote diff",
+		};
 	}
 }

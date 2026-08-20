@@ -1,12 +1,15 @@
-import { Collapsible, CollapsibleContent } from "@palot/ui/components/collapsible"
+import {
+	Collapsible,
+	CollapsibleContent,
+} from "@palot/ui/components/collapsible";
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-} from "@palot/ui/components/context-menu"
-import { Input } from "@palot/ui/components/input"
+} from "@palot/ui/components/context-menu";
+import { Input } from "@palot/ui/components/input";
 import {
 	SidebarContent,
 	SidebarFooter,
@@ -17,10 +20,14 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarSeparator,
-} from "@palot/ui/components/sidebar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { useNavigate, useParams } from "@tanstack/react-router"
-import { useAtomValue } from "jotai"
+} from "@palot/ui/components/sidebar";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
 import {
 	AlertCircleIcon,
 	BotIcon,
@@ -39,23 +46,39 @@ import {
 	TimerIcon,
 	TrashIcon,
 	XIcon,
-} from "lucide-react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
-import { activeServerConfigAtom } from "../atoms/connection"
-import { agentFamily, projectSessionIdsFamily, sandboxMappingsAtom } from "../atoms/derived/agents"
-import { automationsEnabledAtom } from "../atoms/feature-flags"
-import { projectPaginationFamily } from "../atoms/sessions"
-import { appStore } from "../atoms/store"
-import type { Agent, AgentStatus, SidebarProject } from "../lib/types"
-import { loadMoreProjectSessions, loadProjectSessions } from "../services/connection-manager"
-import { ServerIndicator } from "./server-indicator"
+} from "lucide-react";
+import {
+	memo,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useTransition,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { activeServerConfigAtom } from "../atoms/connection";
+import {
+	agentFamily,
+	projectSessionIdsFamily,
+	sandboxMappingsAtom,
+} from "../atoms/derived/agents";
+import { automationsEnabledAtom } from "../atoms/feature-flags";
+import { projectPaginationFamily } from "../atoms/sessions";
+import { appStore } from "../atoms/store";
+import type { Agent, AgentStatus, SidebarProject } from "../lib/types";
+import {
+	loadMoreProjectSessions,
+	loadProjectSessions,
+} from "../services/connection-manager";
+import { ServerIndicator } from "./server-indicator";
 
 // ============================================================
 // Constants
 // ============================================================
 
 /** How many recent sessions to show in the top-level "Recent" section */
-const RECENT_COUNT = 5
+const RECENT_COUNT = 5;
 
 const STATUS_ICON: Record<AgentStatus, typeof Loader2Icon> = {
 	running: Loader2Icon,
@@ -64,7 +87,7 @@ const STATUS_ICON: Record<AgentStatus, typeof Loader2Icon> = {
 	completed: CheckCircle2Icon,
 	failed: AlertCircleIcon,
 	idle: CircleDotIcon,
-}
+};
 
 const STATUS_COLOR: Record<AgentStatus, string> = {
 	running: "text-green-500",
@@ -73,21 +96,21 @@ const STATUS_COLOR: Record<AgentStatus, string> = {
 	completed: "text-muted-foreground",
 	failed: "text-red-500",
 	idle: "text-muted-foreground",
-}
+};
 
 // ============================================================
 // Props
 // ============================================================
 
 interface AppSidebarContentProps {
-	agents: Agent[]
-	projects: SidebarProject[]
-	onOpenCommandPalette: () => void
-	onAddProject?: () => void
-	onRenameSession?: (agent: Agent, title: string) => Promise<void>
-	onDeleteSession?: (agent: Agent) => Promise<void>
-	onForkSession?: (agent: Agent) => Promise<void>
-	serverConnected: boolean
+	agents: Agent[];
+	projects: SidebarProject[];
+	onOpenCommandPalette: () => void;
+	onAddProject?: () => void;
+	onRenameSession?: (agent: Agent, title: string) => Promise<void>;
+	onDeleteSession?: (agent: Agent) => Promise<void>;
+	onForkSession?: (agent: Agent) => Promise<void>;
+	serverConnected: boolean;
 }
 
 // ============================================================
@@ -108,43 +131,46 @@ export function AppSidebarContent({
 	onForkSession,
 	serverConnected,
 }: AppSidebarContentProps) {
-	const navigate = useNavigate()
-	const routeParams = useParams({ strict: false }) as { sessionId?: string }
-	const selectedSessionId = routeParams.sessionId ?? null
-	const automationsEnabled = useAtomValue(automationsEnabledAtom)
-	const activeServer = useAtomValue(activeServerConfigAtom)
-	const isLocalServer = activeServer.type === "local"
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const routeParams = useParams({ strict: false }) as { sessionId?: string };
+	const selectedSessionId = routeParams.sessionId ?? null;
+	const automationsEnabled = useAtomValue(automationsEnabledAtom);
+	const activeServer = useAtomValue(activeServerConfigAtom);
+	const isLocalServer = activeServer.type === "local";
 
 	// --- Project search state ---
-	const [projectSearch, setProjectSearch] = useState("")
-	const [projectSearchActive, setProjectSearchActive] = useState(false)
-	const projectSearchRef = useRef<HTMLInputElement>(null)
+	const [projectSearch, setProjectSearch] = useState("");
+	const [projectSearchActive, setProjectSearchActive] = useState(false);
+	const projectSearchRef = useRef<HTMLInputElement>(null);
 
 	// Filter projects by search query (client-side, case-insensitive)
 	const filteredProjects = useMemo(() => {
-		if (!projectSearch.trim()) return projects
-		const q = projectSearch.toLowerCase()
+		if (!projectSearch.trim()) return projects;
+		const q = projectSearch.toLowerCase();
 		return projects.filter(
-			(p) => p.name.toLowerCase().includes(q) || p.directory.toLowerCase().includes(q),
-		)
-	}, [projects, projectSearch])
+			(p) =>
+				p.name.toLowerCase().includes(q) ||
+				p.directory.toLowerCase().includes(q),
+		);
+	}, [projects, projectSearch]);
 
 	const toggleProjectSearch = useCallback(() => {
 		setProjectSearchActive((prev) => {
 			if (prev) {
-				setProjectSearch("")
-				return false
+				setProjectSearch("");
+				return false;
 			}
-			return true
-		})
-	}, [])
+			return true;
+		});
+	}, []);
 
 	// Auto-focus search input when activated
 	useEffect(() => {
 		if (projectSearchActive && projectSearchRef.current) {
-			projectSearchRef.current.focus()
+			projectSearchRef.current.focus();
 		}
-	}, [projectSearchActive])
+	}, [projectSearchActive]);
 
 	// Derive sections — filter out sub-agents (parentId) from sidebar display
 	const activeSessions = useMemo(
@@ -153,13 +179,18 @@ export function AppSidebarContent({
 				.filter(
 					(a) =>
 						!a.parentId &&
-						(a.status === "running" || a.status === "waiting" || a.status === "failed"),
+						(a.status === "running" ||
+							a.status === "waiting" ||
+							a.status === "failed"),
 				)
 				.sort((a, b) => b.createdAt - a.createdAt),
 		[agents],
-	)
+	);
 
-	const activeIds = useMemo(() => new Set(activeSessions.map((a) => a.id)), [activeSessions])
+	const activeIds = useMemo(
+		() => new Set(activeSessions.map((a) => a.id)),
+		[activeSessions],
+	);
 
 	const recentSessions = useMemo(
 		() =>
@@ -168,10 +199,10 @@ export function AppSidebarContent({
 				.sort((a, b) => b.lastActiveAt - a.lastActiveAt)
 				.slice(0, RECENT_COUNT),
 		[agents, activeIds],
-	)
+	);
 
-	const hasContent = agents.length > 0 || projects.length > 0
-	const showEmptyState = !hasContent
+	const hasContent = agents.length > 0 || projects.length > 0;
+	const showEmptyState = !hasContent;
 
 	return (
 		<>
@@ -183,68 +214,74 @@ export function AppSidebarContent({
 						<div className="space-y-2 text-center">
 							{!serverConnected ? (
 								<>
-									<p className="text-sm text-muted-foreground">Server offline</p>
+									<p className="text-sm text-muted-foreground">
+										{t("projects.serverOffline")}
+									</p>
 									<p className="text-xs text-muted-foreground/60">
-										Check your connection in Settings
+										{t("projects.checkConnection")}
 									</p>
 								</>
 							) : (
 								<>
-									<p className="text-sm text-muted-foreground">No projects yet</p>
-									<p className="text-xs text-muted-foreground/60">Add a project to get started</p>
+									<p className="text-sm text-muted-foreground">
+										{t("projects.noProjects")}
+									</p>
+									<p className="text-xs text-muted-foreground/60">
+									{t("projects.addProject")}
+									</p>
 								</>
 							)}
 						</div>
 					</div>
 				)}
 
-			{/* New Session + Automations */}
-			<SidebarGroup>
-				<SidebarGroupContent>
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								tooltip="New Session"
-								onClick={() => navigate({ to: "/" })}
-								className="text-muted-foreground"
-							>
-								<PlusIcon className="size-4" />
-								<span>New Session</span>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-						{automationsEnabled && isLocalServer && (
+				{/* New Session + Automations */}
+				<SidebarGroup>
+					<SidebarGroupContent>
+						<SidebarMenu>
 							<SidebarMenuItem>
 								<SidebarMenuButton
-									tooltip="Automations"
-									onClick={() => navigate({ to: "/automations" })}
+									tooltip={t("chat.newSession")}
+									onClick={() => navigate({ to: "/" })}
 									className="text-muted-foreground"
 								>
-									<BotIcon className="size-4" />
-									<span>Automations</span>
+									<PlusIcon className="size-4" />
+									<span>{t("chat.newSession")}</span>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
-						)}
-					</SidebarMenu>
-				</SidebarGroupContent>
-			</SidebarGroup>
+							{automationsEnabled && isLocalServer && (
+								<SidebarMenuItem>
+									<SidebarMenuButton
+									tooltip={t("automations.title")}
+										onClick={() => navigate({ to: "/automations" })}
+										className="text-muted-foreground"
+									>
+										<BotIcon className="size-4" />
+										<span>{t("automations.title")}</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							)}
+						</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
 
 				{/* Active Now */}
 				{activeSessions.length > 0 && (
 					<SidebarGroup>
-						<SidebarGroupLabel>Active Now</SidebarGroupLabel>
+						<SidebarGroupLabel>{t("projects.activeNow")}</SidebarGroupLabel>
 						<SidebarGroupContent>
 							<SidebarMenu>
-							{activeSessions.map((agent) => (
-								<SessionItem
-									key={agent.id}
-									agent={agent}
-									isSelected={agent.id === selectedSessionId}
-									onRename={onRenameSession}
-									onDelete={onDeleteSession}
-									onFork={onForkSession}
-									showProject
-								/>
-							))}
+								{activeSessions.map((agent) => (
+									<SessionItem
+										key={agent.id}
+										agent={agent}
+										isSelected={agent.id === selectedSessionId}
+										onRename={onRenameSession}
+										onDelete={onDeleteSession}
+										onFork={onForkSession}
+										showProject
+									/>
+								))}
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>
@@ -253,32 +290,33 @@ export function AppSidebarContent({
 				{/* Recent */}
 				{recentSessions.length > 0 && (
 					<SidebarGroup>
-						<SidebarGroupLabel>Recent</SidebarGroupLabel>
+						<SidebarGroupLabel>{t("projects.recent")}</SidebarGroupLabel>
 						<SidebarGroupContent>
 							<SidebarMenu>
-							{recentSessions.map((agent) => (
-								<SessionItem
-									key={agent.id}
-									agent={agent}
-									isSelected={agent.id === selectedSessionId}
-									onRename={onRenameSession}
-									onDelete={onDeleteSession}
-									onFork={onForkSession}
-									showProject
-								/>
-							))}
+								{recentSessions.map((agent) => (
+									<SessionItem
+										key={agent.id}
+										agent={agent}
+										isSelected={agent.id === selectedSessionId}
+										onRename={onRenameSession}
+										onDelete={onDeleteSession}
+										onFork={onForkSession}
+										showProject
+									/>
+								))}
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>
 				)}
 
 				{/* Projects */}
-				{hasContent && (activeSessions.length > 0 || recentSessions.length > 0) && (
-					<SidebarSeparator className="bg-sidebar-border/5" />
-				)}
+				{hasContent &&
+					(activeSessions.length > 0 || recentSessions.length > 0) && (
+						<SidebarSeparator className="bg-sidebar-border/5" />
+					)}
 				{hasContent && (
 					<SidebarGroup>
-						<SidebarGroupLabel>Projects</SidebarGroupLabel>
+						<SidebarGroupLabel>{t("projects.projects")}</SidebarGroupLabel>
 						{/* Action buttons row */}
 						<div className="absolute top-3.5 right-3 flex max-w-[calc(100%-4rem)] items-center gap-0.5 overflow-hidden">
 							<Tooltip>
@@ -300,10 +338,12 @@ export function AppSidebarContent({
 									) : (
 										<SearchIcon className="size-4 shrink-0" />
 									)}
-									<span className="sr-only">Search projects</span>
+									<span className="sr-only">{t("chat.searchProjects")}</span>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
-									{projectSearchActive ? "Close search" : "Search projects"}
+									{projectSearchActive
+										? t("common.actions.close")
+										: t("chat.searchProjects")}
 								</TooltipContent>
 							</Tooltip>
 							<Tooltip>
@@ -317,9 +357,11 @@ export function AppSidebarContent({
 									}
 								>
 									<CommandIcon className="size-4 shrink-0" />
-									<span className="sr-only">Command palette</span>
+									<span className="sr-only">{t("chat.commandPalette")}</span>
 								</TooltipTrigger>
-								<TooltipContent side="bottom">Command palette (&#8984;K)</TooltipContent>
+								<TooltipContent side="bottom">
+									{t("chat.commandPalette")} (⌘K)
+								</TooltipContent>
 							</Tooltip>
 							{onAddProject && (
 								<Tooltip>
@@ -333,9 +375,11 @@ export function AppSidebarContent({
 										}
 									>
 										<PlusIcon className="size-4 shrink-0" />
-										<span className="sr-only">Add Project</span>
+										<span className="sr-only">{t("projects.add")}</span>
 									</TooltipTrigger>
-									<TooltipContent side="bottom">Add project</TooltipContent>
+									<TooltipContent side="bottom">
+										{t("projects.add")}
+									</TooltipContent>
 								</Tooltip>
 							)}
 						</div>
@@ -349,10 +393,10 @@ export function AppSidebarContent({
 									onChange={(e) => setProjectSearch(e.target.value)}
 									onKeyDown={(e) => {
 										if (e.key === "Escape") {
-											toggleProjectSearch()
+											toggleProjectSearch();
 										}
 									}}
-									placeholder="Filter projects..."
+									placeholder={t("chat.filterProjects")}
 									className="h-7 text-xs"
 								/>
 							</div>
@@ -360,19 +404,19 @@ export function AppSidebarContent({
 
 						<SidebarGroupContent>
 							<SidebarMenu>
-							{filteredProjects.map((project) => (
-								<ProjectFolder
-									key={project.id}
-									project={project}
-									selectedSessionId={selectedSessionId}
-									onRename={onRenameSession}
-									onDelete={onDeleteSession}
-									onFork={onForkSession}
-								/>
-							))}
+								{filteredProjects.map((project) => (
+									<ProjectFolder
+										key={project.id}
+										project={project}
+										selectedSessionId={selectedSessionId}
+										onRename={onRenameSession}
+										onDelete={onDeleteSession}
+										onFork={onForkSession}
+									/>
+								))}
 								{projectSearch && filteredProjects.length === 0 && (
 									<p className="px-2 py-1.5 text-xs text-muted-foreground/60">
-										No projects match &ldquo;{projectSearch}&rdquo;
+										{t("projects.noProjectsMatch", { search: projectSearch })}
 									</p>
 								)}
 							</SidebarMenu>
@@ -383,9 +427,13 @@ export function AppSidebarContent({
 			<SidebarFooter className="space-y-0 p-2">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<SidebarMenuButton tooltip="Deploy to Sealos" onClick={() => navigate({ to: "/deploy" })} className="text-muted-foreground">
+						<SidebarMenuButton
+							tooltip={t("deploy.title")}
+							onClick={() => navigate({ to: "/deploy" })}
+							className="text-muted-foreground"
+						>
 							<CloudUploadIcon className="size-4" />
-							<span>Deploy</span>
+							<span>{t("projects.deploy")}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
@@ -393,18 +441,18 @@ export function AppSidebarContent({
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
-							tooltip="Settings"
+							tooltip={t("projects.settings")}
 							onClick={() => navigate({ to: "/settings" })}
 							className="text-muted-foreground"
 						>
 							<SettingsIcon className="size-4" />
-							<span>Settings</span>
+							<span>{t("projects.settings")}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>
 		</>
-	)
+	);
 }
 
 // ============================================================
@@ -423,14 +471,14 @@ const ProjectSessionItem = memo(function ProjectSessionItem({
 	onDelete,
 	onFork,
 }: {
-	sessionId: string
-	selectedSessionId: string | null
-	onRename?: (agent: Agent, title: string) => Promise<void>
-	onDelete?: (agent: Agent) => Promise<void>
-	onFork?: (agent: Agent) => Promise<void>
+	sessionId: string;
+	selectedSessionId: string | null;
+	onRename?: (agent: Agent, title: string) => Promise<void>;
+	onDelete?: (agent: Agent) => Promise<void>;
+	onFork?: (agent: Agent) => Promise<void>;
 }) {
-	const agent = useAtomValue(agentFamily(sessionId))
-	if (!agent) return null
+	const agent = useAtomValue(agentFamily(sessionId));
+	if (!agent) return null;
 	return (
 		<SessionItem
 			agent={agent}
@@ -440,8 +488,8 @@ const ProjectSessionItem = memo(function ProjectSessionItem({
 			onFork={onFork}
 			compact
 		/>
-	)
-})
+	);
+});
 
 /**
  * A project folder in the sidebar that lists its sessions as a flat list.
@@ -455,60 +503,72 @@ const ProjectFolder = memo(function ProjectFolder({
 	onDelete,
 	onFork,
 }: {
-	project: SidebarProject
-	selectedSessionId: string | null
-	onRename?: (agent: Agent, title: string) => Promise<void>
-	onDelete?: (agent: Agent) => Promise<void>
-	onFork?: (agent: Agent) => Promise<void>
+	project: SidebarProject;
+	selectedSessionId: string | null;
+	onRename?: (agent: Agent, title: string) => Promise<void>;
+	onDelete?: (agent: Agent) => Promise<void>;
+	onFork?: (agent: Agent) => Promise<void>;
 }) {
-	const navigate = useNavigate()
-	const [expanded, setExpanded] = useState(false)
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const [expanded, setExpanded] = useState(false);
 
 	// Subscribe to just this project's session IDs
-	const sessionIds = useAtomValue(projectSessionIdsFamily(project.directory))
+	const sessionIds = useAtomValue(projectSessionIdsFamily(project.directory));
 
 	// Per-project pagination state from the server
-	const pagination = useAtomValue(projectPaginationFamily(project.directory))
+	const pagination = useAtomValue(projectPaginationFamily(project.directory));
 
 	// Load sessions on first expand
 	useEffect(() => {
-		if (!expanded || pagination.loaded || pagination.loading) return
+		if (!expanded || pagination.loaded || pagination.loading) return;
 
 		// Look up sandbox dirs for this project from the discovery data
-		const { parentToSandboxes } = appStore.get(sandboxMappingsAtom)
-		const sandboxDirs = parentToSandboxes.get(project.directory)
+		const { parentToSandboxes } = appStore.get(sandboxMappingsAtom);
+		const sandboxDirs = parentToSandboxes.get(project.directory);
 
-		loadProjectSessions(project.directory, sandboxDirs?.size ? sandboxDirs : undefined, {
-			limit: 5,
-			roots: true,
-		})
-	}, [expanded, pagination.loaded, pagination.loading, project.directory])
+		loadProjectSessions(
+			project.directory,
+			sandboxDirs?.size ? sandboxDirs : undefined,
+			{
+				limit: 5,
+				roots: true,
+			},
+		);
+	}, [expanded, pagination.loaded, pagination.loading, project.directory]);
 
 	// Read agents non-reactively (via appStore.get) for sorting.
 	// Individual items render reactively via ProjectSessionItem -> agentFamily.
 	const projectSessions = useMemo(() => {
-		const agents: Agent[] = []
+		const agents: Agent[] = [];
 		for (const id of sessionIds) {
-			const agent = appStore.get(agentFamily(id))
-			if (agent) agents.push(agent)
+			const agent = appStore.get(agentFamily(id));
+			if (agent) agents.push(agent);
 		}
 		return agents.sort((a, b) => {
 			// Active sessions float to top
-			const aActive = a.status === "running" || a.status === "waiting" || a.status === "failed"
-			const bActive = b.status === "running" || b.status === "waiting" || b.status === "failed"
-			if (aActive !== bActive) return aActive ? -1 : 1
+			const aActive =
+				a.status === "running" ||
+				a.status === "waiting" ||
+				a.status === "failed";
+			const bActive =
+				b.status === "running" ||
+				b.status === "waiting" ||
+				b.status === "failed";
+			if (aActive !== bActive) return aActive ? -1 : 1;
 			// Within same group, sort by lastActiveAt (matches server's time_updated DESC)
-			return b.lastActiveAt - a.lastActiveAt
-		})
-	}, [sessionIds])
+			return b.lastActiveAt - a.lastActiveAt;
+		});
+	}, [sessionIds]);
 
 	const handleLoadMore = useCallback(() => {
-		loadMoreProjectSessions(project.directory, pagination.currentLimit)
-	}, [project.directory, pagination.currentLimit])
+		loadMoreProjectSessions(project.directory, pagination.currentLimit);
+	}, [project.directory, pagination.currentLimit]);
 
 	// Show loading state when initial fetch or load-more is in progress
-	const isInitialLoading = expanded && !pagination.loaded && !pagination.loading
-	const isLoading = pagination.loading || isInitialLoading
+	const isInitialLoading =
+		expanded && !pagination.loaded && !pagination.loading;
+	const isLoading = pagination.loading || isInitialLoading;
 
 	return (
 		<SidebarMenuItem>
@@ -516,11 +576,11 @@ const ProjectFolder = memo(function ProjectFolder({
 				<SidebarMenuButton
 					tooltip={project.name}
 					onClick={() => {
-						setExpanded(!expanded)
+						setExpanded(!expanded);
 						navigate({
 							to: "/project/$projectSlug",
 							params: { projectSlug: project.slug },
-						})
+						});
 					}}
 				>
 					<ChevronRightIcon
@@ -541,19 +601,21 @@ const ProjectFolder = memo(function ProjectFolder({
 								Loading sessions...
 							</p>
 						) : pagination.loaded && projectSessions.length === 0 ? (
-							<p className="px-2 py-1.5 text-xs text-muted-foreground/60">No sessions yet</p>
+							<p className="px-2 py-1.5 text-xs text-muted-foreground/60">
+								{t("projects.noSessions")}
+							</p>
 						) : (
 							<SidebarMenu>
-							{projectSessions.map((agent) => (
-								<ProjectSessionItem
-									key={agent.id}
-									sessionId={agent.id}
-									selectedSessionId={selectedSessionId}
-									onRename={onRename}
-									onDelete={onDelete}
-									onFork={onFork}
-								/>
-							))}
+								{projectSessions.map((agent) => (
+									<ProjectSessionItem
+										key={agent.id}
+										sessionId={agent.id}
+										selectedSessionId={selectedSessionId}
+										onRename={onRename}
+										onDelete={onDelete}
+										onFork={onFork}
+									/>
+								))}
 								{pagination.loaded && pagination.hasMore && (
 									<button
 										type="button"
@@ -580,8 +642,8 @@ const ProjectFolder = memo(function ProjectFolder({
 				</CollapsibleContent>
 			</Collapsible>
 		</SidebarMenuItem>
-	)
-})
+	);
+});
 
 // ============================================================
 // Session item
@@ -593,23 +655,23 @@ const ProjectFolder = memo(function ProjectFolder({
  * For idle/completed sessions, returns the static duration from the agent atom.
  */
 function useLiveLastActive(agent: Agent): string {
-	const isActive = agent.status === "running" || agent.status === "waiting"
+	const isActive = agent.status === "running" || agent.status === "waiting";
 
-	const [display, setDisplay] = useState(agent.duration)
+	const [display, setDisplay] = useState(agent.duration);
 
 	useEffect(() => {
 		if (!isActive) {
-			setDisplay(agent.duration)
-			return
+			setDisplay(agent.duration);
+			return;
 		}
 
 		// Active sessions: show "now" and tick every 60s to stay fresh
-		setDisplay("now")
-		const id = setInterval(() => setDisplay("now"), 60_000)
-		return () => clearInterval(id)
-	}, [isActive, agent.duration])
+		setDisplay("now");
+		const id = setInterval(() => setDisplay("now"), 60_000);
+		return () => clearInterval(id);
+	}, [isActive, agent.duration]);
 
-	return display
+	return display;
 }
 
 const SessionItem = memo(function SessionItem({
@@ -621,60 +683,60 @@ const SessionItem = memo(function SessionItem({
 	showProject = false,
 	compact = false,
 }: {
-	agent: Agent
-	isSelected: boolean
-	onRename?: (agent: Agent, title: string) => Promise<void>
-	onDelete?: (agent: Agent) => Promise<void>
-	onFork?: (agent: Agent) => Promise<void>
-	showProject?: boolean
-	compact?: boolean
+	agent: Agent;
+	isSelected: boolean;
+	onRename?: (agent: Agent, title: string) => Promise<void>;
+	onDelete?: (agent: Agent) => Promise<void>;
+	onFork?: (agent: Agent) => Promise<void>;
+	showProject?: boolean;
+	compact?: boolean;
 }) {
-	const navigate = useNavigate()
-	const [, startTransition] = useTransition()
-	const StatusIcon = STATUS_ICON[agent.status]
-	const statusColor = STATUS_COLOR[agent.status]
-	const isWorktree = !!agent.worktreePath
-	const lastActive = useLiveLastActive(agent)
+	const navigate = useNavigate();
+	const [, startTransition] = useTransition();
+	const StatusIcon = STATUS_ICON[agent.status];
+	const statusColor = STATUS_COLOR[agent.status];
+	const isWorktree = !!agent.worktreePath;
+	const lastActive = useLiveLastActive(agent);
 
-	const [isEditing, setIsEditing] = useState(false)
-	const [editValue, setEditValue] = useState(agent.name)
-	const inputRef = useRef<HTMLInputElement>(null)
+	const [isEditing, setIsEditing] = useState(false);
+	const [editValue, setEditValue] = useState(agent.name);
+	const inputRef = useRef<HTMLInputElement>(null);
 
 	const onSelect = useCallback(() => {
 		startTransition(() => {
 			navigate({
 				to: "/project/$projectSlug/session/$sessionId",
 				params: { projectSlug: agent.projectSlug, sessionId: agent.id },
-			})
-		})
-	}, [navigate, agent.projectSlug, agent.id])
+			});
+		});
+	}, [navigate, agent.projectSlug, agent.id]);
 
 	const startEditing = useCallback(() => {
-		setEditValue(agent.name)
-		setIsEditing(true)
-	}, [agent.name])
+		setEditValue(agent.name);
+		setIsEditing(true);
+	}, [agent.name]);
 
 	const confirmRename = useCallback(async () => {
-		const trimmed = editValue.trim()
-		setIsEditing(false)
+		const trimmed = editValue.trim();
+		setIsEditing(false);
 		if (trimmed && trimmed !== agent.name && onRename) {
-			await onRename(agent, trimmed)
+			await onRename(agent, trimmed);
 		}
-	}, [editValue, agent, onRename])
+	}, [editValue, agent, onRename]);
 
 	const cancelEditing = useCallback(() => {
-		setIsEditing(false)
-		setEditValue(agent.name)
-	}, [agent.name])
+		setIsEditing(false);
+		setEditValue(agent.name);
+	}, [agent.name]);
 
 	useEffect(() => {
 		if (isEditing && inputRef.current) {
-			inputRef.current.focus()
-			inputRef.current.select()
+			inputRef.current.focus();
+			inputRef.current.select();
 		}
-	}, [isEditing])
+	}, [isEditing]);
 
-	const tooltipLabel = showProject ? agent.project : agent.name
+	const tooltipLabel = showProject ? agent.project : agent.name;
 
 	const btn = (
 		<SidebarMenuItem>
@@ -700,9 +762,9 @@ const SessionItem = memo(function SessionItem({
 						value={editValue}
 						onChange={(e) => setEditValue(e.target.value)}
 						onKeyDown={(e) => {
-							e.stopPropagation()
-							if (e.key === "Enter") confirmRename()
-							if (e.key === "Escape") cancelEditing()
+							e.stopPropagation();
+							if (e.key === "Enter") confirmRename();
+							if (e.key === "Escape") cancelEditing();
 						}}
 						onBlur={confirmRename}
 						onClick={(e) => e.stopPropagation()}
@@ -710,7 +772,9 @@ const SessionItem = memo(function SessionItem({
 					/>
 				) : (
 					<div className="min-w-0 flex-1">
-						<span className={`block truncate leading-tight ${compact ? "text-xs" : "text-[13px]"}`}>
+						<span
+							className={`block truncate leading-tight ${compact ? "text-xs" : "text-[13px]"}`}
+						>
 							{agent.name}
 						</span>
 
@@ -723,11 +787,13 @@ const SessionItem = memo(function SessionItem({
 				)}
 
 				{!isEditing && (
-					<span className="shrink-0 text-xs tabular-nums text-muted-foreground">{lastActive}</span>
+					<span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+						{lastActive}
+					</span>
 				)}
 			</SidebarMenuButton>
 		</SidebarMenuItem>
-	)
+	);
 
 	return (
 		<ContextMenu>
@@ -747,12 +813,15 @@ const SessionItem = memo(function SessionItem({
 				)}
 				{(onRename || onFork) && onDelete && <ContextMenuSeparator />}
 				{onDelete && (
-					<ContextMenuItem variant="destructive" onSelect={() => onDelete(agent)}>
+					<ContextMenuItem
+						variant="destructive"
+						onSelect={() => onDelete(agent)}
+					>
 						<TrashIcon className="size-4" />
 						Delete
 					</ContextMenuItem>
 				)}
 			</ContextMenuContent>
 		</ContextMenu>
-	)
-})
+	);
+});

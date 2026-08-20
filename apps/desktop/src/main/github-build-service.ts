@@ -2,12 +2,23 @@
  * GitHub browser authentication and Actions-based container builds.
  */
 
-import { type ChildProcessWithoutNullStreams, execFile, spawn } from "node:child_process"
-import { randomUUID } from "node:crypto"
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
-import path from "node:path"
-import { promisify } from "node:util"
-import { app } from "electron"
+import {
+	type ChildProcessWithoutNullStreams,
+	execFile,
+	spawn,
+} from "node:child_process";
+import { randomUUID } from "node:crypto";
+import {
+	access,
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import { app } from "electron";
 import {
 	addPalotLocalPathsToGitignore,
 	createGitHubBuildWorkflow,
@@ -18,164 +29,192 @@ import {
 	PALOT_BUILD_RESULT,
 	PALOT_BUILD_WORKFLOW,
 	PALOT_TEMPLATE_PATH,
-	parseGitHubContainerVisibility,
 	parseGitHubBuildArtifact,
+	parseGitHubContainerVisibility,
 	parseGitHubRemote,
 	parseStoredGitHubBuild,
-} from "./github-build"
-import { resolveGitHubRuntime, resolveGitRuntime } from "./runtime-resolver"
+} from "./github-build";
+import { resolveGitHubRuntime, resolveGitRuntime } from "./runtime-resolver";
 
-const execFileAsync = promisify(execFile)
-const LOGIN_TIMEOUT_MS = 10 * 60 * 1000
-const BUILD_TIMEOUT_MS = 30 * 60 * 1000
+const execFileAsync = promisify(execFile);
+const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+const BUILD_TIMEOUT_MS = 30 * 60 * 1000;
 
 interface PendingGitHubLogin {
-	process: ChildProcessWithoutNullStreams
-	completion: Promise<void>
-	output: string
+	process: ChildProcessWithoutNullStreams;
+	completion: Promise<void>;
+	output: string;
 }
 
 interface GitHubRun {
-	databaseId: number
-	displayTitle: string
-	status: string
-	conclusion: string
-	url: string
-	headSha: string
+	databaseId: number;
+	displayTitle: string;
+	status: string;
+	conclusion: string;
+	url: string;
+	headSha: string;
 }
 
-const pendingLogins = new Map<string, PendingGitHubLogin>()
+const pendingLogins = new Map<string, PendingGitHubLogin>();
 
 export interface GitHubBuildStatus {
-	cliAvailable: boolean
-	authenticated: boolean
-	login: string | null
-	repository: string | null
-	branch: string | null
-	clean: boolean
-	dockerfile: boolean
-	workflow: boolean
-	ready: boolean
-	detail: string
+	cliAvailable: boolean;
+	authenticated: boolean;
+	login: string | null;
+	repository: string | null;
+	branch: string | null;
+	clean: boolean;
+	dockerfile: boolean;
+	workflow: boolean;
+	ready: boolean;
+	detail: string;
 }
 
 export interface GitHubLoginStartResult {
-	sessionId: string
-	userCode: string | null
-	verificationUrl: string
+	sessionId: string;
+	userCode: string | null;
+	verificationUrl: string;
 }
 
 export interface GitHubSourceResult {
-	repository: string
-	branch: string
-	commit: string
+	repository: string;
+	branch: string;
+	commit: string;
 }
 
 export interface GitHubBuildProgress {
-	stage: "repository" | "dispatch" | "queued" | "building" | "publishing" | "complete"
-	status: "active" | "complete"
-	detail: string
-	runUrl?: string
+	stage:
+		| "repository"
+		| "dispatch"
+		| "queued"
+		| "building"
+		| "publishing"
+		| "complete";
+	status: "active" | "complete";
+	detail: string;
+	runUrl?: string;
 }
 
 function runtimeOptions() {
-	return { isPackaged: app.isPackaged, resourcesPath: process.resourcesPath }
+	return { isPackaged: app.isPackaged, resourcesPath: process.resourcesPath };
 }
 
 function getGitHubPath(): string {
-	const runtime = resolveGitHubRuntime(runtimeOptions())
-	if (runtime) return runtime.path
+	const runtime = resolveGitHubRuntime(runtimeOptions());
+	if (runtime) return runtime.path;
 	throw new Error(
 		app.isPackaged && process.platform === "win32"
 			? "The included GitHub CLI is missing. Reinstall Palot to repair the installation."
 			: "GitHub CLI was not found. Install gh or configure PALOT_TEST_GH_PATH for development.",
-	)
+	);
 }
 
 function getGitPath(): string {
-	const runtime = resolveGitRuntime(runtimeOptions())
-	if (runtime) return runtime.path
-	throw new Error("Git was not found")
+	const runtime = resolveGitRuntime(runtimeOptions());
+	if (runtime) return runtime.path;
+	throw new Error("Git was not found");
 }
 
-async function command(binary: string, args: string[], cwd?: string): Promise<string> {
+async function command(
+	binary: string,
+	args: string[],
+	cwd?: string,
+): Promise<string> {
 	const { stdout } = await execFileAsync(binary, args, {
 		cwd,
 		encoding: "utf8",
 		maxBuffer: 10 * 1024 * 1024,
 		windowsHide: true,
-	})
-	return stdout.trim()
+	});
+	return stdout.trim();
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
 	try {
-		await access(filePath)
-		return true
+		await access(filePath);
+		return true;
 	} catch {
-		return false
+		return false;
 	}
 }
 
-async function getRepository(directory: string): Promise<GitHubRepositoryRef | null> {
+async function getRepository(
+	directory: string,
+): Promise<GitHubRepositoryRef | null> {
 	try {
-		const remote = await command(getGitPath(), ["remote", "get-url", "origin"], directory)
-		return parseGitHubRemote(remote)
+		const remote = await command(
+			getGitPath(),
+			["remote", "get-url", "origin"],
+			directory,
+		);
+		return parseGitHubRemote(remote);
 	} catch {
-		return null
+		return null;
 	}
 }
 
 async function getBranch(directory: string): Promise<string | null> {
 	try {
-		return (await command(getGitPath(), ["branch", "--show-current"], directory)) || null
+		return (
+			(await command(getGitPath(), ["branch", "--show-current"], directory)) ||
+			null
+		);
 	} catch {
-		return null
+		return null;
 	}
 }
 
 async function getLogin(ghPath: string): Promise<string | null> {
 	try {
-		return await command(ghPath, ["api", "user", "--jq", ".login"])
+		return await command(ghPath, ["api", "user", "--jq", ".login"]);
 	} catch {
-		return null
+		return null;
 	}
 }
 
 async function getChangedPaths(directory: string): Promise<string[]> {
-	const git = getGitPath()
+	const git = getGitPath();
 	const outputs = await Promise.all([
 		command(git, ["diff", "--name-only", "-z"], directory),
 		command(git, ["diff", "--cached", "--name-only", "-z"], directory),
-		command(git, ["ls-files", "--others", "--exclude-standard", "-z"], directory),
-	])
-	const changedPaths = new Set<string>()
+		command(
+			git,
+			["ls-files", "--others", "--exclude-standard", "-z"],
+			directory,
+		),
+	]);
+	const changedPaths = new Set<string>();
 	for (const output of outputs) {
 		for (const file of output.split("\0")) {
-			if (file) changedPaths.add(file)
+			if (file) changedPaths.add(file);
 		}
 	}
-	return [...changedPaths]
+	return [...changedPaths];
 }
 
-export async function readGitHubBuildResult(directory: string): Promise<GitHubBuildResult | null> {
-	const resolved = path.resolve(directory)
+export async function readGitHubBuildResult(
+	directory: string,
+): Promise<GitHubBuildResult | null> {
+	const resolved = path.resolve(directory);
 	try {
-		const repository = await getRepository(resolved)
-		if (!repository) return null
-		const [branch, headCommit, changedPaths, stored, template] = await Promise.all([
-			getBranch(resolved),
-			command(getGitPath(), ["rev-parse", "HEAD"], resolved),
-			getChangedPaths(resolved),
-			readFile(path.join(resolved, PALOT_BUILD_RESULT), "utf8"),
-			readFile(path.join(resolved, PALOT_TEMPLATE_PATH), "utf8"),
-		])
-		if (!branch) return null
-		const build = parseStoredGitHubBuild(repository, JSON.parse(stored))
-		if (!template.includes(build.image)) return null
-		return isGitHubBuildCurrent(build, branch, headCommit, changedPaths) ? build : null
+		const repository = await getRepository(resolved);
+		if (!repository) return null;
+		const [branch, headCommit, changedPaths, stored, template] =
+			await Promise.all([
+				getBranch(resolved),
+				command(getGitPath(), ["rev-parse", "HEAD"], resolved),
+				getChangedPaths(resolved),
+				readFile(path.join(resolved, PALOT_BUILD_RESULT), "utf8"),
+				readFile(path.join(resolved, PALOT_TEMPLATE_PATH), "utf8"),
+			]);
+		if (!branch) return null;
+		const build = parseStoredGitHubBuild(repository, JSON.parse(stored));
+		if (!template.includes(build.image)) return null;
+		return isGitHubBuildCurrent(build, branch, headCommit, changedPaths)
+			? build
+			: null;
 	} catch {
-		return null
+		return null;
 	}
 }
 
@@ -183,15 +222,21 @@ async function writeGitHubBuildResult(
 	directory: string,
 	result: GitHubBuildResult,
 ): Promise<void> {
-	const resultPath = path.join(path.resolve(directory), PALOT_BUILD_RESULT)
-	await mkdir(path.dirname(resultPath), { recursive: true })
-	await writeFile(resultPath, `${JSON.stringify({ version: "1.0", result }, null, 2)}\n`, "utf8")
+	const resultPath = path.join(path.resolve(directory), PALOT_BUILD_RESULT);
+	await mkdir(path.dirname(resultPath), { recursive: true });
+	await writeFile(
+		resultPath,
+		`${JSON.stringify({ version: "1.0", result }, null, 2)}\n`,
+		"utf8",
+	);
 }
 
-export async function getGitHubBuildStatus(directory: string): Promise<GitHubBuildStatus> {
-	let ghPath: string
+export async function getGitHubBuildStatus(
+	directory: string,
+): Promise<GitHubBuildStatus> {
+	let ghPath: string;
 	try {
-		ghPath = getGitHubPath()
+		ghPath = getGitHubPath();
 	} catch (error) {
 		return {
 			cliAvailable: false,
@@ -203,30 +248,39 @@ export async function getGitHubBuildStatus(directory: string): Promise<GitHubBui
 			dockerfile: false,
 			workflow: false,
 			ready: false,
-			detail: error instanceof Error ? error.message : "GitHub CLI is unavailable",
-		}
+			detail:
+				error instanceof Error ? error.message : "GitHub CLI is unavailable",
+		};
 	}
 
-	const resolved = path.resolve(directory)
-	const [login, repository, branch, status, dockerfile, workflow] = await Promise.all([
-		getLogin(ghPath),
-		getRepository(resolved),
-		getBranch(resolved),
-		command(getGitPath(), ["status", "--porcelain"], resolved).catch(() => "unavailable"),
-		fileExists(path.join(resolved, "Dockerfile")),
-		fileExists(path.join(resolved, PALOT_BUILD_WORKFLOW)),
-	])
-	const clean = status === ""
-	const authenticated = Boolean(login)
+	const resolved = path.resolve(directory);
+	const [login, repository, branch, status, dockerfile, workflow] =
+		await Promise.all([
+			getLogin(ghPath),
+			getRepository(resolved),
+			getBranch(resolved),
+			command(getGitPath(), ["status", "--porcelain"], resolved).catch(
+				() => "unavailable",
+			),
+			fileExists(path.join(resolved, "Dockerfile")),
+			fileExists(path.join(resolved, PALOT_BUILD_WORKFLOW)),
+		]);
+	const clean = status === "";
+	const authenticated = Boolean(login);
 	const ready =
-		authenticated && Boolean(repository) && Boolean(branch) && clean && dockerfile && workflow
-	const problems: string[] = []
-	if (!authenticated) problems.push("Sign in to GitHub")
-	if (!repository) problems.push("Add a GitHub origin remote")
-	if (!branch) problems.push("Check out a branch")
-	if (!dockerfile) problems.push("Generate a Dockerfile")
-	if (!workflow) problems.push("Prepare the remote build workflow")
-	if (!clean) problems.push("Commit and push project changes")
+		authenticated &&
+		Boolean(repository) &&
+		Boolean(branch) &&
+		clean &&
+		dockerfile &&
+		workflow;
+	const problems: string[] = [];
+	if (!authenticated) problems.push("Sign in to GitHub");
+	if (!repository) problems.push("Add a GitHub origin remote");
+	if (!branch) problems.push("Check out a branch");
+	if (!dockerfile) problems.push("Generate a Dockerfile");
+	if (!workflow) problems.push("Prepare the remote build workflow");
+	if (!clean) problems.push("Commit and push project changes");
 
 	return {
 		cliAvailable: true,
@@ -238,12 +292,14 @@ export async function getGitHubBuildStatus(directory: string): Promise<GitHubBui
 		dockerfile,
 		workflow,
 		ready,
-		detail: ready ? "Ready for a Docker-free GitHub Actions build" : problems.join("; "),
-	}
+		detail: ready
+			? "Ready for a Docker-free GitHub Actions build"
+			: problems.join("; "),
+	};
 }
 
 export async function startGitHubLogin(): Promise<GitHubLoginStartResult> {
-	const ghPath = getGitHubPath()
+	const ghPath = getGitHubPath();
 	const child = spawn(
 		ghPath,
 		[
@@ -262,137 +318,170 @@ export async function startGitHubLogin(): Promise<GitHubLoginStartResult> {
 			env: { ...process.env, GH_PROMPT_DISABLED: "1" },
 			windowsHide: true,
 		},
-	)
-	const sessionId = randomUUID()
-	let output = ""
-	let settle: (() => void) | null = null
-	let rejectCompletion: ((error: Error) => void) | null = null
+	);
+	const sessionId = randomUUID();
+	let output = "";
+	let settle: (() => void) | null = null;
+	let rejectCompletion: ((error: Error) => void) | null = null;
 	const completion = new Promise<void>((resolve, reject) => {
-		settle = resolve
-		rejectCompletion = reject
-	})
-	const pending: PendingGitHubLogin = { process: child, completion, output }
-	pendingLogins.set(sessionId, pending)
+		settle = resolve;
+		rejectCompletion = reject;
+	});
+	const pending: PendingGitHubLogin = { process: child, completion, output };
+	pendingLogins.set(sessionId, pending);
 	const collect = (chunk: Buffer) => {
-		output += chunk.toString("utf8")
-		pending.output = output
-	}
-	child.stdout.on("data", collect)
-	child.stderr.on("data", collect)
-	child.on("error", (error) => rejectCompletion?.(error))
+		output += chunk.toString("utf8");
+		pending.output = output;
+	};
+	child.stdout.on("data", collect);
+	child.stderr.on("data", collect);
+	child.on("error", (error) => rejectCompletion?.(error));
 	child.on("close", (code) => {
-		if (code === 0) settle?.()
-		else rejectCompletion?.(new Error(output.trim() || `GitHub login exited with code ${code}`))
-	})
+		if (code === 0) settle?.();
+		else
+			rejectCompletion?.(
+				new Error(output.trim() || `GitHub login exited with code ${code}`),
+			);
+	});
 
-	const startedAt = Date.now()
+	const startedAt = Date.now();
 	while (Date.now() - startedAt < 30_000) {
-		const userCode = output.match(/([A-Z0-9]{4}-[A-Z0-9]{4})/)?.[1] ?? null
+		const userCode = output.match(/([A-Z0-9]{4}-[A-Z0-9]{4})/)?.[1] ?? null;
 		if (userCode || /github\.com\/login\/device/i.test(output)) {
-			return { sessionId, userCode, verificationUrl: "https://github.com/login/device" }
+			return {
+				sessionId,
+				userCode,
+				verificationUrl: "https://github.com/login/device",
+			};
 		}
-		if (child.exitCode !== null) await completion
-		await new Promise((resolve) => setTimeout(resolve, 200))
+		if (child.exitCode !== null) await completion;
+		await new Promise((resolve) => setTimeout(resolve, 200));
 	}
-	child.kill()
-	pendingLogins.delete(sessionId)
-	throw new Error("GitHub login did not provide an authorization code")
+	child.kill();
+	pendingLogins.delete(sessionId);
+	throw new Error("GitHub login did not provide an authorization code");
 }
 
-export async function completeGitHubLogin(sessionId: string): Promise<{ login: string }> {
-	const pending = pendingLogins.get(sessionId)
-	if (!pending) throw new Error("GitHub login session expired")
+export async function completeGitHubLogin(
+	sessionId: string,
+): Promise<{ login: string }> {
+	const pending = pendingLogins.get(sessionId);
+	if (!pending) throw new Error("GitHub login session expired");
 	try {
 		await Promise.race([
 			pending.completion,
 			new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error("GitHub login timed out")), LOGIN_TIMEOUT_MS),
+				setTimeout(
+					() => reject(new Error("GitHub login timed out")),
+					LOGIN_TIMEOUT_MS,
+				),
 			),
-		])
-		const login = await getLogin(getGitHubPath())
-		if (!login) throw new Error("GitHub login completed without an active account")
-		return { login }
+		]);
+		const login = await getLogin(getGitHubPath());
+		if (!login)
+			throw new Error("GitHub login completed without an active account");
+		return { login };
 	} finally {
-		pendingLogins.delete(sessionId)
+		pendingLogins.delete(sessionId);
 	}
 }
 
 export async function prepareGitHubBuild(
 	directory: string,
 ): Promise<{ path: string; changed: boolean }> {
-	const resolved = path.resolve(directory)
+	const resolved = path.resolve(directory);
 	if (!(await fileExists(path.join(resolved, "Dockerfile")))) {
-		throw new Error("Generate and review a production Dockerfile before preparing remote builds")
+		throw new Error(
+			"Generate and review a production Dockerfile before preparing remote builds",
+		);
 	}
-	const workflowPath = path.join(resolved, PALOT_BUILD_WORKFLOW)
-	const gitignorePath = path.join(resolved, ".gitignore")
-	const content = createGitHubBuildWorkflow()
-	let previous = ""
+	const workflowPath = path.join(resolved, PALOT_BUILD_WORKFLOW);
+	const gitignorePath = path.join(resolved, ".gitignore");
+	const content = createGitHubBuildWorkflow();
+	let previous = "";
 	try {
-		previous = await readFile(workflowPath, "utf8")
+		previous = await readFile(workflowPath, "utf8");
 	} catch {
 		// The workflow will be created below.
 	}
-	let gitignore = ""
+	let gitignore = "";
 	try {
-		gitignore = await readFile(gitignorePath, "utf8")
+		gitignore = await readFile(gitignorePath, "utf8");
 	} catch {
 		// The project may not have a .gitignore yet.
 	}
-	const nextGitignore = addPalotLocalPathsToGitignore(gitignore)
-	const workflowChanged = previous !== content
-	const gitignoreChanged = gitignore !== nextGitignore
+	const nextGitignore = addPalotLocalPathsToGitignore(gitignore);
+	const workflowChanged = previous !== content;
+	const gitignoreChanged = gitignore !== nextGitignore;
 	await Promise.all([
 		workflowChanged
 			? mkdir(path.dirname(workflowPath), { recursive: true }).then(() =>
 					writeFile(workflowPath, content, "utf8"),
 				)
 			: Promise.resolve(),
-		gitignoreChanged ? writeFile(gitignorePath, nextGitignore, "utf8") : Promise.resolve(),
-	])
-	return { path: workflowPath, changed: workflowChanged || gitignoreChanged }
+		gitignoreChanged
+			? writeFile(gitignorePath, nextGitignore, "utf8")
+			: Promise.resolve(),
+	]);
+	return { path: workflowPath, changed: workflowChanged || gitignoreChanged };
 }
 
-export async function publishGitHubSource(directory: string): Promise<GitHubSourceResult> {
-	const resolved = path.resolve(directory)
-	const repository = await getRepository(resolved)
-	const branch = await getBranch(resolved)
-	if (!repository) throw new Error("The project origin is not a GitHub repository")
-	if (!branch) throw new Error("A named Git branch is required for remote builds")
-	const git = getGitPath()
-	const dirty = await command(git, ["status", "--porcelain"], resolved)
+export async function publishGitHubSource(
+	directory: string,
+): Promise<GitHubSourceResult> {
+	const resolved = path.resolve(directory);
+	const repository = await getRepository(resolved);
+	const branch = await getBranch(resolved);
+	if (!repository)
+		throw new Error("The project origin is not a GitHub repository");
+	if (!branch)
+		throw new Error("A named Git branch is required for remote builds");
+	const git = getGitPath();
+	const dirty = await command(git, ["status", "--porcelain"], resolved);
 	if (dirty) {
-		const blocked = (await getChangedPaths(resolved)).filter(isSensitiveProjectPath)
+		const blocked = (await getChangedPaths(resolved)).filter(
+			isSensitiveProjectPath,
+		);
 		if (blocked.length > 0) {
 			throw new Error(
 				`Remote build blocked because sensitive local files would be committed: ${blocked.join(", ")}`,
-			)
+			);
 		}
-		await command(git, ["add", "-A"], resolved)
-		await command(git, ["commit", "-m", "chore: prepare Sealos deployment"], resolved)
+		await command(git, ["add", "-A"], resolved);
+		await command(
+			git,
+			["commit", "-m", "chore: prepare Sealos deployment"],
+			resolved,
+		);
 	}
-	await command(git, ["push", "--set-upstream", "origin", branch], resolved)
-	const commit = await command(git, ["rev-parse", "HEAD"], resolved)
-	return { repository: repository.nameWithOwner, branch, commit }
+	await command(git, ["push", "--set-upstream", "origin", branch], resolved);
+	const commit = await command(git, ["rev-parse", "HEAD"], resolved);
+	return { repository: repository.nameWithOwner, branch, commit };
 }
 
-async function makeContainerPublic(ghPath: string, repository: GitHubRepositoryRef): Promise<void> {
-	const login = await getLogin(ghPath)
-	if (!login) throw new Error("GitHub authentication expired")
-	const packageName = encodeURIComponent(repository.name)
-	const owner = encodeURIComponent(repository.owner)
+async function makeContainerPublic(
+	ghPath: string,
+	repository: GitHubRepositoryRef,
+): Promise<void> {
+	const login = await getLogin(ghPath);
+	if (!login) throw new Error("GitHub authentication expired");
+	const packageName = encodeURIComponent(repository.name);
+	const owner = encodeURIComponent(repository.owner);
 	const detailsEndpoint =
 		login.toLowerCase() === repository.owner.toLowerCase()
 			? `/users/${owner}/packages/container/${packageName}`
-			: `/orgs/${owner}/packages/container/${packageName}`
-	const details = JSON.parse(await command(ghPath, ["api", detailsEndpoint])) as unknown
-	const visibility = parseGitHubContainerVisibility(repository.name, details)
-	if (visibility === "public") return
-	if (!visibility) throw new Error("GitHub did not return the built container package")
+			: `/orgs/${owner}/packages/container/${packageName}`;
+	const details = JSON.parse(
+		await command(ghPath, ["api", detailsEndpoint]),
+	) as unknown;
+	const visibility = parseGitHubContainerVisibility(repository.name, details);
+	if (visibility === "public") return;
+	if (!visibility)
+		throw new Error("GitHub did not return the built container package");
 	const updateEndpoint =
 		login.toLowerCase() === repository.owner.toLowerCase()
 			? `/user/packages/container/${packageName}`
-			: `/orgs/${repository.owner}/packages/container/${packageName}`
+			: `/orgs/${repository.owner}/packages/container/${packageName}`;
 	await command(ghPath, [
 		"api",
 		"--method",
@@ -400,22 +489,33 @@ async function makeContainerPublic(ghPath: string, repository: GitHubRepositoryR
 		updateEndpoint,
 		"-f",
 		"visibility=public",
-	])
+	]);
 }
 
 export async function runGitHubBuild(
 	directory: string,
 	onProgress: (progress: GitHubBuildProgress) => void,
 ): Promise<GitHubBuildResult> {
-	const status = await getGitHubBuildStatus(directory)
-	if (!status.ready || !status.repository || !status.branch) throw new Error(status.detail)
-	const repository = parseGitHubRemote(`https://github.com/${status.repository}`)
-	if (!repository) throw new Error("GitHub repository could not be resolved")
-	const gh = getGitHubPath()
-	const requestId = randomUUID().slice(0, 8)
-	const title = `Palot build ${requestId}`
-	onProgress({ stage: "repository", status: "complete", detail: status.repository })
-	onProgress({ stage: "dispatch", status: "active", detail: "Starting GitHub Actions build" })
+	const status = await getGitHubBuildStatus(directory);
+	if (!status.ready || !status.repository || !status.branch)
+		throw new Error(status.detail);
+	const repository = parseGitHubRemote(
+		`https://github.com/${status.repository}`,
+	);
+	if (!repository) throw new Error("GitHub repository could not be resolved");
+	const gh = getGitHubPath();
+	const requestId = randomUUID().slice(0, 8);
+	const title = `Palot build ${requestId}`;
+	onProgress({
+		stage: "repository",
+		status: "complete",
+		detail: status.repository,
+	});
+	onProgress({
+		stage: "dispatch",
+		status: "active",
+		detail: "Starting GitHub Actions build",
+	});
 	await command(gh, [
 		"workflow",
 		"run",
@@ -426,11 +526,15 @@ export async function runGitHubBuild(
 		status.branch,
 		"-f",
 		`request_id=${requestId}`,
-	])
-	onProgress({ stage: "dispatch", status: "complete", detail: "Build requested" })
+	]);
+	onProgress({
+		stage: "dispatch",
+		status: "complete",
+		detail: "Build requested",
+	});
 
-	const startedAt = Date.now()
-	let run: GitHubRun | null = null
+	const startedAt = Date.now();
+	let run: GitHubRun | null = null;
 	while (Date.now() - startedAt < BUILD_TIMEOUT_MS) {
 		const raw = await command(gh, [
 			"run",
@@ -445,36 +549,45 @@ export async function runGitHubBuild(
 			"databaseId,displayTitle,status,conclusion,url,headSha",
 			"--limit",
 			"30",
-		])
-		const runs = JSON.parse(raw) as GitHubRun[]
-		run = runs.find((candidate) => candidate.displayTitle === title) ?? null
+		]);
+		const runs = JSON.parse(raw) as GitHubRun[];
+		run = runs.find((candidate) => candidate.displayTitle === title) ?? null;
 		if (!run) {
-			onProgress({ stage: "queued", status: "active", detail: "Waiting for a GitHub runner" })
+			onProgress({
+				stage: "queued",
+				status: "active",
+				detail: "Waiting for a GitHub runner",
+			});
 		} else if (run.status !== "completed") {
 			onProgress({
 				stage: "building",
 				status: "active",
 				detail: "Building linux/amd64 image",
 				runUrl: run.url,
-			})
+			});
 		} else {
-			break
+			break;
 		}
-		await new Promise((resolve) => setTimeout(resolve, 5_000))
+		await new Promise((resolve) => setTimeout(resolve, 5_000));
 	}
-	if (!run || run.status !== "completed") throw new Error("GitHub Actions build timed out")
+	if (!run || run.status !== "completed")
+		throw new Error("GitHub Actions build timed out");
 	if (run.conclusion !== "success") {
-		throw new Error(`GitHub Actions build failed (${run.conclusion}). Open ${run.url}`)
+		throw new Error(
+			`GitHub Actions build failed (${run.conclusion}). Open ${run.url}`,
+		);
 	}
 	onProgress({
 		stage: "publishing",
 		status: "active",
 		detail: "Publishing the GHCR image",
 		runUrl: run.url,
-	})
-	const artifactDirectory = await mkdtemp(path.join(app.getPath("temp"), "palot-gh-build-"))
-	const artifactPath = path.join(artifactDirectory, ".palot-build-result.json")
-	let artifact: ReturnType<typeof parseGitHubBuildArtifact>
+	});
+	const artifactDirectory = await mkdtemp(
+		path.join(app.getPath("temp"), "palot-gh-build-"),
+	);
+	const artifactPath = path.join(artifactDirectory, ".palot-build-result.json");
+	let artifact: ReturnType<typeof parseGitHubBuildArtifact>;
 	try {
 		await command(gh, [
 			"run",
@@ -486,26 +599,31 @@ export async function runGitHubBuild(
 			`palot-sealos-build-${requestId}`,
 			"--dir",
 			artifactDirectory,
-		])
+		]);
 		artifact = parseGitHubBuildArtifact(
 			repository,
 			run.headSha,
 			JSON.parse(await readFile(artifactPath, "utf8")),
-		)
+		);
 	} finally {
-		await rm(artifactPath, { force: true }).catch(() => undefined)
-		await rm(artifactDirectory, { force: true }).catch(() => undefined)
+		await rm(artifactPath, { force: true }).catch(() => undefined);
+		await rm(artifactDirectory, { force: true }).catch(() => undefined);
 	}
-	await makeContainerPublic(gh, repository)
-	const image = artifact.image
+	await makeContainerPublic(gh, repository);
+	const image = artifact.image;
 	const result = {
 		repository: repository.nameWithOwner,
 		branch: status.branch,
 		commit: run.headSha,
 		image,
 		runUrl: run.url,
-	}
-	await writeGitHubBuildResult(directory, result)
-	onProgress({ stage: "complete", status: "complete", detail: image, runUrl: run.url })
-	return result
+	};
+	await writeGitHubBuildResult(directory, result);
+	onProgress({
+		stage: "complete",
+		status: "complete",
+		detail: image,
+		runUrl: run.url,
+	});
+	return result;
 }

@@ -1,17 +1,17 @@
-import { useAppBarContent } from "./app-bar-context"
+import { useAppBarContent } from "./app-bar-context";
 
 // Height of the app bar in pixels — used as CSS variable
-export const APP_BAR_HEIGHT = 46
+export const APP_BAR_HEIGHT = 46;
 
 /**
  * Detect whether we're running inside Electron (preload injects `window.palot`).
  */
 function isElectron(): boolean {
-	return typeof window !== "undefined" && "palot" in window
+	return typeof window !== "undefined" && "palot" in window;
 }
 
 export function AppBar() {
-	const pageContent = useAppBarContent()
+	const pageContent = useAppBarContent();
 
 	return (
 		<div
@@ -25,7 +25,9 @@ export function AppBar() {
 			}}
 		>
 			{/* ===== Page content (via portal) ===== */}
-			<div className="relative flex h-full min-w-0 flex-1 items-center">{pageContent}</div>
+			<div className="relative flex h-full min-w-0 flex-1 items-center">
+				{pageContent}
+			</div>
 		</div>
-	)
+	);
 }

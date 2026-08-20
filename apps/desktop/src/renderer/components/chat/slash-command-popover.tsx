@@ -8,9 +8,9 @@
  * - Keyboard navigation (Arrow keys, Enter/Tab, Escape)
  */
 
-import { ScrollArea } from "@palot/ui/components/scroll-area"
-import { cn } from "@palot/ui/lib/utils"
-import fuzzysort from "fuzzysort"
+import { ScrollArea } from "@palot/ui/components/scroll-area";
+import { cn } from "@palot/ui/lib/utils";
+import fuzzysort from "fuzzysort";
 import {
 	BookOpenIcon,
 	CodeIcon,
@@ -24,7 +24,7 @@ import {
 	TerminalIcon,
 	Undo2Icon,
 	WrenchIcon,
-} from "lucide-react"
+} from "lucide-react";
 import {
 	forwardRef,
 	memo,
@@ -34,48 +34,50 @@ import {
 	useMemo,
 	useRef,
 	useState,
-} from "react"
-import { useServerCommands } from "../../hooks/use-opencode-data"
+} from "react";
+import { useTranslation } from "react-i18next";
+import { useServerCommands } from "../../hooks/use-opencode-data";
 
 // ============================================================
 // Types
 // ============================================================
 
 interface SlashCommand {
-	name: string
-	description: string
-	icon: LucideIcon
-	source: "client" | "server"
+	name: string;
+	description: string;
+	descriptionKey?: string;
+	icon: LucideIcon;
+	source: "client" | "server";
 	/** For server commands: the original source type */
-	serverSource?: "command" | "mcp" | "skill"
+	serverSource?: "command" | "mcp" | "skill";
 	/** Keyboard shortcut */
-	shortcut?: string
+	shortcut?: string;
 	/** Special action instead of regular command execution */
-	action?: "skills" | "fork"
+	action?: "skills" | "fork";
 }
 
 export interface SlashCommandPopoverHandle {
 	/** Handle keyboard events from the parent textarea. Returns true if consumed. */
-	handleKeyDown: (e: React.KeyboardEvent) => boolean
+	handleKeyDown: (e: React.KeyboardEvent) => boolean;
 }
 
 interface SlashCommandPopoverProps {
 	/** The query text after `/` */
-	query: string
+	query: string;
 	/** Whether the popover is visible */
-	open: boolean
+	open: boolean;
 	/** Whether the popover should be active (connected, has session, etc.) */
-	enabled: boolean
+	enabled: boolean;
 	/** Directory for fetching server commands */
-	directory: string | null
+	directory: string | null;
 	/** Callback when a command is selected */
-	onSelect: (command: string) => void
+	onSelect: (command: string) => void;
 	/** Called when the /skills entry is selected — opens the skills picker */
-	onSkillsOpen?: () => void
+	onSkillsOpen?: () => void;
 	/** Called when the /fork entry is selected — forks the session */
-	onFork?: () => Promise<void>
+	onFork?: () => Promise<void>;
 	/** Called when Escape is pressed */
-	onClose: () => void
+	onClose: () => void;
 }
 
 // ============================================================
@@ -85,52 +87,57 @@ interface SlashCommandPopoverProps {
 const CLIENT_COMMANDS: SlashCommand[] = [
 	{
 		name: "undo",
-		description: "Undo the last turn",
+		description: "",
+		descriptionKey: "chat.commands.undo",
 		icon: Undo2Icon,
 		source: "client",
 		shortcut: "⌘Z",
 	},
 	{
 		name: "redo",
-		description: "Redo previously undone turn",
+		description: "",
+		descriptionKey: "chat.commands.redo",
 		icon: Redo2Icon,
 		source: "client",
 		shortcut: "⇧⌘Z",
 	},
 	{
 		name: "compact",
-		description: "Summarize conversation to save context",
+		description: "",
+		descriptionKey: "chat.commands.compact",
 		icon: SparklesIcon,
 		source: "client",
 	},
 	{
 		name: "fork",
-		description: "Fork conversation from this point",
+		description: "",
+		descriptionKey: "chat.commands.fork",
 		icon: GitForkIcon,
 		source: "client",
 		action: "fork",
 	},
 	{
 		name: "skills",
-		description: "Browse and use skills",
+		description: "",
+		descriptionKey: "chat.commands.skills",
 		icon: BookOpenIcon,
 		source: "client",
 		action: "skills",
 	},
-]
+];
 
 function getCommandIcon(name: string): LucideIcon {
 	switch (name) {
 		case "init":
-			return SettingsIcon
+			return SettingsIcon;
 		case "review":
-			return CodeIcon
+			return CodeIcon;
 		case "feedback":
-			return MessageSquareIcon
+			return MessageSquareIcon;
 		case "mcp":
-			return WrenchIcon
+			return WrenchIcon;
 		default:
-			return TerminalIcon
+			return TerminalIcon;
 	}
 }
 
@@ -139,150 +146,171 @@ function getCommandIcon(name: string): LucideIcon {
 // ============================================================
 
 export const SlashCommandPopover = memo(
-	forwardRef<SlashCommandPopoverHandle, SlashCommandPopoverProps>(function SlashCommandPopover(
-		{ query, open, directory, onSelect, onSkillsOpen, onFork, onClose },
-		ref,
-	) {
-		const [activeIndex, setActiveIndex] = useState(0)
-		const listRef = useRef<HTMLDivElement>(null)
+	forwardRef<SlashCommandPopoverHandle, SlashCommandPopoverProps>(
+		function SlashCommandPopover(
+			{ query, open, directory, onSelect, onSkillsOpen, onFork, onClose },
+			ref,
+		) {
+			const { t } = useTranslation();
+			const [activeIndex, setActiveIndex] = useState(0);
+			const listRef = useRef<HTMLDivElement>(null);
 
-		// --- Server commands (skills excluded, matching TUI pattern) ---
-		const rawServerCommands = useServerCommands(directory)
-		const serverCommands = useMemo<SlashCommand[]>(
-			() =>
-				rawServerCommands
-					.filter((c) => c.source !== "skill")
-					.map((c) => ({
-						name: c.name,
-						description: c.description ?? `Run /${c.name}`,
-						icon: getCommandIcon(c.name),
-						source: "server" as const,
-						serverSource: c.source,
+			// --- Server commands (skills excluded, matching TUI pattern) ---
+			const rawServerCommands = useServerCommands(directory);
+			const serverCommands = useMemo<SlashCommand[]>(
+				() =>
+					rawServerCommands
+						.filter((c) => c.source !== "skill")
+						.map((c) => ({
+							name: c.name,
+							description:
+								c.description ?? t("chat.commands.run", { name: c.name }),
+							icon: getCommandIcon(c.name),
+							source: "server" as const,
+							serverSource: c.source,
+						})),
+				[rawServerCommands, t],
+			);
+			const clientCommands = useMemo<SlashCommand[]>(
+				() =>
+					CLIENT_COMMANDS.map((command) => ({
+						...command,
+						description: command.descriptionKey
+							? t(command.descriptionKey)
+							: command.description,
 					})),
-			[rawServerCommands],
-		)
+				[t],
+			);
 
-		// --- Merge: server commands first, then built-in (matching TUI ordering) ---
-		const allCommands = useMemo(() => [...serverCommands, ...CLIENT_COMMANDS], [serverCommands])
+			// --- Merge: server commands first, then built-in (matching TUI ordering) ---
+			const allCommands = useMemo(
+				() => [...serverCommands, ...clientCommands],
+				[serverCommands, clientCommands],
+			);
 
-		// --- Fuzzy filter ---
-		const flatList = useMemo<SlashCommand[]>(() => {
-			if (!query) return allCommands
-			const results = fuzzysort.go(query, allCommands, {
-				keys: ["name", "description"],
-				threshold: 0.3,
-			})
-			return results.map((r) => r.obj)
-		}, [allCommands, query])
+			// --- Fuzzy filter ---
+			const flatList = useMemo<SlashCommand[]>(() => {
+				if (!query) return allCommands;
+				const results = fuzzysort.go(query, allCommands, {
+					keys: ["name", "description"],
+					threshold: 0.3,
+				});
+				return results.map((r) => r.obj);
+			}, [allCommands, query]);
 
-		// Reset active index when options or query change
-		// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on options/query change
-		useEffect(() => {
-			setActiveIndex(0)
-		}, [flatList.length, query])
+			// Reset active index when options or query change
+			// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset on options/query change
+			useEffect(() => {
+				setActiveIndex(0);
+			}, [flatList.length, query]);
 
-		// Scroll active item into view
-		// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — scroll when active index changes
-		useEffect(() => {
-			const list = listRef.current
-			if (!list) return
-			const active = list.querySelector("[data-active=true]")
-			if (active) {
-				active.scrollIntoView({ block: "nearest" })
-			}
-		}, [activeIndex])
-
-		// --- Handle selection (regular commands or special actions) ---
-		const handleSelect = useCallback(
-			(cmd: SlashCommand) => {
-				if (cmd.action === "skills") {
-					onClose()
-					onSkillsOpen?.()
-				} else if (cmd.action === "fork") {
-					onClose()
-					onFork?.()
-				} else {
-					onSelect(`/${cmd.name}`)
+			// Scroll active item into view
+			// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — scroll when active index changes
+			useEffect(() => {
+				const list = listRef.current;
+				if (!list) return;
+				const active = list.querySelector("[data-active=true]");
+				if (active) {
+					active.scrollIntoView({ block: "nearest" });
 				}
-			},
-			[onSelect, onClose, onSkillsOpen, onFork],
-		)
+			}, [activeIndex]);
 
-		// --- Keyboard handler ---
-		const handleKeyDown = useCallback(
-			(e: React.KeyboardEvent): boolean => {
-				if (!open || flatList.length === 0) return false
-
-				switch (e.key) {
-					case "ArrowDown": {
-						e.preventDefault()
-						setActiveIndex((i) => (i + 1) % flatList.length)
-						return true
+			// --- Handle selection (regular commands or special actions) ---
+			const handleSelect = useCallback(
+				(cmd: SlashCommand) => {
+					if (cmd.action === "skills") {
+						onClose();
+						onSkillsOpen?.();
+					} else if (cmd.action === "fork") {
+						onClose();
+						onFork?.();
+					} else {
+						onSelect(`/${cmd.name}`);
 					}
-					case "ArrowUp": {
-						e.preventDefault()
-						setActiveIndex((i) => (i - 1 + flatList.length) % flatList.length)
-						return true
+				},
+				[onSelect, onClose, onSkillsOpen, onFork],
+			);
+
+			// --- Keyboard handler ---
+			const handleKeyDown = useCallback(
+				(e: React.KeyboardEvent): boolean => {
+					if (!open || flatList.length === 0) return false;
+
+					switch (e.key) {
+						case "ArrowDown": {
+							e.preventDefault();
+							setActiveIndex((i) => (i + 1) % flatList.length);
+							return true;
+						}
+						case "ArrowUp": {
+							e.preventDefault();
+							setActiveIndex(
+								(i) => (i - 1 + flatList.length) % flatList.length,
+							);
+							return true;
+						}
+						case "Tab":
+						case "Enter": {
+							e.preventDefault();
+							const selected = flatList[activeIndex];
+							if (selected) handleSelect(selected);
+							return true;
+						}
+						case "Escape": {
+							e.preventDefault();
+							onClose();
+							return true;
+						}
+						default:
+							return false;
 					}
-					case "Tab":
-					case "Enter": {
-						e.preventDefault()
-						const selected = flatList[activeIndex]
-						if (selected) handleSelect(selected)
-						return true
-					}
-					case "Escape": {
-						e.preventDefault()
-						onClose()
-						return true
-					}
-					default:
-						return false
-				}
-			},
-			[open, flatList, activeIndex, handleSelect, onClose],
-		)
+				},
+				[open, flatList, activeIndex, handleSelect, onClose],
+			);
 
-		useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown])
+			useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown]);
 
-		if (!open) return null
+			if (!open) return null;
 
-		return (
-			<div
-				role="listbox"
-				className="absolute inset-x-0 bottom-full z-50 mb-2 origin-bottom-left overflow-hidden rounded-md border bg-popover shadow-md"
-				onMouseDown={(e) => e.preventDefault()}
-			>
-				{/* Search header */}
-				<div className="flex items-center gap-2 border-b px-3 py-2">
-					<SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-					<span className="text-sm text-muted-foreground">Search</span>
-				</div>
-
-				{/* Results */}
-				<ScrollArea className="max-h-72 overflow-hidden [&>[data-slot=scroll-area-viewport]]:max-h-[inherit]">
-					<div ref={listRef} className="py-1">
-						{flatList.length === 0 && (
-							<div className="py-4 text-center text-sm text-muted-foreground">
-								No commands found
-							</div>
-						)}
-
-						{flatList.map((cmd, idx) => (
-							<CommandItem
-								key={cmd.name}
-								command={cmd}
-								isActive={idx === activeIndex}
-								onSelect={() => handleSelect(cmd)}
-								onHover={() => setActiveIndex(idx)}
-							/>
-						))}
+			return (
+				<div
+					role="listbox"
+					className="absolute inset-x-0 bottom-full z-50 mb-2 origin-bottom-left overflow-hidden rounded-md border bg-popover shadow-md"
+					onMouseDown={(e) => e.preventDefault()}
+				>
+					{/* Search header */}
+					<div className="flex items-center gap-2 border-b px-3 py-2">
+						<SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+						<span className="text-sm text-muted-foreground">
+							{t("chat.commands.search")}
+						</span>
 					</div>
-				</ScrollArea>
-			</div>
-		)
-	}),
-)
+
+					{/* Results */}
+					<ScrollArea className="max-h-72 overflow-hidden [&>[data-slot=scroll-area-viewport]]:max-h-[inherit]">
+						<div ref={listRef} className="py-1">
+							{flatList.length === 0 && (
+								<div className="py-4 text-center text-sm text-muted-foreground">
+									{t("chat.commands.noneFound")}
+								</div>
+							)}
+
+							{flatList.map((cmd, idx) => (
+								<CommandItem
+									key={cmd.name}
+									command={cmd}
+									isActive={idx === activeIndex}
+									onSelect={() => handleSelect(cmd)}
+									onHover={() => setActiveIndex(idx)}
+								/>
+							))}
+						</div>
+					</ScrollArea>
+				</div>
+			);
+		},
+	),
+);
 
 // ============================================================
 // CommandItem
@@ -294,12 +322,12 @@ const CommandItem = memo(function CommandItem({
 	onSelect,
 	onHover,
 }: {
-	command: SlashCommand
-	isActive: boolean
-	onSelect: () => void
-	onHover: () => void
+	command: SlashCommand;
+	isActive: boolean;
+	onSelect: () => void;
+	onHover: () => void;
 }) {
-	const Icon = command.icon
+	const Icon = command.icon;
 
 	return (
 		<button
@@ -316,7 +344,9 @@ const CommandItem = memo(function CommandItem({
 				<Icon className="size-4 shrink-0 text-muted-foreground" />
 				<span className="font-medium">/{command.name}</span>
 				{command.description && (
-					<span className="truncate text-muted-foreground">{command.description}</span>
+					<span className="truncate text-muted-foreground">
+						{command.description}
+					</span>
 				)}
 			</div>
 			<div className="flex shrink-0 items-center gap-2">
@@ -326,9 +356,11 @@ const CommandItem = memo(function CommandItem({
 					</span>
 				)}
 				{command.shortcut && (
-					<span className="text-xs text-muted-foreground">{command.shortcut}</span>
+					<span className="text-xs text-muted-foreground">
+						{command.shortcut}
+					</span>
 				)}
 			</div>
 		</button>
-	)
-})
+	);
+});

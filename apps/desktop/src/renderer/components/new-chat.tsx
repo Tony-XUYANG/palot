@@ -5,17 +5,19 @@ import {
 	PromptInputTextarea,
 	PromptInputTools,
 	usePromptInputController,
-} from "@palot/ui/components/ai-elements/prompt-input"
-import { type MentionOption, MentionPopover, type MentionPopoverHandle } from "./chat/mention-popover"
+} from "@palot/ui/components/ai-elements/prompt-input";
 import {
-	createAgentMention,
-	createFileMention,
-	insertMentionIntoText,
-} from "./chat/prompt-mentions"
-import { Popover, PopoverContent, PopoverTrigger } from "@palot/ui/components/popover"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { useNavigate, useParams } from "@tanstack/react-router"
-import { useAtomValue } from "jotai"
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@palot/ui/components/popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
 import {
 	ChevronDownIcon,
 	CodeIcon,
@@ -23,20 +25,32 @@ import {
 	GitForkIcon,
 	GitPullRequestIcon,
 	MonitorIcon,
-} from "lucide-react"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { projectModelsAtom, setProjectModelAtom } from "../atoms/preferences"
+} from "lucide-react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { useTranslation } from "react-i18next";
+import { projectModelsAtom, setProjectModelAtom } from "../atoms/preferences";
 import {
 	removeSessionAtom,
 	setSessionBranchAtom,
 	setSessionSetupPhaseAtom,
 	setSessionWorktreeAtom,
 	upsertSessionAtom,
-} from "../atoms/sessions"
-import { appStore } from "../atoms/store"
-import { useAgents, useProjectList } from "../hooks/use-agents"
-import { NEW_CHAT_DRAFT_KEY, useDraftActions, useDraftSnapshot } from "../hooks/use-draft"
-import type { ModelRef } from "../hooks/use-opencode-data"
+} from "../atoms/sessions";
+import { appStore } from "../atoms/store";
+import { useAgents, useProjectList } from "../hooks/use-agents";
+import {
+	NEW_CHAT_DRAFT_KEY,
+	useDraftActions,
+	useDraftSnapshot,
+} from "../hooks/use-draft";
+import type { ModelRef } from "../hooks/use-opencode-data";
 import {
 	getModelInputCapabilities,
 	getModelVariants,
@@ -46,16 +60,29 @@ import {
 	useOpenCodeAgents,
 	useProviders,
 	useVcs,
-} from "../hooks/use-opencode-data"
-import { useAgentActions } from "../hooks/use-server"
-import { formatRequestError } from "../lib/model-errors"
-import type { FileAttachment } from "../lib/types"
-import { createWorktree, randomWorktreeName } from "../services/worktree-service"
-import { useSetAppBarContent } from "./app-bar-context"
-import { BranchPicker } from "./branch-picker"
-import { PromptAttachmentPreview } from "./chat/prompt-attachments"
-import { PromptToolbar, StatusBar } from "./chat/prompt-toolbar"
-import { PalotWordmark } from "./palot-wordmark"
+} from "../hooks/use-opencode-data";
+import { useAgentActions } from "../hooks/use-server";
+import { formatRequestError } from "../lib/model-errors";
+import type { FileAttachment } from "../lib/types";
+import {
+	createWorktree,
+	randomWorktreeName,
+} from "../services/worktree-service";
+import { useSetAppBarContent } from "./app-bar-context";
+import { BranchPicker } from "./branch-picker";
+import {
+	type MentionOption,
+	MentionPopover,
+	type MentionPopoverHandle,
+} from "./chat/mention-popover";
+import { PromptAttachmentPreview } from "./chat/prompt-attachments";
+import {
+	createAgentMention,
+	createFileMention,
+	insertMentionIntoText,
+} from "./chat/prompt-mentions";
+import { PromptToolbar, StatusBar } from "./chat/prompt-toolbar";
+import { PalotWordmark } from "./palot-wordmark";
 
 // ============================================================
 // Worktree mode toggle
@@ -65,9 +92,10 @@ function WorktreeToggle({
 	mode,
 	onModeChange,
 }: {
-	mode: "local" | "worktree"
-	onModeChange: (mode: "local" | "worktree") => void
+	mode: "local" | "worktree";
+	onModeChange: (mode: "local" | "worktree") => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex items-center rounded-md border border-border/40">
 			<Tooltip>
@@ -85,9 +113,9 @@ function WorktreeToggle({
 					}
 				>
 					<MonitorIcon className="size-3" />
-					<span>Local</span>
+					<span>{t("chat.local")}</span>
 				</TooltipTrigger>
-				<TooltipContent side="top">Run in your current working directory</TooltipContent>
+				<TooltipContent side="top">{t("chat.localDirectory")}</TooltipContent>
 			</Tooltip>
 			<Tooltip>
 				<TooltipTrigger
@@ -104,14 +132,14 @@ function WorktreeToggle({
 					}
 				>
 					<GitForkIcon className="size-3" />
-					<span>Worktree</span>
+					<span>{t("chat.worktree")}</span>
 				</TooltipTrigger>
 				<TooltipContent side="top">
-					Run in an isolated git worktree (your working copy stays untouched)
+					{t("chat.worktreeDescription")}
 				</TooltipContent>
 			</Tooltip>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -125,23 +153,30 @@ function WorktreeToggle({
 function MentionBridge({
 	controllerRef,
 }: {
-	controllerRef: React.RefObject<{ setText: (text: string) => void; getText: () => string } | null>
+	controllerRef: React.RefObject<{
+		setText: (text: string) => void;
+		getText: () => string;
+	} | null>;
 }) {
-	const controller = usePromptInputController()
+	const controller = usePromptInputController();
 	useEffect(() => {
 		if (controllerRef && "current" in controllerRef) {
-			;(controllerRef as React.MutableRefObject<typeof controllerRef.current>).current = {
+			(
+				controllerRef as React.MutableRefObject<typeof controllerRef.current>
+			).current = {
 				setText: (text: string) => controller.textInput.setInput(text),
 				getText: () => controller.textInput.value,
-			}
+			};
 		}
 		return () => {
 			if (controllerRef && "current" in controllerRef) {
-				;(controllerRef as React.MutableRefObject<typeof controllerRef.current>).current = null
+				(
+					controllerRef as React.MutableRefObject<typeof controllerRef.current>
+				).current = null;
 			}
-		}
-	}, [controller, controllerRef])
-	return null
+		};
+	}, [controller, controllerRef]);
+	return null;
 }
 
 /**
@@ -151,202 +186,220 @@ function MentionBridge({
 function MentionTrigger({
 	onMentionChange,
 }: {
-	onMentionChange: (open: boolean, query: string) => void
+	onMentionChange: (open: boolean, query: string) => void;
 }) {
-	const controller = usePromptInputController()
-	const inputText = controller.textInput.value
+	const controller = usePromptInputController();
+	const inputText = controller.textInput.value;
 	useEffect(() => {
-		const textarea = document.querySelector<HTMLTextAreaElement>("textarea[data-prompt-input]")
-		const cursorPos = textarea?.selectionStart ?? inputText.length
-		const textBeforeCursor = inputText.slice(0, cursorPos)
-		const atMatch = textBeforeCursor.match(/@(\S*)$/)
+		const textarea = document.querySelector<HTMLTextAreaElement>(
+			"textarea[data-prompt-input]",
+		);
+		const cursorPos = textarea?.selectionStart ?? inputText.length;
+		const textBeforeCursor = inputText.slice(0, cursorPos);
+		const atMatch = textBeforeCursor.match(/@(\S*)$/);
 		if (atMatch) {
-			onMentionChange(true, atMatch[1])
-			return
+			onMentionChange(true, atMatch[1]);
+			return;
 		}
-		onMentionChange(false, "")
-	}, [inputText, onMentionChange])
-	return null
+		onMentionChange(false, "");
+	}, [inputText, onMentionChange]);
+	return null;
 }
 
 const SUGGESTIONS = [
 	{
 		icon: CodeIcon,
-		text: "Build a new feature based on the existing patterns in this repo.",
+		key: "chat.suggestions.feature",
 	},
 	{
 		icon: FileTextIcon,
-		text: "Summarize the architecture and key design decisions.",
+		key: "chat.suggestions.architecture",
 	},
 	{
 		icon: GitPullRequestIcon,
-		text: "Review recent changes and suggest improvements.",
+		key: "chat.suggestions.review",
 	},
-]
+];
 
 /**
  * Syncs PromptInputProvider text to persisted drafts (debounced).
  * Must be rendered inside a <PromptInputProvider>.
  */
 function DraftSync({ setDraft }: { setDraft: (text: string) => void }) {
-	const controller = usePromptInputController()
-	const value = controller.textInput.value
-	const isFirstRender = useRef(true)
+	const controller = usePromptInputController();
+	const value = controller.textInput.value;
+	const isFirstRender = useRef(true);
 
 	useEffect(() => {
 		if (isFirstRender.current) {
-			isFirstRender.current = false
-			return
+			isFirstRender.current = false;
+			return;
 		}
-		setDraft(value)
-	}, [value, setDraft])
+		setDraft(value);
+	}, [value, setDraft]);
 
-	return null
+	return null;
 }
 
 export function NewChat() {
-	const { projectSlug } = useParams({ strict: false })
-	const projects = useProjectList()
-	const { createSession, sendPrompt } = useAgentActions()
-	const navigate = useNavigate()
+	const { t } = useTranslation();
+	const { projectSlug } = useParams({ strict: false });
+	const projects = useProjectList();
+	const { createSession, sendPrompt } = useAgentActions();
+	const navigate = useNavigate();
 
 	// Inject app name into the AppBar
-	const setAppBarContent = useSetAppBarContent()
+	const setAppBarContent = useSetAppBarContent();
 	useLayoutEffect(() => {
 		setAppBarContent(
 			<PalotWordmark className="h-[11px] w-auto shrink-0 text-muted-foreground/70" />,
-		)
-		return () => setAppBarContent(null)
-	}, [setAppBarContent])
+		);
+		return () => setAppBarContent(null);
+	}, [setAppBarContent]);
 
-	const [selectedDirectory, setSelectedDirectory] = useState<string>("")
-	const [launching, setLaunching] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const [worktreeMode, setWorktreeMode] = useState<"local" | "worktree">("local")
+	const [selectedDirectory, setSelectedDirectory] = useState<string>("");
+	const [launching, setLaunching] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [worktreeMode, setWorktreeMode] = useState<"local" | "worktree">(
+		"local",
+	);
 
 	// Draft persistence — survives page reloads.
 	// Non-reactive snapshot: the draft is only used for PromptInputProvider's
 	// initialInput (consumed once on mount), so reactive tracking is unnecessary.
-	const draft = useDraftSnapshot(NEW_CHAT_DRAFT_KEY)
-	const { setDraft, clearDraft } = useDraftActions(NEW_CHAT_DRAFT_KEY)
-	const [projectPickerOpen, setProjectPickerOpen] = useState(false)
+	const draft = useDraftSnapshot(NEW_CHAT_DRAFT_KEY);
+	const { setDraft, clearDraft } = useDraftActions(NEW_CHAT_DRAFT_KEY);
+	const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
 	// Toolbar state
-	const [selectedModel, setSelectedModel] = useState<ModelRef | null>(null)
-	const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
-	const [selectedVariant, setSelectedVariant] = useState<string | undefined>(undefined)
+	const [selectedModel, setSelectedModel] = useState<ModelRef | null>(null);
+	const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+	const [selectedVariant, setSelectedVariant] = useState<string | undefined>(
+		undefined,
+	);
 
 	// Mention popover state
-	const [mentionOpen, setMentionOpen] = useState(false)
-	const [mentionQuery, setMentionQuery] = useState("")
-	const controllerRef = useRef<{ setText: (text: string) => void; getText: () => string } | null>(
-		null,
-	)
-	const mentionPopoverRef = useRef<MentionPopoverHandle>(null)
+	const [mentionOpen, setMentionOpen] = useState(false);
+	const [mentionQuery, setMentionQuery] = useState("");
+	const controllerRef = useRef<{
+		setText: (text: string) => void;
+		getText: () => string;
+	} | null>(null);
+	const mentionPopoverRef = useRef<MentionPopoverHandle>(null);
 
 	// Seed selectedModel, selectedVariant, and selectedAgent from the persisted
 	// per-project preferences on first mount / project switch.
 	// This puts the model at step 1 (user override) in resolveEffectiveModel, so it
 	// wins over config.model and global recent list — matching the user's expectation
 	// that the model they last used in this project sticks.
-	const projectModels = useAtomValue(projectModelsAtom)
-	const prevDirectoryRef = useRef<string>("")
+	const projectModels = useAtomValue(projectModelsAtom);
+	const prevDirectoryRef = useRef<string>("");
 	useEffect(() => {
-		if (!selectedDirectory || selectedDirectory === prevDirectoryRef.current) return
-		prevDirectoryRef.current = selectedDirectory
-		const stored = projectModels[selectedDirectory]
+		if (!selectedDirectory || selectedDirectory === prevDirectoryRef.current)
+			return;
+		prevDirectoryRef.current = selectedDirectory;
+		const stored = projectModels[selectedDirectory];
 		if (stored?.providerID && stored?.modelID) {
-			setSelectedModel(stored)
-			setSelectedVariant(stored.variant)
+			setSelectedModel(stored);
+			setSelectedVariant(stored.variant);
 		} else {
-			setSelectedModel(null)
-			setSelectedVariant(undefined)
+			setSelectedModel(null);
+			setSelectedVariant(undefined);
 		}
 		// Restore the per-project agent preference (null = use config default)
-		setSelectedAgent(stored?.agent ?? null)
-	}, [selectedDirectory, projectModels])
+		setSelectedAgent(stored?.agent ?? null);
+	}, [selectedDirectory, projectModels]);
 
 	const selectedProject = useMemo(
 		() => projects.find((p) => p.directory === selectedDirectory),
 		[projects, selectedDirectory],
-	)
+	);
 
-	const { data: providers } = useProviders(selectedDirectory || null)
-	const { data: config } = useConfig(selectedDirectory || null)
-	const { data: vcs, reload: reloadVcs } = useVcs(selectedDirectory || null)
-	const { agents: openCodeAgents } = useOpenCodeAgents(selectedDirectory || null)
-	const { recentModels, addRecent: addRecentModel } = useModelState()
+	const { data: providers } = useProviders(selectedDirectory || null);
+	const { data: config } = useConfig(selectedDirectory || null);
+	const { data: vcs, reload: reloadVcs } = useVcs(selectedDirectory || null);
+	const { agents: openCodeAgents } = useOpenCodeAgents(
+		selectedDirectory || null,
+	);
+	const { recentModels, addRecent: addRecentModel } = useModelState();
 
 	// Handle model selection — set local state + persist to model.json.
 	// Reset variant when the model changes: the new model may have different
 	// (or no) variants, so carrying over a stale variant would be incorrect.
 	const handleModelSelect = useCallback(
 		(model: ModelRef | null) => {
-			setSelectedModel(model)
-			setSelectedVariant(undefined)
-			if (model) addRecentModel(model)
+			setSelectedModel(model);
+			setSelectedVariant(undefined);
+			if (model) addRecentModel(model);
 		},
 		[addRecentModel],
-	)
+	);
 
 	// Count active sessions on the selected directory (for branch switch warnings)
-	const allAgents = useAgents()
+	const allAgents = useAgents();
 	const activeSessionCount = useMemo(() => {
-		if (!selectedDirectory) return 0
+		if (!selectedDirectory) return 0;
 		return allAgents.filter(
 			(a) =>
-				a.directory === selectedDirectory && (a.status === "running" || a.status === "waiting"),
-		).length
-	}, [allAgents, selectedDirectory])
+				a.directory === selectedDirectory &&
+				(a.status === "running" || a.status === "waiting"),
+		).length;
+	}, [allAgents, selectedDirectory]);
 
 	// Callback when branch is switched via the BranchPicker — forces VCS reload
 	const handleBranchChanged = useCallback(
 		(_branch: string) => {
 			// VCS hook polls every 30s, but we want immediate UI update.
 			// The SSE vcs.branch.updated event will also fire eventually.
-			reloadVcs()
+			reloadVcs();
 		},
 		[reloadVcs],
-	)
+	);
 
 	// Insert a selected mention into the prompt textarea
 	const handleMentionSelect = useCallback((option: MentionOption) => {
-		setMentionOpen(false)
-		const ctrl = controllerRef.current
-		if (!ctrl) return
-		const currentText = ctrl.getText()
-		const textarea = document.querySelector<HTMLTextAreaElement>("textarea[data-prompt-input]")
-		const cursorPos = textarea?.selectionStart ?? currentText.length
+		setMentionOpen(false);
+		const ctrl = controllerRef.current;
+		if (!ctrl) return;
+		const currentText = ctrl.getText();
+		const textarea = document.querySelector<HTMLTextAreaElement>(
+			"textarea[data-prompt-input]",
+		);
+		const cursorPos = textarea?.selectionStart ?? currentText.length;
 		const mention =
-			option.type === "file" ? createFileMention(option.path) : createAgentMention(option.name)
+			option.type === "file"
+				? createFileMention(option.path)
+				: createAgentMention(option.name);
 		const { text: newText, cursorPosition: newCursor } = insertMentionIntoText(
 			currentText,
 			cursorPos,
 			mention,
-		)
-		ctrl.setText(newText)
+		);
+		ctrl.setText(newText);
 		requestAnimationFrame(() => {
-			const ta = document.querySelector<HTMLTextAreaElement>("textarea[data-prompt-input]")
+			const ta = document.querySelector<HTMLTextAreaElement>(
+				"textarea[data-prompt-input]",
+			);
 			if (ta) {
-				ta.focus()
-				ta.setSelectionRange(newCursor, newCursor)
+				ta.focus();
+				ta.setSelectionRange(newCursor, newCursor);
 			}
-		})
-	}, [])
+		});
+	}, []);
 
 	// Delegate keyboard events to the mention popover when it's open
 	const handleTextareaKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-			if (mentionPopoverRef.current?.handleKeyDown(e)) return
+			if (mentionPopoverRef.current?.handleKeyDown(e)) return;
 		},
 		[],
-	)
+	);
 
 	// Resolve active agent for model resolution
 	const activeOpenCodeAgent = useMemo(() => {
-		const agentName = selectedAgent ?? config?.defaultAgent
-		return openCodeAgents?.find((a) => a.name === agentName) ?? null
-	}, [selectedAgent, config?.defaultAgent, openCodeAgents])
+		const agentName = selectedAgent ?? config?.defaultAgent;
+		return openCodeAgents?.find((a) => a.name === agentName) ?? null;
+	}, [selectedAgent, config?.defaultAgent, openCodeAgents]);
 
 	// Resolve effective model — selectedModel is seeded from the persisted project model
 	// on mount/project switch (above), so it already wins at step 1 of the resolution chain.
@@ -360,43 +413,49 @@ export function NewChat() {
 				providers?.providers ?? [],
 				recentModels,
 			),
-		[selectedModel, activeOpenCodeAgent, config?.model, providers, recentModels],
-	)
+		[
+			selectedModel,
+			activeOpenCodeAgent,
+			config?.model,
+			providers,
+			recentModels,
+		],
+	);
 
 	// Validate variant against the effective model's available variants.
 	// Clears the variant if the current model doesn't support it (e.g. restored
 	// from per-project preference but the model was changed, or provider updated).
 	useEffect(() => {
-		if (!selectedVariant || !effectiveModel || !providers) return
+		if (!selectedVariant || !effectiveModel || !providers) return;
 		const available = getModelVariants(
 			effectiveModel.providerID,
 			effectiveModel.modelID,
 			providers.providers,
-		)
+		);
 		if (!available.includes(selectedVariant)) {
-			setSelectedVariant(undefined)
+			setSelectedVariant(undefined);
 		}
-	}, [selectedVariant, effectiveModel, providers])
+	}, [selectedVariant, effectiveModel, providers]);
 
 	// Model input capabilities (for attachment warnings)
 	const modelCapabilities = useMemo(
 		() => getModelInputCapabilities(effectiveModel, providers?.providers ?? []),
 		[effectiveModel, providers],
-	)
+	);
 
 	useEffect(() => {
-		if (projects.length === 0) return
+		if (projects.length === 0) return;
 
 		if (projectSlug) {
-			const match = projects.find((p) => p.slug === projectSlug)
+			const match = projects.find((p) => p.slug === projectSlug);
 			if (match) {
-				setSelectedDirectory(match.directory)
-				return
+				setSelectedDirectory(match.directory);
+				return;
 			}
 		}
 
-		setSelectedDirectory(projects[0].directory)
-	}, [projectSlug, projects])
+		setSelectedDirectory(projects[0].directory);
+	}, [projectSlug, projects]);
 
 	// ---
 	// Launch helpers
@@ -404,7 +463,7 @@ export function NewChat() {
 
 	/** Persist the model + variant + agent for this project so new sessions remember it. */
 	const persistProjectModel = useCallback(() => {
-		if (!effectiveModel || !selectedDirectory) return
+		if (!effectiveModel || !selectedDirectory) return;
 		appStore.set(setProjectModelAtom, {
 			directory: selectedDirectory,
 			model: {
@@ -412,45 +471,48 @@ export function NewChat() {
 				variant: selectedVariant,
 				agent: selectedAgent ?? undefined,
 			},
-		})
-	}, [effectiveModel, selectedDirectory, selectedVariant, selectedAgent])
+		});
+	}, [effectiveModel, selectedDirectory, selectedVariant, selectedAgent]);
 
 	/** Navigate to the chat view for a given session. */
 	const navigateToSession = useCallback(
 		(sessionId: string) => {
-			const project = projects.find((p) => p.directory === selectedDirectory)
+			const project = projects.find((p) => p.directory === selectedDirectory);
 			navigate({
 				to: "/project/$projectSlug/session/$sessionId",
 				params: {
 					projectSlug: project?.slug ?? "unknown",
 					sessionId,
 				},
-			})
+			});
 		},
 		[projects, selectedDirectory, navigate],
-	)
+	);
 
 	/** Launch a session in local mode (no worktree). */
 	const launchLocal = useCallback(
 		async (promptText: string, files?: FileAttachment[]) => {
-			const session = await createSession(selectedDirectory)
-			if (!session) return
+			const session = await createSession(selectedDirectory);
+			if (!session) return;
 
-			const currentBranch = vcs?.branch ?? ""
+			const currentBranch = vcs?.branch ?? "";
 			if (currentBranch) {
-				appStore.set(setSessionBranchAtom, { sessionId: session.id, branch: currentBranch })
+				appStore.set(setSessionBranchAtom, {
+					sessionId: session.id,
+					branch: currentBranch,
+				});
 			}
 
-			persistProjectModel()
+			persistProjectModel();
 
 			await sendPrompt(selectedDirectory, session.id, promptText, {
 				model: effectiveModel ?? undefined,
 				agent: selectedAgent ?? undefined,
 				variant: selectedVariant,
 				files,
-			})
-			clearDraft()
-			navigateToSession(session.id)
+			});
+			clearDraft();
+			navigateToSession(session.id);
 		},
 		[
 			selectedDirectory,
@@ -464,7 +526,7 @@ export function NewChat() {
 			navigateToSession,
 			vcs,
 		],
-	)
+	);
 
 	/**
 	 * Launch a session in worktree mode.
@@ -476,11 +538,11 @@ export function NewChat() {
 	 */
 	const launchWorktree = useCallback(
 		(promptText: string, files?: FileAttachment[]) => {
-			const sessionSlug = randomWorktreeName()
+			const sessionSlug = randomWorktreeName();
 
 			// Create a stub session so the chat view can render immediately.
-			const stubId = crypto.randomUUID()
-			const now = Date.now()
+			const stubId = crypto.randomUUID();
+			const now = Date.now();
 			appStore.set(upsertSessionAtom, {
 				session: {
 					id: stubId,
@@ -492,32 +554,36 @@ export function NewChat() {
 					time: { created: now, updated: now },
 				},
 				directory: selectedDirectory,
-			})
+			});
 			appStore.set(setSessionSetupPhaseAtom, {
 				sessionId: stubId,
 				setupPhase: "creating-worktree",
-			})
+			});
 
-			persistProjectModel()
-			clearDraft()
-			navigateToSession(stubId)
+			persistProjectModel();
+			clearDraft();
+			navigateToSession(stubId);
 
 			// Background: create worktree -> create real session -> send prompt.
 			// The chat view shows the setup phase while this runs.
 			const run = async () => {
 				try {
 					// Phase 1: Create the worktree
-					const result = await createWorktree(selectedDirectory, selectedDirectory, sessionSlug)
-					const sdkDirectory = result.worktreeWorkspace
+					const result = await createWorktree(
+						selectedDirectory,
+						selectedDirectory,
+						sessionSlug,
+					);
+					const sdkDirectory = result.worktreeWorkspace;
 
 					// Phase 2: Create the real session
 					appStore.set(setSessionSetupPhaseAtom, {
 						sessionId: stubId,
 						setupPhase: "starting-session",
-					})
-					const session = await createSession(sdkDirectory)
+					});
+					const session = await createSession(sdkDirectory);
 					if (!session) {
-						throw new Error("Failed to create session in worktree")
+						throw new Error("Failed to create session in worktree");
 					}
 
 					// Replace the stub with the real session data. Override the
@@ -525,20 +591,20 @@ export function NewChat() {
 					appStore.set(upsertSessionAtom, {
 						session,
 						directory: selectedDirectory,
-					})
+					});
 					appStore.set(setSessionWorktreeAtom, {
 						sessionId: session.id,
 						worktreePath: result.worktreeRoot,
 						worktreeBranch: result.branchName,
-					})
+					});
 					appStore.set(setSessionBranchAtom, {
 						sessionId: session.id,
 						branch: result.branchName,
-					})
+					});
 
 					// Navigate to the real session, then clean up the stub
-					navigateToSession(session.id)
-					appStore.set(removeSessionAtom, stubId)
+					navigateToSession(session.id);
+					appStore.set(removeSessionAtom, stubId);
 
 					// Phase 3: Send the prompt
 					await sendPrompt(sdkDirectory, session.id, promptText, {
@@ -546,17 +612,21 @@ export function NewChat() {
 						agent: selectedAgent ?? undefined,
 						variant: selectedVariant,
 						files,
-					})
+					});
 				} catch (err) {
-					console.error("Worktree launch failed:", err)
+					console.error("Worktree launch failed:", err);
 					// Remove the stub and navigate back to new chat
-					appStore.set(removeSessionAtom, stubId)
-					setError(`Worktree setup failed: ${formatRequestError(err)}`)
-					navigate({ to: "/" })
+					appStore.set(removeSessionAtom, stubId);
+					setError(
+						t("chat.worktreeSetupFailed", {
+							error: formatRequestError(err),
+						}),
+					);
+					navigate({ to: "/" });
 				}
-			}
+			};
 
-			run()
+			run();
 		},
 		[
 			selectedDirectory,
@@ -569,33 +639,34 @@ export function NewChat() {
 			persistProjectModel,
 			navigateToSession,
 			navigate,
+			t,
 		],
-	)
+	);
 
 	const handleLaunch = useCallback(
 		async (promptText: string, files?: FileAttachment[]) => {
-			if (!selectedDirectory || !promptText) return
-			setLaunching(true)
-			setError(null)
+			if (!selectedDirectory || !promptText) return;
+			setLaunching(true);
+			setError(null);
 			try {
 				if (worktreeMode === "worktree") {
 					// Worktree mode navigates immediately and runs setup in the background.
 					// The launching state is cleared right away since the chat view takes over.
-					launchWorktree(promptText, files)
-					setLaunching(false)
+					launchWorktree(promptText, files);
+					setLaunching(false);
 				} else {
-					await launchLocal(promptText, files)
+					await launchLocal(promptText, files);
 				}
 			} catch (err) {
-				setError(formatRequestError(err))
+				setError(formatRequestError(err));
 			} finally {
-				setLaunching(false)
+				setLaunching(false);
 			}
 		},
 		[selectedDirectory, worktreeMode, launchLocal, launchWorktree],
-	)
+	);
 
-	const hasToolbar = providers
+	const hasToolbar = providers;
 
 	return (
 		<div className="relative flex h-full flex-col">
@@ -609,9 +680,14 @@ export function NewChat() {
 
 					{/* "Build what's next" + project name */}
 					<div className="text-center">
-						<h1 className="text-2xl font-semibold text-foreground">Build what's next</h1>
+						<h1 className="text-2xl font-semibold text-foreground">
+							{t("chat.buildNext")}
+						</h1>
 						{projects.length > 1 ? (
-							<Popover open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
+							<Popover
+								open={projectPickerOpen}
+								onOpenChange={setProjectPickerOpen}
+							>
 								<PopoverTrigger
 									render={
 										<button
@@ -620,7 +696,7 @@ export function NewChat() {
 										/>
 									}
 								>
-									{selectedProject?.name ?? "select project"}
+									{selectedProject?.name ?? t("chat.selectProject")}
 									<ChevronDownIcon className="size-4" />
 								</PopoverTrigger>
 								<PopoverContent className="w-64 p-1" align="center">
@@ -629,8 +705,8 @@ export function NewChat() {
 											key={p.directory}
 											type="button"
 											onClick={() => {
-												setSelectedDirectory(p.directory)
-												setProjectPickerOpen(false)
+												setSelectedDirectory(p.directory);
+												setProjectPickerOpen(false);
 											}}
 											className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
 												p.directory === selectedDirectory
@@ -647,28 +723,31 @@ export function NewChat() {
 								</PopoverContent>
 							</Popover>
 						) : (
-							<p className="mt-1 text-xl text-muted-foreground">{selectedProject?.name ?? ""}</p>
+							<p className="mt-1 text-xl text-muted-foreground">
+								{selectedProject?.name ?? ""}
+							</p>
 						)}
 					</div>
 
 					{/* Suggestion cards — 3 column grid */}
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 						{SUGGESTIONS.map((suggestion) => {
-							const Icon = suggestion.icon
+							const Icon = suggestion.icon;
+							const text = t(suggestion.key);
 							return (
 								<button
-									key={suggestion.text}
+									key={suggestion.key}
 									type="button"
-									onClick={() => handleLaunch(suggestion.text)}
+									onClick={() => handleLaunch(text)}
 									disabled={launching || !selectedDirectory}
 									className="group/card flex flex-col gap-3 rounded-xl border border-border/50 bg-background/40 backdrop-blur-sm p-4 text-left transition-colors hover:border-muted-foreground/30 hover:bg-background/60 disabled:opacity-50"
 								>
 									<Icon className="size-5 text-muted-foreground transition-colors group-hover/card:text-foreground" />
 									<p className="text-sm leading-snug text-muted-foreground transition-colors group-hover/card:text-foreground">
-										{suggestion.text}
+										{text}
 									</p>
 								</button>
-							)
+							);
 						})}
 					</div>
 				</div>
@@ -683,8 +762,8 @@ export function NewChat() {
 						<MentionBridge controllerRef={controllerRef} />
 						<MentionTrigger
 							onMentionChange={(open, query) => {
-								setMentionOpen(open)
-								setMentionQuery(query)
+								setMentionOpen(open);
+								setMentionQuery(query);
 							}}
 						/>
 						<div className="relative">
@@ -697,52 +776,54 @@ export function NewChat() {
 								onSelect={handleMentionSelect}
 								onClose={() => setMentionOpen(false)}
 							/>
-						<PromptInput
-							className="rounded-xl"
-							accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
-							multiple
-							maxFileSize={10 * 1024 * 1024}
-							onSubmit={(message) => {
-								if (message.text.trim())
-									handleLaunch(
-										message.text.trim(),
-										message.files.length > 0 ? message.files : undefined,
-									)
-							}}
-						>
-							<PromptAttachmentPreview
-								supportsImages={modelCapabilities?.image}
-								supportsPdf={modelCapabilities?.pdf}
-							/>
-							<PromptInputTextarea
-								placeholder="What should this session work on?"
-								autoFocus
-								disabled={launching || !selectedDirectory || projects.length === 0}
-								className="min-h-[80px]"
-								onKeyDown={handleTextareaKeyDown}
-							/>
+							<PromptInput
+								className="rounded-xl"
+								accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+								multiple
+								maxFileSize={10 * 1024 * 1024}
+								onSubmit={(message) => {
+									if (message.text.trim())
+										handleLaunch(
+											message.text.trim(),
+											message.files.length > 0 ? message.files : undefined,
+										);
+								}}
+							>
+								<PromptAttachmentPreview
+									supportsImages={modelCapabilities?.image}
+									supportsPdf={modelCapabilities?.pdf}
+								/>
+								<PromptInputTextarea
+									placeholder={t("chat.newSessionPrompt")}
+									autoFocus
+									disabled={
+										launching || !selectedDirectory || projects.length === 0
+									}
+									className="min-h-[80px]"
+									onKeyDown={handleTextareaKeyDown}
+								/>
 
-							{/* Toolbar inside the card — agent + model + variant selectors */}
-							{hasToolbar && (
-								<PromptInputFooter>
-									<PromptInputTools>
-										<PromptToolbar
-											agents={openCodeAgents ?? []}
-											selectedAgent={selectedAgent}
-											defaultAgent={config?.defaultAgent}
-											onSelectAgent={setSelectedAgent}
-											providers={providers}
-											effectiveModel={effectiveModel}
-											hasModelOverride={!!selectedModel}
-											onSelectModel={handleModelSelect}
-											recentModels={recentModels}
-											selectedVariant={selectedVariant}
-											onSelectVariant={setSelectedVariant}
-										/>
-									</PromptInputTools>
-								</PromptInputFooter>
-							)}
-						</PromptInput>
+								{/* Toolbar inside the card — agent + model + variant selectors */}
+								{hasToolbar && (
+									<PromptInputFooter>
+										<PromptInputTools>
+											<PromptToolbar
+												agents={openCodeAgents ?? []}
+												selectedAgent={selectedAgent}
+												defaultAgent={config?.defaultAgent}
+												onSelectAgent={setSelectedAgent}
+												providers={providers}
+												effectiveModel={effectiveModel}
+												hasModelOverride={!!selectedModel}
+												onSelectModel={handleModelSelect}
+												recentModels={recentModels}
+												selectedVariant={selectedVariant}
+												onSelectVariant={setSelectedVariant}
+											/>
+										</PromptInputTools>
+									</PromptInputFooter>
+								)}
+							</PromptInput>
 						</div>
 					</PromptInputProvider>
 
@@ -763,7 +844,10 @@ export function NewChat() {
 							}
 							extraSlot={
 								vcs ? (
-									<WorktreeToggle mode={worktreeMode} onModeChange={setWorktreeMode} />
+									<WorktreeToggle
+										mode={worktreeMode}
+										onModeChange={setWorktreeMode}
+									/>
 								) : undefined
 							}
 						/>
@@ -779,11 +863,11 @@ export function NewChat() {
 					{/* No projects warning */}
 					{projects.length === 0 && (
 						<p className="mt-2 text-center text-xs text-muted-foreground">
-							No projects found. Check that projects exist in ~/.local/share/opencode/storage/.
+							{t("chat.noProjectsStorage")}
 						</p>
 					)}
 				</div>
 			</div>
 		</div>
-	)
+	);
 }

@@ -1,10 +1,10 @@
-import { useAtomValue } from "jotai"
-import { useCallback, useEffect } from "react"
-import { agentFamily } from "../atoms/derived/agents"
-import { pendingCountAtom } from "../atoms/derived/waiting"
-import { appStore } from "../atoms/store"
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect } from "react";
+import { agentFamily } from "../atoms/derived/agents";
+import { pendingCountAtom } from "../atoms/derived/waiting";
+import { appStore } from "../atoms/store";
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 /**
  * Handles native OS notification integration:
@@ -17,18 +17,18 @@ export function useNotifications(
 	currentSessionId: string | undefined,
 ) {
 	// --- Badge sync ---
-	const pendingCount = useAtomValue(pendingCountAtom)
+	const pendingCount = useAtomValue(pendingCountAtom);
 
 	useEffect(() => {
-		if (!isElectron) return
-		window.palot.updateBadgeCount(pendingCount)
-	}, [pendingCount])
+		if (!isElectron) return;
+		window.palot.updateBadgeCount(pendingCount);
+	}, [pendingCount]);
 
 	// --- Notification click -> navigate to session ---
 	const handleNavigate = useCallback(
 		(data: { sessionId: string }) => {
 			// Find the agent to get its projectSlug
-			const agent = appStore.get(agentFamily(data.sessionId))
+			const agent = appStore.get(agentFamily(data.sessionId));
 			if (agent) {
 				navigate({
 					to: "/project/$projectSlug/session/$sessionId",
@@ -36,20 +36,20 @@ export function useNotifications(
 						projectSlug: agent.projectSlug,
 						sessionId: agent.id,
 					},
-				})
+				});
 			}
 		},
 		[navigate],
-	)
+	);
 
 	useEffect(() => {
-		if (!isElectron) return
-		return window.palot.onNotificationNavigate(handleNavigate)
-	}, [handleNavigate])
+		if (!isElectron) return;
+		return window.palot.onNotificationNavigate(handleNavigate);
+	}, [handleNavigate]);
 
 	// --- Auto-dismiss when viewing a session ---
 	useEffect(() => {
-		if (!isElectron || !currentSessionId) return
-		window.palot.dismissNotification(currentSessionId)
-	}, [currentSessionId])
+		if (!isElectron || !currentSessionId) return;
+		window.palot.dismissNotification(currentSessionId);
+	}, [currentSessionId]);
 }

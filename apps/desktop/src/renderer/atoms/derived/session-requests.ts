@@ -14,12 +14,12 @@
  *   4. `sessionBlockedFamily(sessionId)` — true if either of the above is set.
  */
 
-import { atom } from "jotai"
-import type { Getter } from "jotai"
-import { atomFamily } from "jotai-family"
-import type { PermissionRequest, QuestionRequest } from "../../lib/types"
-import { sessionFamily, sessionIdsAtom } from "../sessions"
-import { buildChildrenMap, findTreeRequest } from "../../lib/session-tree"
+import type { Getter } from "jotai";
+import { atom } from "jotai";
+import { atomFamily } from "jotai-family";
+import { buildChildrenMap, findTreeRequest } from "../../lib/session-tree";
+import type { PermissionRequest, QuestionRequest } from "../../lib/types";
+import { sessionFamily, sessionIdsAtom } from "../sessions";
 
 // ============================================================
 // Shared children map — recomputes when session set changes
@@ -34,15 +34,15 @@ import { buildChildrenMap, findTreeRequest } from "../../lib/session-tree"
  * session's permissions or status change — those don't affect the tree shape.
  */
 export const childrenMapAtom = atom((get) => {
-	const ids = get(sessionIdsAtom)
-	const sessions = new Map<string, { parentID?: string }>()
+	const ids = get(sessionIdsAtom);
+	const sessions = new Map<string, { parentID?: string }>();
 	for (const id of ids) {
-		const entry = get(sessionFamily(id))
-		if (!entry) continue
-		sessions.set(id, { parentID: entry.session.parentID })
+		const entry = get(sessionFamily(id));
+		if (!entry) continue;
+		sessions.set(id, { parentID: entry.session.parentID });
 	}
-	return buildChildrenMap(sessions)
-})
+	return buildChildrenMap(sessions);
+});
 
 // ============================================================
 // Helpers — build request maps from all sessions
@@ -52,28 +52,34 @@ export const childrenMapAtom = atom((get) => {
  * Build a Map<sessionID, PermissionRequest[]> across all sessions.
  * Only sessions that actually have permissions are included.
  */
-function buildPermissionMap(get: Getter, ids: Set<string>): Map<string, PermissionRequest[]> {
-	const map = new Map<string, PermissionRequest[]>()
+function buildPermissionMap(
+	get: Getter,
+	ids: Set<string>,
+): Map<string, PermissionRequest[]> {
+	const map = new Map<string, PermissionRequest[]>();
 	for (const id of ids) {
-		const entry = get(sessionFamily(id))
-		if (!entry || entry.permissions.length === 0) continue
-		map.set(id, entry.permissions)
+		const entry = get(sessionFamily(id));
+		if (!entry || entry.permissions.length === 0) continue;
+		map.set(id, entry.permissions);
 	}
-	return map
+	return map;
 }
 
 /**
  * Build a Map<sessionID, QuestionRequest[]> across all sessions.
  * Only sessions that actually have questions are included.
  */
-function buildQuestionMap(get: Getter, ids: Set<string>): Map<string, QuestionRequest[]> {
-	const map = new Map<string, QuestionRequest[]>()
+function buildQuestionMap(
+	get: Getter,
+	ids: Set<string>,
+): Map<string, QuestionRequest[]> {
+	const map = new Map<string, QuestionRequest[]>();
 	for (const id of ids) {
-		const entry = get(sessionFamily(id))
-		if (!entry || entry.questions.length === 0) continue
-		map.set(id, entry.questions)
+		const entry = get(sessionFamily(id));
+		if (!entry || entry.questions.length === 0) continue;
+		map.set(id, entry.questions);
 	}
-	return map
+	return map;
 }
 
 // ============================================================
@@ -89,30 +95,26 @@ function buildQuestionMap(get: Getter, ids: Set<string>): Map<string, QuestionRe
  * response to the correct session.
  */
 export const effectivePermissionFamily = atomFamily((sessionId: string) =>
-	atom(
-		(get): { request: PermissionRequest; sessionId: string } | undefined => {
-			const ids = get(sessionIdsAtom)
-			const childrenMap = get(childrenMapAtom)
-			const permissionMap = buildPermissionMap(get, ids)
-			return findTreeRequest(childrenMap, permissionMap, sessionId)
-		},
-	),
-)
+	atom((get): { request: PermissionRequest; sessionId: string } | undefined => {
+		const ids = get(sessionIdsAtom);
+		const childrenMap = get(childrenMapAtom);
+		const permissionMap = buildPermissionMap(get, ids);
+		return findTreeRequest(childrenMap, permissionMap, sessionId);
+	}),
+);
 
 /**
  * Returns the first pending QuestionRequest in the session's subtree —
  * i.e. from the session itself OR any of its descendant sub-agent sessions.
  */
 export const effectiveQuestionFamily = atomFamily((sessionId: string) =>
-	atom(
-		(get): { request: QuestionRequest; sessionId: string } | undefined => {
-			const ids = get(sessionIdsAtom)
-			const childrenMap = get(childrenMapAtom)
-			const questionMap = buildQuestionMap(get, ids)
-			return findTreeRequest(childrenMap, questionMap, sessionId)
-		},
-	),
-)
+	atom((get): { request: QuestionRequest; sessionId: string } | undefined => {
+		const ids = get(sessionIdsAtom);
+		const childrenMap = get(childrenMapAtom);
+		const questionMap = buildQuestionMap(get, ids);
+		return findTreeRequest(childrenMap, questionMap, sessionId);
+	}),
+);
 
 /**
  * True if the session or any descendant has a pending permission or question.
@@ -123,9 +125,9 @@ export const sessionBlockedFamily = atomFamily((sessionId: string) =>
 		return (
 			get(effectivePermissionFamily(sessionId)) !== undefined ||
 			get(effectiveQuestionFamily(sessionId)) !== undefined
-		)
+		);
 	}),
-)
+);
 
 /**
  * Returns the IDs of all sessions that are descendants of the given session
@@ -135,24 +137,25 @@ export const sessionBlockedFamily = atomFamily((sessionId: string) =>
  * we also dismiss alerts for all its sub-agent sessions.
  */
 export const sessionDescendantIdsFamily = atomFamily((sessionId: string) => {
-	let prev: string[] = []
+	let prev: string[] = [];
 	return atom((get) => {
-		const childrenMap = get(childrenMapAtom)
-		const ids: string[] = []
-		const queue = [sessionId]
-		const seen = new Set([sessionId])
+		const childrenMap = get(childrenMapAtom);
+		const ids: string[] = [];
+		const queue = [sessionId];
+		const seen = new Set([sessionId]);
 		for (const id of queue) {
-			const children = childrenMap.get(id) ?? []
+			const children = childrenMap.get(id) ?? [];
 			for (const child of children) {
-				if (seen.has(child)) continue
-				seen.add(child)
-				queue.push(child)
-				ids.push(child)
+				if (seen.has(child)) continue;
+				seen.add(child);
+				queue.push(child);
+				ids.push(child);
 			}
 		}
 		// Structural equality to avoid spurious re-renders
-		if (ids.length === prev.length && ids.every((id, i) => id === prev[i])) return prev
-		prev = ids
-		return ids
-	})
-})
+		if (ids.length === prev.length && ids.every((id, i) => id === prev[i]))
+			return prev;
+		prev = ids;
+		return ids;
+	});
+});

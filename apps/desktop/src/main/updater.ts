@@ -1,5 +1,5 @@
-import { app, BrowserWindow, shell } from "electron"
-import type { AppUpdater, UpdateInfo } from "electron-updater"
+import { app, BrowserWindow, shell } from "electron";
+import type { AppUpdater, UpdateInfo } from "electron-updater";
 
 /**
  * Auto-updater module.
@@ -17,16 +17,16 @@ import type { AppUpdater, UpdateInfo } from "electron-updater"
  * can download the new version manually. Windows and Linux are unaffected.
  */
 
-let _autoUpdater: AppUpdater | null = null
+let _autoUpdater: AppUpdater | null = null;
 
 async function getAutoUpdater(): Promise<AppUpdater> {
 	if (!_autoUpdater) {
 		// electron-updater is CJS — the destructuring workaround is required
 		// for ESM compatibility. See electron-builder#7976.
-		const electronUpdater = await import("electron-updater")
-		_autoUpdater = electronUpdater.default.autoUpdater
+		const electronUpdater = await import("electron-updater");
+		_autoUpdater = electronUpdater.default.autoUpdater;
 	}
-	return _autoUpdater
+	return _autoUpdater;
 }
 
 // ============================================================
@@ -39,25 +39,25 @@ async function getAutoUpdater(): Promise<AppUpdater> {
  * Returns true on non-macOS platforms since signing isn't required there.
  */
 function detectCanAutoInstall(): boolean {
-	if (process.platform !== "darwin") return true
-	if (!app.isPackaged) return true
+	if (process.platform !== "darwin") return true;
+	if (!app.isPackaged) return true;
 
 	try {
-		const { execSync } = require("node:child_process")
+		const { execSync } = require("node:child_process");
 		// codesign --verify exits 0 if valid signature, non-zero otherwise
 		execSync(`codesign --verify --deep --strict "${app.getPath("exe")}"`, {
 			encoding: "utf8",
 			stdio: "pipe",
-		})
-		return true
+		});
+		return true;
 	} catch {
 		// Unsigned or ad-hoc signed — Squirrel.Mac will reject the install
-		return false
+		return false;
 	}
 }
 
 /** Whether the current build supports automatic in-place updates. */
-let canAutoInstall = true
+let canAutoInstall = true;
 
 // ============================================================
 // State
@@ -65,44 +65,44 @@ let canAutoInstall = true
 
 /** Current update state, queryable by the renderer. */
 export interface UpdateState {
-	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error"
-	version?: string
-	releaseNotes?: string
+	status: "idle" | "checking" | "available" | "downloading" | "ready" | "error";
+	version?: string;
+	releaseNotes?: string;
 	progress?: {
-		percent: number
-		bytesPerSecond: number
-		transferred: number
-		total: number
-	}
-	error?: string
+		percent: number;
+		bytesPerSecond: number;
+		transferred: number;
+		total: number;
+	};
+	error?: string;
 	/** Whether the app can auto-install updates (false on unsigned macOS builds). */
-	canAutoInstall: boolean
+	canAutoInstall: boolean;
 }
 
-let state: UpdateState = { status: "idle", canAutoInstall: true }
-let checkInterval: ReturnType<typeof setInterval> | null = null
+let state: UpdateState = { status: "idle", canAutoInstall: true };
+let checkInterval: ReturnType<typeof setInterval> | null = null;
 
 function getMainWindow(): BrowserWindow | null {
-	return BrowserWindow.getAllWindows()[0] ?? null
+	return BrowserWindow.getAllWindows()[0] ?? null;
 }
 
 function setState(next: Partial<UpdateState>): void {
-	state = { ...state, ...next }
-	getMainWindow()?.webContents.send("updater:state-changed", state)
+	state = { ...state, ...next };
+	getMainWindow()?.webContents.send("updater:state-changed", state);
 }
 
 // ============================================================
 // GitHub release URL
 // ============================================================
 
-const GITHUB_REPO_URL = "https://github.com/Tony-XUYANG/palot"
+const GITHUB_REPO_URL = "https://github.com/Tony-XUYANG/palot";
 
 /** Build the GitHub release URL for a specific version tag. */
 function getReleaseUrl(version?: string): string {
 	if (version) {
-		return `${GITHUB_REPO_URL}/releases/tag/v${version}`
+		return `${GITHUB_REPO_URL}/releases/tag/v${version}`;
 	}
-	return `${GITHUB_REPO_URL}/releases/latest`
+	return `${GITHUB_REPO_URL}/releases/latest`;
 }
 
 // ============================================================
@@ -114,32 +114,32 @@ function getReleaseUrl(version?: string): string {
  * In development (unpackaged), this is a no-op.
  */
 export async function initAutoUpdater(): Promise<void> {
-	if (!app.isPackaged) return
+	if (!app.isPackaged) return;
 
-	canAutoInstall = detectCanAutoInstall()
-	state = { ...state, canAutoInstall }
+	canAutoInstall = detectCanAutoInstall();
+	state = { ...state, canAutoInstall };
 
 	console.log(
 		`[auto-updater] platform=${process.platform}, canAutoInstall=${canAutoInstall}`,
-	)
+	);
 
-	const autoUpdater = await getAutoUpdater()
+	const autoUpdater = await getAutoUpdater();
 
 	// Logging
-	autoUpdater.logger = console
+	autoUpdater.logger = console;
 
 	// Don't auto-download — let the user trigger it, or download silently
 	// after they've been notified.
-	autoUpdater.autoDownload = false
+	autoUpdater.autoDownload = false;
 
 	// Install on quit by default (only effective when canAutoInstall is true)
-	autoUpdater.autoInstallOnAppQuit = canAutoInstall
+	autoUpdater.autoInstallOnAppQuit = canAutoInstall;
 
 	// ── Events ──────────────────────────────────────────────────
 
 	autoUpdater.on("checking-for-update", () => {
-		setState({ status: "checking" })
-	})
+		setState({ status: "checking" });
+	});
 
 	autoUpdater.on("update-available", (info: UpdateInfo) => {
 		setState({
@@ -151,12 +151,12 @@ export async function initAutoUpdater(): Promise<void> {
 					: Array.isArray(info.releaseNotes)
 						? info.releaseNotes.map((n) => n.note).join("\n")
 						: undefined,
-		})
-	})
+		});
+	});
 
 	autoUpdater.on("update-not-available", () => {
-		setState({ status: "idle" })
-	})
+		setState({ status: "idle" });
+	});
 
 	autoUpdater.on("download-progress", (progress) => {
 		setState({
@@ -167,48 +167,48 @@ export async function initAutoUpdater(): Promise<void> {
 				transferred: progress.transferred,
 				total: progress.total,
 			},
-		})
-	})
+		});
+	});
 
 	autoUpdater.on("update-downloaded", () => {
-		setState({ status: "ready", progress: undefined })
-	})
+		setState({ status: "ready", progress: undefined });
+	});
 
 	autoUpdater.on("error", (err) => {
-		console.error("[auto-updater] Error:", err.message)
-		setState({ status: "error", error: err.message })
-	})
+		console.error("[auto-updater] Error:", err.message);
+		setState({ status: "error", error: err.message });
+	});
 
 	// ── Initial check (10s after launch) + periodic (every 4 hours) ──
 
 	setTimeout(() => {
-		autoUpdater.checkForUpdates().catch(() => {})
-	}, 10_000)
+		autoUpdater.checkForUpdates().catch(() => {});
+	}, 10_000);
 
 	checkInterval = setInterval(
 		() => {
-			autoUpdater.checkForUpdates().catch(() => {})
+			autoUpdater.checkForUpdates().catch(() => {});
 		},
 		4 * 60 * 60 * 1000,
-	)
+	);
 }
 
 /** Returns the current update state (for IPC handler). */
 export function getUpdateState(): UpdateState {
-	return state
+	return state;
 }
 
 /** Manually triggers an update check. */
 export async function checkForUpdates(): Promise<void> {
-	if (!app.isPackaged) return
-	const autoUpdater = await getAutoUpdater()
-	await autoUpdater.checkForUpdates()
+	if (!app.isPackaged) return;
+	const autoUpdater = await getAutoUpdater();
+	await autoUpdater.checkForUpdates();
 }
 
 /** Starts downloading the available update. */
 export async function downloadUpdate(): Promise<void> {
-	const autoUpdater = await getAutoUpdater()
-	await autoUpdater.downloadUpdate()
+	const autoUpdater = await getAutoUpdater();
+	await autoUpdater.downloadUpdate();
 }
 
 /**
@@ -218,13 +218,13 @@ export async function downloadUpdate(): Promise<void> {
 export async function installUpdate(): Promise<void> {
 	if (!canAutoInstall) {
 		// Fallback: open release page instead of attempting Squirrel install
-		await openReleasePage()
-		return
+		await openReleasePage();
+		return;
 	}
-	const autoUpdater = await getAutoUpdater()
+	const autoUpdater = await getAutoUpdater();
 	// Windows NSIS must run silently here. Passing false opens the installer wizard and leaves the
 	// update blocked until the user manually completes it.
-	autoUpdater.quitAndInstall(true, true)
+	autoUpdater.quitAndInstall(true, true);
 }
 
 /**
@@ -233,14 +233,14 @@ export async function installUpdate(): Promise<void> {
  * where Squirrel.Mac cannot perform in-place updates.
  */
 export async function openReleasePage(): Promise<void> {
-	const url = getReleaseUrl(state.version)
-	await shell.openExternal(url)
+	const url = getReleaseUrl(state.version);
+	await shell.openExternal(url);
 }
 
 /** Cleanup — call on app quit. */
 export function stopAutoUpdater(): void {
 	if (checkInterval) {
-		clearInterval(checkInterval)
-		checkInterval = null
+		clearInterval(checkInterval);
+		checkInterval = null;
 	}
 }

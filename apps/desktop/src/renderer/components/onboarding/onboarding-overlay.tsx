@@ -9,17 +9,21 @@
  * optional detour the user can trigger from the Complete screen.
  */
 
-import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useState } from "react"
-import type { MigrationPreview, MigrationProvider, MigrationResult } from "../../../preload/api"
-import { APP_BAR_HEIGHT } from "../app-bar"
-import { OnboardingProgress } from "./onboarding-progress"
-import { CompleteStep } from "./steps/complete-step"
-import { EnvironmentCheckStep } from "./steps/environment-check-step"
-import { MigrationOfferStep } from "./steps/migration-offer-step"
-import { MigrationPreviewStep } from "./steps/migration-preview-step"
-import { ProviderSetupStep } from "./steps/provider-setup-step"
-import { WelcomeStep } from "./steps/welcome-step"
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useState } from "react";
+import type {
+	MigrationPreview,
+	MigrationProvider,
+	MigrationResult,
+} from "../../../preload/api";
+import { APP_BAR_HEIGHT } from "../app-bar";
+import { OnboardingProgress } from "./onboarding-progress";
+import { CompleteStep } from "./steps/complete-step";
+import { EnvironmentCheckStep } from "./steps/environment-check-step";
+import { MigrationOfferStep } from "./steps/migration-offer-step";
+import { MigrationPreviewStep } from "./steps/migration-preview-step";
+import { ProviderSetupStep } from "./steps/provider-setup-step";
+import { WelcomeStep } from "./steps/welcome-step";
 
 // ============================================================
 // Types
@@ -31,16 +35,16 @@ export type OnboardingStep =
 	| "providers"
 	| "complete"
 	| "migration-offer"
-	| "migration-preview"
+	| "migration-preview";
 
 interface OnboardingOverlayProps {
 	onComplete: (state: {
-		skippedSteps: string[]
-		migrationPerformed: boolean
-		migratedFrom: string[]
-		opencodeVersion: string | null
-		providersConnected: number
-	}) => void
+		skippedSteps: string[];
+		migrationPerformed: boolean;
+		migratedFrom: string[];
+		opencodeVersion: string | null;
+		providersConnected: number;
+	}) => void;
 }
 
 // ============================================================
@@ -48,128 +52,137 @@ interface OnboardingOverlayProps {
 // ============================================================
 
 /** Core steps shown in the progress indicator. Migration steps are a detour. */
-const CORE_STEPS: OnboardingStep[] = ["welcome", "environment", "providers", "complete"]
+const CORE_STEPS: OnboardingStep[] = [
+	"welcome",
+	"environment",
+	"providers",
+	"complete",
+];
 
 const STEP_TRANSITION = {
 	initial: { opacity: 0, y: 16 },
 	animate: { opacity: 1, y: 0 },
 	exit: { opacity: 0, y: -16 },
 	transition: { duration: 0.25, ease: "easeOut" as const },
-}
+};
 
 // ============================================================
 // Component
 // ============================================================
 
 export function OnboardingOverlay({ onComplete }: OnboardingOverlayProps) {
-	const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome")
-	const [skippedSteps, setSkippedSteps] = useState<string[]>([])
-	const [opencodeVersion, setOpencodeVersion] = useState<string | null>(null)
-	const [providersConnected, setProvidersConnected] = useState(0)
-	const [migratedProviders, setMigratedProviders] = useState<string[]>([])
+	const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
+	const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
+	const [opencodeVersion, setOpencodeVersion] = useState<string | null>(null);
+	const [providersConnected, setProvidersConnected] = useState(0);
+	const [migratedProviders, setMigratedProviders] = useState<string[]>([]);
 
 	// Migration state (only populated if user opts in from complete screen)
-	const [activeProvider, setActiveProvider] = useState<MigrationProvider | null>(null)
-	const [scanResult, setScanResult] = useState<unknown>(null)
-	const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-	const [migrationPreview, setMigrationPreview] = useState<MigrationPreview | null>(null)
-	const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null)
+	const [activeProvider, setActiveProvider] =
+		useState<MigrationProvider | null>(null);
+	const [scanResult, setScanResult] = useState<unknown>(null);
+	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+	const [migrationPreview, setMigrationPreview] =
+		useState<MigrationPreview | null>(null);
+	const [migrationResult, setMigrationResult] =
+		useState<MigrationResult | null>(null);
 
 	// For progress indicator, only show core steps
-	const coreStepIndex = CORE_STEPS.indexOf(currentStep)
+	const coreStepIndex = CORE_STEPS.indexOf(currentStep);
 	// Migration steps show the same progress as "complete" (last dot)
-	const displayIndex = coreStepIndex >= 0 ? coreStepIndex : CORE_STEPS.length - 1
+	const displayIndex =
+		coreStepIndex >= 0 ? coreStepIndex : CORE_STEPS.length - 1;
 
 	const goToStep = useCallback((step: OnboardingStep) => {
-		setCurrentStep(step)
-	}, [])
+		setCurrentStep(step);
+	}, []);
 
 	const skipStep = useCallback((stepId: string) => {
-		setSkippedSteps((prev) => [...prev, stepId])
-	}, [])
+		setSkippedSteps((prev) => [...prev, stepId]);
+	}, []);
 
 	// --- Step handlers ---
 
 	const handleWelcomeContinue = useCallback(() => {
-		goToStep("environment")
-	}, [goToStep])
+		goToStep("environment");
+	}, [goToStep]);
 
 	const handleEnvironmentComplete = useCallback(
 		(version: string | null) => {
-			setOpencodeVersion(version)
-			goToStep("providers")
+			setOpencodeVersion(version);
+			goToStep("providers");
 		},
 		[goToStep],
-	)
+	);
 
 	const handleEnvironmentSkip = useCallback(() => {
-		skipStep("environment")
-		goToStep("providers")
-	}, [goToStep, skipStep])
+		skipStep("environment");
+		goToStep("providers");
+	}, [goToStep, skipStep]);
 
 	const handleProvidersComplete = useCallback(
 		(count: number) => {
-			setProvidersConnected(count)
-			goToStep("complete")
+			setProvidersConnected(count);
+			goToStep("complete");
 		},
 		[goToStep],
-	)
+	);
 
 	const handleProvidersSkip = useCallback(() => {
-		skipStep("providers")
-		goToStep("complete")
-	}, [goToStep, skipStep])
+		skipStep("providers");
+		goToStep("complete");
+	}, [goToStep, skipStep]);
 
 	// Migration opt-in from complete screen (now with provider selection)
 	const handleStartMigration = useCallback(
 		(provider: MigrationProvider) => {
-			setActiveProvider(provider)
+			setActiveProvider(provider);
 			// Reset migration state for this new provider
-			setScanResult(null)
-			setSelectedCategories([])
-			setMigrationPreview(null)
-			goToStep("migration-offer")
+			setScanResult(null);
+			setSelectedCategories([]);
+			setMigrationPreview(null);
+			goToStep("migration-offer");
 		},
 		[goToStep],
-	)
+	);
 
 	const handleMigrationOfferPreview = useCallback(
 		(scan: unknown, categories: string[], preview: MigrationPreview) => {
-			setScanResult(scan)
-			setSelectedCategories(categories)
-			setMigrationPreview(preview)
-			goToStep("migration-preview")
+			setScanResult(scan);
+			setSelectedCategories(categories);
+			setMigrationPreview(preview);
+			goToStep("migration-preview");
 		},
 		[goToStep],
-	)
+	);
 
 	const handleMigrationOfferSkip = useCallback(() => {
-		setActiveProvider(null)
-		goToStep("complete")
-	}, [goToStep])
+		setActiveProvider(null);
+		goToStep("complete");
+	}, [goToStep]);
 
 	const handleMigrationComplete = useCallback(
 		(result: MigrationResult) => {
-			setMigrationResult(result)
+			setMigrationResult(result);
 			if (activeProvider) {
 				setMigratedProviders((prev) =>
 					prev.includes(activeProvider) ? prev : [...prev, activeProvider],
-				)
+				);
 			}
-			setActiveProvider(null)
-			goToStep("complete")
+			setActiveProvider(null);
+			goToStep("complete");
 		},
 		[goToStep, activeProvider],
-	)
+	);
 
 	const handleMigrationBack = useCallback(() => {
-		goToStep("migration-offer")
-	}, [goToStep])
+		goToStep("migration-offer");
+	}, [goToStep]);
 
 	const handleMigrationSkip = useCallback(() => {
-		setActiveProvider(null)
-		goToStep("complete")
-	}, [goToStep])
+		setActiveProvider(null);
+		goToStep("complete");
+	}, [goToStep]);
 
 	const handleFinish = useCallback(() => {
 		onComplete({
@@ -178,8 +191,14 @@ export function OnboardingOverlay({ onComplete }: OnboardingOverlayProps) {
 			migratedFrom: migratedProviders,
 			opencodeVersion,
 			providersConnected,
-		})
-	}, [onComplete, skippedSteps, migratedProviders, opencodeVersion, providersConnected])
+		});
+	}, [
+		onComplete,
+		skippedSteps,
+		migratedProviders,
+		opencodeVersion,
+		providersConnected,
+	]);
 
 	return (
 		<div
@@ -295,5 +314,5 @@ export function OnboardingOverlay({ onComplete }: OnboardingOverlayProps) {
 				</AnimatePresence>
 			</div>
 		</div>
-	)
+	);
 }

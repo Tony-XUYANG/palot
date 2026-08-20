@@ -1,27 +1,30 @@
-import { useAtomValue } from "jotai"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useAtomValue } from "jotai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	type ChatMessageEntry,
 	type ChatTurn,
 	groupIntoTurns,
 	mergeSessionParts,
-} from "../atoms/derived/session-chat"
-import { messagesFamily, setMessagesAtom } from "../atoms/messages"
-import { isMockModeAtom } from "../atoms/mock-mode"
-import { partsFamily } from "../atoms/parts"
-import { appStore } from "../atoms/store"
-import { streamingVersionFamily } from "../atoms/streaming"
-import type { Message, Part } from "../lib/types"
-import { getBaseClient, getProjectClient } from "../services/connection-manager"
+} from "../atoms/derived/session-chat";
+import { messagesFamily, setMessagesAtom } from "../atoms/messages";
+import { isMockModeAtom } from "../atoms/mock-mode";
+import { partsFamily } from "../atoms/parts";
+import { appStore } from "../atoms/store";
+import { streamingVersionFamily } from "../atoms/streaming";
+import type { Message, Part } from "../lib/types";
+import {
+	getBaseClient,
+	getProjectClient,
+} from "../services/connection-manager";
 
 // Re-export types for consumers
-export type { ChatMessageEntry, ChatTurn }
+export type { ChatMessageEntry, ChatTurn };
 
 /** Sentinel empty array — stable reference */
-const EMPTY_ENTRIES: ChatMessageEntry[] = []
+const EMPTY_ENTRIES: ChatMessageEntry[] = [];
 
 /** How many messages to fetch on initial load. */
-const INITIAL_LIMIT = 30
+const INITIAL_LIMIT = 30;
 
 /**
  * Hook to load chat data for a session.
@@ -38,36 +41,38 @@ export function useSessionChat(
 	sessionId: string | null,
 	_isActive = false,
 ) {
-	const isMockMode = useAtomValue(isMockModeAtom)
-	const [loading, setLoading] = useState(false)
-	const [loadingEarlier, setLoadingEarlier] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const syncedRef = useRef<string | null>(null)
-	const turnsRef = useRef<ChatTurn[]>([])
-	const hasEarlierRef = useRef(false)
+	const isMockMode = useAtomValue(isMockModeAtom);
+	const [loading, setLoading] = useState(false);
+	const [loadingEarlier, setLoadingEarlier] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const syncedRef = useRef<string | null>(null);
+	const turnsRef = useRef<ChatTurn[]>([]);
+	const hasEarlierRef = useRef(false);
 
 	// Read from Jotai atoms
-	const storeMessages = useAtomValue(messagesFamily(sessionId ?? ""))
+	const storeMessages = useAtomValue(messagesFamily(sessionId ?? ""));
 	// Per-session streaming version: only bumped when THIS session streams
-	const streamingVersion = useAtomValue(streamingVersionFamily(sessionId ?? ""))
+	const streamingVersion = useAtomValue(
+		streamingVersionFamily(sessionId ?? ""),
+	);
 
 	// Build ChatMessageEntry[] merging streaming overlay
 	const entries: ChatMessageEntry[] = useMemo(() => {
-		if (!storeMessages || storeMessages.length === 0) return EMPTY_ENTRIES
+		if (!storeMessages || storeMessages.length === 0) return EMPTY_ENTRIES;
 		return mergeSessionParts(
 			sessionId ?? "",
 			storeMessages,
 			(messageId) => appStore.get(partsFamily(messageId)),
 			streamingVersion,
-		)
-	}, [storeMessages, streamingVersion, sessionId])
+		);
+	}, [storeMessages, streamingVersion, sessionId]);
 
 	// Group into turns with structural sharing
 	const turns = useMemo(() => {
-		const result = groupIntoTurns(entries, turnsRef.current)
-		turnsRef.current = result
-		return result
-	}, [entries])
+		const result = groupIntoTurns(entries, turnsRef.current);
+		turnsRef.current = result;
+		return result;
+	}, [entries]);
 
 	// One-time fetch to hydrate the store when session changes
 	const fetchAndHydrate = useCallback(
@@ -75,78 +80,88 @@ export function useSessionChat(
 			// Only show the loading spinner if the session has no cached data yet.
 			// When switching back to a previously-visited session the existing messages
 			// remain visible while the background refresh runs, avoiding a jarring flash.
-			const hasCachedData = (appStore.get(messagesFamily(sid)) ?? []).length > 0
+			const hasCachedData =
+				(appStore.get(messagesFamily(sid)) ?? []).length > 0;
 			if (!hasCachedData) {
-				setLoading(true)
+				setLoading(true);
 			}
-			setError(null)
+			setError(null);
 			try {
 				// Use a directory-scoped client when available, otherwise fall back to the base client
-				const client = (directory ? getProjectClient(directory) : null) ?? getBaseClient()
+				const client =
+					(directory ? getProjectClient(directory) : null) ?? getBaseClient();
 				if (!client) {
-					setError("Not connected to OpenCode server")
-					return
+					setError("Not connected to OpenCode server");
+					return;
 				}
 
 				const result = await client.session.messages({
 					sessionID: sid,
 					limit: INITIAL_LIMIT,
-				})
-				const raw = (result.data ?? []) as Array<{ info: Message; parts: Part[] }>
-				hasEarlierRef.current = raw.length >= INITIAL_LIMIT
+				});
+				const raw = (result.data ?? []) as Array<{
+					info: Message;
+					parts: Part[];
+				}>;
+				hasEarlierRef.current = raw.length >= INITIAL_LIMIT;
 
 				// Hydrate the Jotai store
-				const messages = raw.map((m) => m.info)
-				const parts: Record<string, Part[]> = {}
+				const messages = raw.map((m) => m.info);
+				const parts: Record<string, Part[]> = {};
 				for (const m of raw) {
-					parts[m.info.id] = m.parts
+					parts[m.info.id] = m.parts;
 				}
-				appStore.set(setMessagesAtom, { sessionId: sid, messages, parts })
+				appStore.set(setMessagesAtom, { sessionId: sid, messages, parts });
 			} catch (err) {
-				console.error("Failed to fetch session messages:", err)
-				setError(err instanceof Error ? err.message : "Failed to load messages")
+				console.error("Failed to fetch session messages:", err);
+				setError(
+					err instanceof Error ? err.message : "Failed to load messages",
+				);
 			} finally {
-				setLoading(false)
+				setLoading(false);
 			}
 		},
 		[directory],
-	)
+	);
 
 	// Load all messages (for "load earlier" button)
 	const loadEarlier = useCallback(async () => {
-		if (!sessionId || !directory || loadingEarlier) return
-		const client = getProjectClient(directory)
-		if (!client) return
+		if (!sessionId || !directory || loadingEarlier) return;
+		const client = getProjectClient(directory);
+		if (!client) return;
 
-		setLoadingEarlier(true)
+		setLoadingEarlier(true);
 		try {
 			const result = await client.session.messages({
 				sessionID: sessionId,
-			})
-			const raw = (result.data ?? []) as Array<{ info: Message; parts: Part[] }>
-			hasEarlierRef.current = false
+			});
+			const raw = (result.data ?? []) as Array<{
+				info: Message;
+				parts: Part[];
+			}>;
+			hasEarlierRef.current = false;
 
-			const messages = raw.map((m) => m.info)
-			const parts: Record<string, Part[]> = {}
+			const messages = raw.map((m) => m.info);
+			const parts: Record<string, Part[]> = {};
 			for (const m of raw) {
-				parts[m.info.id] = m.parts
+				parts[m.info.id] = m.parts;
 			}
-			appStore.set(setMessagesAtom, { sessionId, messages, parts })
+			appStore.set(setMessagesAtom, { sessionId, messages, parts });
 		} catch (err) {
-			console.error("Failed to load earlier messages:", err)
+			console.error("Failed to load earlier messages:", err);
 		} finally {
-			setLoadingEarlier(false)
+			setLoadingEarlier(false);
 		}
-	}, [sessionId, directory, loadingEarlier])
+	}, [sessionId, directory, loadingEarlier]);
 
 	// Trigger initial fetch when session changes (skip in mock mode -- data is pre-hydrated)
 	useEffect(() => {
-		if (isMockMode) return
-		if (!sessionId) return
-		if (syncedRef.current === sessionId) return
-		syncedRef.current = sessionId
-		fetchAndHydrate(sessionId)
-	}, [sessionId, fetchAndHydrate, isMockMode])
+		if (isMockMode) return;
+		if (!sessionId) return;
+		if (syncedRef.current === sessionId) return;
+		syncedRef.current = sessionId;
+		fetchAndHydrate(sessionId);
+	}, [sessionId, fetchAndHydrate, isMockMode]);
 
 	// Reset per-session refs whenever the active session changes.
 	//
@@ -160,15 +175,16 @@ export function useSessionChat(
 	//   flag so the UI shows a spinner instead of "No messages yet" during the
 	//   one render that happens before the fetch effect fires.
 	useEffect(() => {
-		turnsRef.current = []
-		hasEarlierRef.current = false
+		turnsRef.current = [];
+		hasEarlierRef.current = false;
 		if (!isMockMode && sessionId) {
-			const hasCachedData = (appStore.get(messagesFamily(sessionId)) ?? []).length > 0
+			const hasCachedData =
+				(appStore.get(messagesFamily(sessionId)) ?? []).length > 0;
 			if (!hasCachedData) {
-				setLoading(true)
+				setLoading(true);
 			}
 		}
-	}, [sessionId, isMockMode])
+	}, [sessionId, isMockMode]);
 
 	return {
 		turns,
@@ -179,5 +195,5 @@ export function useSessionChat(
 		hasEarlierMessages: hasEarlierRef.current,
 		loadEarlier,
 		reload: fetchAndHydrate,
-	}
+	};
 }

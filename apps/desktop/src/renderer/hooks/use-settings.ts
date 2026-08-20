@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react"
-import type { AppSettings } from "../../preload/api"
-import { DEFAULT_SERVER_SETTINGS } from "../../shared/server-config"
+import { useCallback, useEffect, useState } from "react";
+import type { AppSettings } from "../../preload/api";
+import { DEFAULT_SERVER_SETTINGS } from "../../shared/server-config";
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 const DEFAULT_SETTINGS: AppSettings = {
 	notifications: {
@@ -12,56 +12,59 @@ const DEFAULT_SETTINGS: AppSettings = {
 		errors: true,
 		dockBadge: true,
 	},
+	language: null,
 	opaqueWindows: false,
 	servers: DEFAULT_SERVER_SETTINGS,
-}
+};
 
 export function useSettings() {
-	const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
-	const [loading, setLoading] = useState(true)
+	const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		if (!isElectron) {
-			setLoading(false)
-			return
+			setLoading(false);
+			return;
 		}
 		window.palot
 			.getSettings()
 			.then((s) => {
-				setSettings(s as AppSettings)
+				setSettings(s as AppSettings);
 			})
 			.catch((err) => {
-				console.error("Failed to load settings:", err)
+				console.error("Failed to load settings:", err);
 			})
 			.finally(() => {
-				setLoading(false)
-			})
-	}, [])
+				setLoading(false);
+			});
+	}, []);
 
 	// Listen for settings changes pushed from the main process.
 	// This ensures the renderer stays in sync if settings change externally
 	// (e.g. notification action buttons update a setting from the main process).
 	useEffect(() => {
-		if (!isElectron) return
+		if (!isElectron) return;
 		return window.palot.onSettingsChanged((updated) => {
-			setSettings(updated)
-		})
-	}, [])
+			setSettings(updated);
+		});
+	}, []);
 
 	const updateSettings = useCallback(
 		async (partial: Record<string, unknown>) => {
-			if (!isElectron) return
-			const prev = settings
+			if (!isElectron) return;
+			const prev = settings;
 			try {
-				const updated = (await window.palot.updateSettings(partial)) as AppSettings
-				setSettings(updated)
+				const updated = (await window.palot.updateSettings(
+					partial,
+				)) as AppSettings;
+				setSettings(updated);
 			} catch (err) {
-				console.error("Failed to update settings:", err)
-				setSettings(prev)
+				console.error("Failed to update settings:", err);
+				setSettings(prev);
 			}
 		},
 		[settings],
-	)
+	);
 
-	return { settings, loading, updateSettings }
+	return { settings, loading, updateSettings };
 }

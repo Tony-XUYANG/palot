@@ -5,8 +5,8 @@
  * Toggle via the command palette (Cmd+K > "Enable/Disable ...").
  */
 
-import { atom } from "jotai"
-import { atomWithStorage } from "jotai/utils"
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 // ============================================================
 // Automations
@@ -16,9 +16,12 @@ import { atomWithStorage } from "jotai/utils"
  * Whether the Automations feature is enabled.
  * Enabled by default -- users can disable it via the command palette.
  */
-export const automationsEnabledAtom = atomWithStorage<boolean>("palot:automationsEnabled", true)
+export const automationsEnabledAtom = atomWithStorage<boolean>(
+	"palot:automationsEnabled",
+	true,
+);
 
 /** Write-only toggle for the command palette. */
 export const toggleAutomationsAtom = atom(null, (get, set) => {
-	set(automationsEnabledAtom, !get(automationsEnabledAtom))
-})
+	set(automationsEnabledAtom, !get(automationsEnabledAtom));
+});

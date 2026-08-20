@@ -6,20 +6,27 @@
  * Reuses ConnectProviderDialog for the actual auth flows.
  */
 
-import { Button } from "@palot/ui/components/button"
-import { Spinner } from "@palot/ui/components/spinner"
-import { useQueryClient } from "@tanstack/react-query"
-import { CheckIcon, ExternalLinkIcon, LinkIcon, SparklesIcon, ZapIcon } from "lucide-react"
-import { motion } from "motion/react"
-import { useCallback, useMemo, useState } from "react"
+import { Button } from "@palot/ui/components/button";
+import { Spinner } from "@palot/ui/components/spinner";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+	CheckIcon,
+	ExternalLinkIcon,
+	LinkIcon,
+	SparklesIcon,
+	ZapIcon,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	type CatalogProvider,
 	queryKeys,
 	useAllProviders,
 	useConnectedProviders,
 	useProviderAuthMethods,
-} from "../../../hooks/use-opencode-data"
-import { useServerConnection } from "../../../hooks/use-server"
+} from "../../../hooks/use-opencode-data";
+import { useServerConnection } from "../../../hooks/use-server";
 import {
 	CHINA_PROVIDER_IDS,
 	CODEX_PROVIDER_IDS,
@@ -29,108 +36,113 @@ import {
 	isZenFreeTier,
 	ZEN_PROVIDER_ID,
 	ZEN_SIGNUP_URL,
-} from "../../../lib/providers"
-import { ConnectProviderDialog } from "../../settings/connect-provider-dialog"
-import { ProviderIcon } from "../../settings/provider-icon"
+} from "../../../lib/providers";
+import { ConnectProviderDialog } from "../../settings/connect-provider-dialog";
+import { ProviderIcon } from "../../settings/provider-icon";
 
 // ============================================================
 // Component
 // ============================================================
 
 interface ProviderSetupStepProps {
-	onComplete: (count: number) => void
-	onSkip: () => void
+	onComplete: (count: number) => void;
+	onSkip: () => void;
 }
 
-type ProviderRegion = "china" | "codex" | "global"
+type ProviderRegion = "china" | "codex" | "global";
 
 const PROVIDER_REGION_IDS: Record<ProviderRegion, readonly string[]> = {
 	china: CHINA_PROVIDER_IDS,
 	codex: CODEX_PROVIDER_IDS,
 	global: GLOBAL_PROVIDER_IDS,
-}
+};
 
-const PROVIDER_REGION_OPTIONS: Array<{ id: ProviderRegion; label: string }> = [
-	{ id: "china", label: "China" },
-	{ id: "codex", label: "Codex" },
-	{ id: "global", label: "Global" },
-]
+const PROVIDER_REGION_OPTIONS: ProviderRegion[] = ["china", "codex", "global"];
 
-const PROVIDER_REGION_DESCRIPTIONS: Record<ProviderRegion, string> = {
-	china: "Recommended for users in China. DeepSeek and GLM are verified for the first Windows release; other domestic providers remain compatible.",
-	codex:
-		"Optional OpenAI access through ChatGPT OAuth or an official API key. Account, billing, and network requirements still apply.",
-	global:
-		"Advanced compatibility for global providers. Availability depends on each provider's supported regions, account, and network.",
-}
+export function ProviderSetupStep({
+	onComplete,
+	onSkip,
+}: ProviderSetupStepProps) {
+	const { t } = useTranslation("onboarding");
+	const { connected: serverConnected } = useServerConnection();
+	const {
+		data: allProviders,
+		loading: catalogLoading,
+		reload: reloadCatalog,
+	} = useAllProviders();
+	const { loading: connectedLoading, reload: reloadConnected } =
+		useConnectedProviders();
+	const { data: authMethods } = useProviderAuthMethods();
+	const queryClient = useQueryClient();
 
-export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps) {
-	const { connected: serverConnected } = useServerConnection()
-	const { data: allProviders, loading: catalogLoading, reload: reloadCatalog } = useAllProviders()
-	const { loading: connectedLoading, reload: reloadConnected } = useConnectedProviders()
-	const { data: authMethods } = useProviderAuthMethods()
-	const queryClient = useQueryClient()
+	const [connectDialogProvider, setConnectDialogProvider] =
+		useState<CatalogProvider | null>(null);
+	const [providerRegion, setProviderRegion] = useState<ProviderRegion>("china");
 
-	const [connectDialogProvider, setConnectDialogProvider] = useState<CatalogProvider | null>(null)
-	const [providerRegion, setProviderRegion] = useState<ProviderRegion>("china")
-
-	const loading = catalogLoading || connectedLoading
+	const loading = catalogLoading || connectedLoading;
 	const connectedIds = useMemo(
 		() => new Set(allProviders?.connected ?? []),
 		[allProviders?.connected],
-	)
+	);
 
 	// Separate Zen from the other popular providers
 	const zenProvider = useMemo(
 		() => allProviders?.all.find((p) => p.id === ZEN_PROVIDER_ID) ?? null,
 		[allProviders],
-	)
+	);
 
-	const recommendedProviderIds = PROVIDER_REGION_IDS[providerRegion]
+	const recommendedProviderIds = PROVIDER_REGION_IDS[providerRegion];
 	const recommendedProviders = useMemo(() => {
-		if (!allProviders) return []
+		if (!allProviders) return [];
 		const filtered = allProviders.all.filter(
 			(p) =>
 				p.id !== ZEN_PROVIDER_ID &&
 				recommendedProviderIds.some((providerId) => providerId === p.id),
-		)
-		return [...filtered].sort((a, b) => compareConnectedFirst(connectedIds, a, b))
-	}, [allProviders, connectedIds, recommendedProviderIds])
+		);
+		return [...filtered].sort((a, b) =>
+			compareConnectedFirst(connectedIds, a, b),
+		);
+	}, [allProviders, connectedIds, recommendedProviderIds]);
 
-	const zenIsConnected = connectedIds.has(ZEN_PROVIDER_ID)
-	const zenHasApiKey = zenIsConnected && zenProvider !== null && !isZenFreeTier(zenProvider.models)
+	const zenIsConnected = connectedIds.has(ZEN_PROVIDER_ID);
+	const zenHasApiKey =
+		zenIsConnected &&
+		zenProvider !== null &&
+		!isZenFreeTier(zenProvider.models);
 
 	const reload = useCallback(() => {
-		reloadCatalog()
-		reloadConnected()
-		queryClient.invalidateQueries({ queryKey: queryKeys.allProviders })
-		queryClient.invalidateQueries({ queryKey: queryKeys.connectedProviders })
+		reloadCatalog();
+		reloadConnected();
+		queryClient.invalidateQueries({ queryKey: queryKeys.allProviders });
+		queryClient.invalidateQueries({ queryKey: queryKeys.connectedProviders });
 		queryClient.invalidateQueries({
 			predicate: (q) => q.queryKey[0] === "providers",
-		})
-	}, [reloadCatalog, reloadConnected, queryClient])
+		});
+	}, [reloadCatalog, reloadConnected, queryClient]);
 
 	const handleContinue = useCallback(() => {
-		onComplete(connectedIds.size)
-	}, [onComplete, connectedIds.size])
+		onComplete(connectedIds.size);
+	}, [onComplete, connectedIds.size]);
 
 	if (!serverConnected) {
 		return (
 			<div className="flex h-full flex-col items-center justify-center space-y-6 text-center">
 				<div className="flex flex-col items-center space-y-2">
 					<Spinner className="size-8 text-muted-foreground" />
-					<h2 className="text-xl font-semibold">Waiting for OpenCode server...</h2>
+					<h2 className="text-xl font-semibold">
+						{t("providers.waitingServer")}
+					</h2>
 					<p className="max-w-md text-sm text-muted-foreground">
-						Palot is connecting to the OpenCode background process. This should only take a moment.
+						{t("providers.connectingServer")}
 					</p>
 				</div>
 				<div className="flex gap-3">
 					<Button variant="outline" onClick={onSkip}>
-						Skip for now
+						{t("providers.skipForNow")}
 					</Button>
 				</div>
 			</div>
-		)
+		);
 	}
 
 	return (
@@ -144,38 +156,37 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 				>
 					<SparklesIcon className="size-6" aria-hidden="true" />
 				</motion.div>
-				<h2 className="text-2xl font-bold tracking-tight">Choose a model provider</h2>
-				<p className="text-muted-foreground">
-					Palot prioritizes providers that are practical to use in China while keeping Codex and
-					global providers available.
-				</p>
+				<h2 className="text-2xl font-bold tracking-tight">
+					{t("providers.title")}
+				</h2>
+				<p className="text-muted-foreground">{t("providers.description")}</p>
 			</div>
 
 			<div className="w-full max-w-lg space-y-4">
 				<div
 					role="tablist"
-					aria-label="Provider category"
+					aria-label={t("providers.title")}
 					className="grid h-9 grid-cols-3 rounded-md border border-border bg-muted/30 p-0.5"
 				>
 					{PROVIDER_REGION_OPTIONS.map((option) => (
 						<button
-							key={option.id}
+							key={option}
 							type="button"
 							role="tab"
-							aria-selected={providerRegion === option.id}
-							onClick={() => setProviderRegion(option.id)}
+							aria-selected={providerRegion === option}
+							onClick={() => setProviderRegion(option)}
 							className={`rounded-sm text-xs font-medium transition-colors ${
-								providerRegion === option.id
+								providerRegion === option
 									? "bg-background text-foreground shadow-sm"
 									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
-							{option.label}
+							{t(`providers.${option}`)}
 						</button>
 					))}
 				</div>
 				<p className="min-h-10 text-left text-xs leading-5 text-muted-foreground">
-					{PROVIDER_REGION_DESCRIPTIONS[providerRegion]}
+					{t(`providers.${providerRegion}Description`)}
 				</p>
 
 				{/* Recommended providers grid */}
@@ -191,10 +202,10 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 								</div>
 							))
 						: recommendedProviders.map((provider) => {
-								const isConnected = connectedIds.has(provider.id)
+								const isConnected = connectedIds.has(provider.id);
 								const isFirstTier = FIRST_TIER_CHINA_PROVIDER_IDS.some(
 									(providerId) => providerId === provider.id,
-								)
+								);
 								return (
 									<button
 										key={provider.id}
@@ -208,18 +219,21 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 												{provider.name}
 												{providerRegion === "china" && isFirstTier ? (
 													<span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-														Priority
+														{t("providers.priority")}
 													</span>
 												) : null}
 											</span>
 											{isConnected && (
 												<span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-													Connected
+													{t("providers.connected")}
 												</span>
 											)}
 										</div>
 										{isConnected ? (
-											<CheckIcon className="size-4 text-emerald-500" aria-hidden="true" />
+											<CheckIcon
+												className="size-4 text-emerald-500"
+												aria-hidden="true"
+											/>
 										) : (
 											<LinkIcon
 												className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
@@ -227,7 +241,7 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 											/>
 										)}
 									</button>
-								)
+								);
 							})}
 				</div>
 
@@ -249,12 +263,19 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 				) : null}
 
 				<div className="flex flex-col items-center gap-4 pt-4">
-					<Button size="lg" className="min-w-40" onClick={handleContinue} disabled={loading}>
-						{connectedIds.size > 0 || zenIsConnected ? "Continue" : "I'll do this later"}
+					<Button
+						size="lg"
+						className="min-w-40"
+						onClick={handleContinue}
+						disabled={loading}
+					>
+						{connectedIds.size > 0 || zenIsConnected
+							? t("providers.continue")
+							: t("providers.later")}
 					</Button>
 					{connectedIds.size === 0 && !zenIsConnected && (
 						<p className="text-xs text-muted-foreground">
-							You won't be able to chat until a provider is connected.
+							{t("providers.needProvider")}
 						</p>
 					)}
 				</div>
@@ -263,16 +284,18 @@ export function ProviderSetupStep({ onComplete, onSkip }: ProviderSetupStepProps
 			<ConnectProviderDialog
 				provider={connectDialogProvider}
 				pluginAuthMethods={
-					connectDialogProvider ? authMethods?.[connectDialogProvider.id] : undefined
+					connectDialogProvider
+						? authMethods?.[connectDialogProvider.id]
+						: undefined
 				}
 				onClose={() => setConnectDialogProvider(null)}
 				onConnected={() => {
-					setConnectDialogProvider(null)
-					reload()
+					setConnectDialogProvider(null);
+					reload();
 				}}
 			/>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -284,14 +307,15 @@ function ZenFeaturedCard({
 	hasApiKey,
 	onConnect,
 }: {
-	provider: CatalogProvider
-	hasApiKey: boolean
-	onConnect: () => void
+	provider: CatalogProvider;
+	hasApiKey: boolean;
+	onConnect: () => void;
 }) {
+	const { t } = useTranslation("onboarding");
 	const freeModelCount = Object.values(provider.models).filter(
 		(m) => (m as { cost?: { input?: number } }).cost?.input === 0,
-	).length
-	const totalModelCount = Object.keys(provider.models).length
+	).length;
+	const totalModelCount = Object.keys(provider.models).length;
 
 	return (
 		<motion.div
@@ -309,18 +333,23 @@ function ZenFeaturedCard({
 						<span className="text-sm font-semibold">{provider.name}</span>
 						<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
 							<ZapIcon className="size-2.5" aria-hidden="true" />
-							Included
+							{t("providers.included")}
 						</span>
 					</div>
 					<p className="mt-0.5 text-xs text-muted-foreground">
-						{freeModelCount} free models ready to use.{" "}
+						{t("providers.freeReady", { count: freeModelCount })}{" "}
 						{hasApiKey
-							? `${totalModelCount} models available with API key.`
-							: `Upgrade for ${totalModelCount}+ premium models.`}
+							? t("providers.modelsWithKey", { count: totalModelCount })
+							: t("providers.upgradeModels", { count: totalModelCount })}
 					</p>
 					<div className="mt-2.5 flex flex-wrap items-center gap-2">
-						<Button size="sm" variant="outline" className="h-7 text-xs" onClick={onConnect}>
-							{hasApiKey ? "Manage" : "Enter API key"}
+						<Button
+							size="sm"
+							variant="outline"
+							className="h-7 text-xs"
+							onClick={onConnect}
+						>
+							{hasApiKey ? t("providers.manage") : t("providers.enterKey")}
 						</Button>
 						{!hasApiKey && (
 							<a
@@ -329,7 +358,7 @@ function ZenFeaturedCard({
 								rel="noopener noreferrer"
 								className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
 							>
-								Get a key at opencode.ai
+								{t("providers.getKey")}
 								<ExternalLinkIcon className="size-2.5" aria-hidden="true" />
 							</a>
 						)}
@@ -337,5 +366,5 @@ function ZenFeaturedCard({
 				</div>
 			</div>
 		</motion.div>
-	)
+	);
 }

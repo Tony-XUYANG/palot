@@ -11,9 +11,9 @@
  * 3. Live summary + next 3 runs -- always shown at the bottom
  */
 
-import { Button } from "@palot/ui/components/button"
-import { Input } from "@palot/ui/components/input"
-import { Label } from "@palot/ui/components/label"
+import { Button } from "@palot/ui/components/button";
+import { Input } from "@palot/ui/components/input";
+import { Label } from "@palot/ui/components/label";
 import {
 	Select,
 	SelectContent,
@@ -21,33 +21,39 @@ import {
 	SelectSeparator,
 	SelectTrigger,
 	SelectValue,
-} from "@palot/ui/components/select"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@palot/ui/components/tooltip"
-import { CalendarClockIcon } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+} from "@palot/ui/components/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@palot/ui/components/tooltip";
+import { CalendarClockIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	ALL_WEEKDAYS,
 	CUSTOM_PRESET_KEY,
 	computeNextRuns,
 	formatNextRun,
 	formatScheduleSummary,
+	getSchedulePresetLabel,
+	getWeekdayLabel,
 	type IntervalUnit,
 	matchPreset,
 	rruleToScheduleConfig,
 	SCHEDULE_PRESETS,
 	type ScheduleConfig,
 	scheduleConfigToRrule,
-	WEEKDAY_LABELS,
 	type Weekday,
-} from "../../lib/rrule-ui"
+} from "../../lib/rrule-ui";
 
 // ============================================================
 // Props
 // ============================================================
 
 interface SchedulePickerProps {
-	value: string
-	onChange: (rrule: string) => void
+	value: string;
+	onChange: (rrule: string) => void;
 }
 
 // ============================================================
@@ -55,106 +61,123 @@ interface SchedulePickerProps {
 // ============================================================
 
 export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
-	const config = useMemo(() => rruleToScheduleConfig(value), [value])
-	const presetKey = useMemo(() => matchPreset(value), [value])
-	const isCustom = presetKey === CUSTOM_PRESET_KEY
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
+	const config = useMemo(() => rruleToScheduleConfig(value), [value]);
+	const presetKey = useMemo(() => matchPreset(value), [value]);
+	const isCustom = presetKey === CUSTOM_PRESET_KEY;
 
 	// Track whether the user explicitly chose "Custom" (vs. auto-detected)
-	const [showCustomBuilder, setShowCustomBuilder] = useState(isCustom)
+	const [showCustomBuilder, setShowCustomBuilder] = useState(isCustom);
 
 	// Sync: if the rrule matches a preset, hide the custom builder
 	useEffect(() => {
-		if (!isCustom) setShowCustomBuilder(false)
-	}, [isCustom])
+		if (!isCustom) setShowCustomBuilder(false);
+	}, [isCustom]);
 
 	// --- Preset items map for Base UI Select (resolves labels before popup opens)
 	const presetItems = useMemo(() => {
-		const map: Record<string, string> = {}
+		const map: Record<string, string> = {};
 		for (const p of SCHEDULE_PRESETS) {
-			map[p.key] = p.label
+			map[p.key] = getSchedulePresetLabel(p, locale);
 		}
-		map[CUSTOM_PRESET_KEY] = "Custom"
-		return map
-	}, [])
+		map[CUSTOM_PRESET_KEY] = t("automations.custom");
+		return map;
+	}, [locale, t]);
 
 	// --- Preset selection
 	const handlePresetChange = useCallback(
 		(key: string | null) => {
-			if (!key) return
+			if (!key) return;
 			if (key === CUSTOM_PRESET_KEY) {
-				setShowCustomBuilder(true)
-				return
+				setShowCustomBuilder(true);
+				return;
 			}
-			const preset = SCHEDULE_PRESETS.find((p) => p.key === key)
+			const preset = SCHEDULE_PRESETS.find((p) => p.key === key);
 			if (preset) {
-				setShowCustomBuilder(false)
-				onChange(preset.rrule)
+				setShowCustomBuilder(false);
+				onChange(preset.rrule);
 			}
 		},
 		[onChange],
-	)
+	);
 
 	// --- Custom config updates
 	const updateConfig = useCallback(
 		(patch: Partial<ScheduleConfig>) => {
-			const updated = { ...config, ...patch }
-			onChange(scheduleConfigToRrule(updated))
+			const updated = { ...config, ...patch };
+			onChange(scheduleConfigToRrule(updated));
 		},
 		[config, onChange],
-	)
+	);
 
 	const setMode = useCallback(
 		(mode: ScheduleConfig["mode"]) => updateConfig({ mode }),
 		[updateConfig],
-	)
-	const setTime = useCallback((time: string) => updateConfig({ time }), [updateConfig])
+	);
+	const setTime = useCallback(
+		(time: string) => updateConfig({ time }),
+		[updateConfig],
+	);
 	const setIntervalValue = useCallback(
 		(value: number) => updateConfig({ intervalValue: Math.max(1, value) }),
 		[updateConfig],
-	)
+	);
 	const setIntervalUnit = useCallback(
 		(unit: IntervalUnit) => updateConfig({ intervalUnit: unit }),
 		[updateConfig],
-	)
+	);
 	const toggleWeekday = useCallback(
 		(day: Weekday) => {
-			const current = new Set(config.weekdays)
+			const current = new Set(config.weekdays);
 			if (current.has(day)) {
-				if (current.size <= 1) return
-				current.delete(day)
+				if (current.size <= 1) return;
+				current.delete(day);
 			} else {
-				current.add(day)
+				current.add(day);
 			}
-			updateConfig({ weekdays: ALL_WEEKDAYS.filter((d) => current.has(d)) })
+			updateConfig({ weekdays: ALL_WEEKDAYS.filter((d) => current.has(d)) });
 		},
 		[config.weekdays, updateConfig],
-	)
+	);
 
 	// --- Summary
-	const summary = useMemo(() => formatScheduleSummary(config), [config])
+	const summary = useMemo(
+		() => formatScheduleSummary(config, locale),
+		[config, locale],
+	);
 
 	return (
 		<div className="space-y-3">
 			{/* Preset selector */}
 			<div className="space-y-2">
-				<Label>Schedule</Label>
+				<Label>{t("automations.schedule")}</Label>
 				<Select
 					value={isCustom || showCustomBuilder ? CUSTOM_PRESET_KEY : presetKey}
 					onValueChange={handlePresetChange}
 					items={presetItems}
 				>
 					<SelectTrigger className="w-full">
-						<CalendarClockIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-						<SelectValue placeholder="Choose a schedule" />
+						<CalendarClockIcon
+							className="size-4 text-muted-foreground"
+							aria-hidden="true"
+						/>
+						<SelectValue placeholder={t("automations.chooseSchedule")} />
 					</SelectTrigger>
-					<SelectContent side="bottom" align="start" alignItemWithTrigger={false}>
+					<SelectContent
+						side="bottom"
+						align="start"
+						alignItemWithTrigger={false}
+					>
 						{SCHEDULE_PRESETS.map((preset) => (
 							<SelectItem key={preset.key} value={preset.key}>
-								{preset.label}
+								{getSchedulePresetLabel(preset, locale)}
 							</SelectItem>
 						))}
 						<SelectSeparator />
-						<SelectItem value={CUSTOM_PRESET_KEY}>Custom</SelectItem>
+						<SelectItem value={CUSTOM_PRESET_KEY}>
+							{t("automations.custom")}
+						</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -174,7 +197,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 			{/* Live summary + next runs */}
 			<SchedulePreview rrule={value} summary={summary} />
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -189,18 +212,21 @@ function CustomScheduleBuilder({
 	setIntervalUnit,
 	toggleWeekday,
 }: {
-	config: ScheduleConfig
-	setMode: (mode: ScheduleConfig["mode"]) => void
-	setTime: (time: string) => void
-	setIntervalValue: (value: number) => void
-	setIntervalUnit: (unit: IntervalUnit) => void
-	toggleWeekday: (day: Weekday) => void
+	config: ScheduleConfig;
+	setMode: (mode: ScheduleConfig["mode"]) => void;
+	setTime: (time: string) => void;
+	setIntervalValue: (value: number) => void;
+	setIntervalUnit: (unit: IntervalUnit) => void;
+	toggleWeekday: (day: Weekday) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="space-y-3 rounded-lg border border-border/50 bg-muted/30 p-3">
 			{/* Mode toggle */}
 			<div className="flex items-center gap-2">
-				<span className="text-sm text-muted-foreground">Type</span>
+				<span className="text-sm text-muted-foreground">
+					{t("automations.type")}
+				</span>
 				<div className="flex rounded-md border border-border/50">
 					<button
 						type="button"
@@ -211,7 +237,7 @@ function CustomScheduleBuilder({
 								: "text-muted-foreground hover:text-foreground"
 						}`}
 					>
-						Daily
+						{t("automations.daily")}
 					</button>
 					<button
 						type="button"
@@ -222,14 +248,18 @@ function CustomScheduleBuilder({
 								: "text-muted-foreground hover:text-foreground"
 						}`}
 					>
-						Interval
+						{t("automations.interval")}
 					</button>
 				</div>
 			</div>
 
 			{/* Sentence builder */}
 			{config.mode === "daily" ? (
-				<DailySentence config={config} setTime={setTime} toggleWeekday={toggleWeekday} />
+				<DailySentence
+					config={config}
+					setTime={setTime}
+					toggleWeekday={toggleWeekday}
+				/>
 			) : (
 				<IntervalSentence
 					config={config}
@@ -239,7 +269,7 @@ function CustomScheduleBuilder({
 				/>
 			)}
 		</div>
-	)
+	);
 }
 
 // --- Daily: "Every [weekday pills] at [time]"
@@ -249,15 +279,16 @@ function DailySentence({
 	setTime,
 	toggleWeekday,
 }: {
-	config: ScheduleConfig
-	setTime: (time: string) => void
-	toggleWeekday: (day: Weekday) => void
+	config: ScheduleConfig;
+	setTime: (time: string) => void;
+	toggleWeekday: (day: Weekday) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
-			<span className="text-muted-foreground">Every</span>
+			<span className="text-muted-foreground">{t("automations.every")}</span>
 			<WeekdayPills weekdays={config.weekdays} toggleWeekday={toggleWeekday} />
-			<span className="text-muted-foreground">at</span>
+			<span className="text-muted-foreground">{t("automations.at")}</span>
 			<Input
 				type="time"
 				value={config.time}
@@ -265,7 +296,7 @@ function DailySentence({
 				className="h-7 w-[7rem] text-xs"
 			/>
 		</div>
-	)
+	);
 }
 
 // --- Interval: "Every [N] [minutes|hours] on [weekday pills]"
@@ -273,7 +304,7 @@ function DailySentence({
 const INTERVAL_UNIT_ITEMS: Record<string, string> = {
 	minutes: "minutes",
 	hours: "hours",
-}
+};
 
 function IntervalSentence({
 	config,
@@ -281,21 +312,24 @@ function IntervalSentence({
 	setIntervalUnit,
 	toggleWeekday,
 }: {
-	config: ScheduleConfig
-	setIntervalValue: (value: number) => void
-	setIntervalUnit: (unit: IntervalUnit) => void
-	toggleWeekday: (day: Weekday) => void
+	config: ScheduleConfig;
+	setIntervalValue: (value: number) => void;
+	setIntervalUnit: (unit: IntervalUnit) => void;
+	toggleWeekday: (day: Weekday) => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center gap-2 text-sm">
-				<span className="text-muted-foreground">Every</span>
+				<span className="text-muted-foreground">{t("automations.every")}</span>
 				<Input
 					type="number"
 					min={1}
 					step={1}
 					value={config.intervalValue}
-					onChange={(e) => setIntervalValue(Number.parseInt(e.target.value, 10) || 1)}
+					onChange={(e) =>
+						setIntervalValue(Number.parseInt(e.target.value, 10) || 1)
+					}
 					className="h-7 w-16 text-xs"
 				/>
 				<Select
@@ -306,18 +340,25 @@ function IntervalSentence({
 					<SelectTrigger className="h-7 w-28 text-xs">
 						<SelectValue />
 					</SelectTrigger>
-					<SelectContent side="bottom" align="start" alignItemWithTrigger={false}>
-						<SelectItem value="minutes">minutes</SelectItem>
-						<SelectItem value="hours">hours</SelectItem>
+					<SelectContent
+						side="bottom"
+						align="start"
+						alignItemWithTrigger={false}
+					>
+						<SelectItem value="minutes">{t("automations.minutes")}</SelectItem>
+						<SelectItem value="hours">{t("automations.hours")}</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
 			<div className="flex items-center gap-2 text-sm">
-				<span className="text-muted-foreground">on</span>
-				<WeekdayPills weekdays={config.weekdays} toggleWeekday={toggleWeekday} />
+				<span className="text-muted-foreground">{t("automations.on")}</span>
+				<WeekdayPills
+					weekdays={config.weekdays}
+					toggleWeekday={toggleWeekday}
+				/>
 			</div>
 		</div>
-	)
+	);
 }
 
 // ============================================================
@@ -328,13 +369,15 @@ function WeekdayPills({
 	weekdays,
 	toggleWeekday,
 }: {
-	weekdays: Weekday[]
-	toggleWeekday: (day: Weekday) => void
+	weekdays: Weekday[];
+	toggleWeekday: (day: Weekday) => void;
 }) {
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
 	return (
 		<div className="flex gap-1">
 			{ALL_WEEKDAYS.map((day) => {
-				const isSelected = weekdays.includes(day)
+				const isSelected = weekdays.includes(day);
 				return (
 					<Tooltip key={day}>
 						<TooltipTrigger
@@ -348,47 +391,61 @@ function WeekdayPills({
 								/>
 							}
 						>
-							{WEEKDAY_LABELS[day]}
+							{getWeekdayLabel(day, locale)}
 						</TooltipTrigger>
-						<TooltipContent>{isSelected ? "Included" : "Excluded"}</TooltipContent>
+						<TooltipContent>
+							{isSelected
+								? t("automations.included")
+								: t("automations.excluded")}
+						</TooltipContent>
 					</Tooltip>
-				)
+				);
 			})}
 		</div>
-	)
+	);
 }
 
 // ============================================================
 // Schedule preview (summary + next runs)
 // ============================================================
 
-function SchedulePreview({ rrule, summary }: { rrule: string; summary: string }) {
-	const [nextRuns, setNextRuns] = useState<Date[]>([])
+function SchedulePreview({
+	rrule,
+	summary,
+}: {
+	rrule: string;
+	summary: string;
+}) {
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language === "zh-CN" ? "zh-CN" : "en-US";
+	const [nextRuns, setNextRuns] = useState<Date[]>([]);
 
 	useEffect(() => {
-		let cancelled = false
+		let cancelled = false;
 		computeNextRuns(rrule, 3).then((dates) => {
-			if (!cancelled) setNextRuns(dates)
-		})
+			if (!cancelled) setNextRuns(dates);
+		});
 		return () => {
-			cancelled = true
-		}
-	}, [rrule])
+			cancelled = true;
+		};
+	}, [rrule]);
 
 	return (
 		<div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
 			<p className="text-sm font-medium">{summary}</p>
 			{nextRuns.length > 0 && (
 				<div className="mt-1.5 flex flex-wrap gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-					<span>Next:</span>
+					<span>{t("automations.next")}</span>
 					{nextRuns.map((date, i) => (
 						<span key={date.toISOString()}>
-							{formatNextRun(date)}
-							{i < nextRuns.length - 1 && <span className="ml-1.5 text-border">·</span>}
+							{formatNextRun(date, locale)}
+							{i < nextRuns.length - 1 && (
+								<span className="ml-1.5 text-border">·</span>
+							)}
 						</span>
 					))}
 				</div>
 			)}
 		</div>
-	)
+	);
 }

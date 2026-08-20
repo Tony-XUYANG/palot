@@ -1,15 +1,15 @@
 import {
 	PromptInputHeader,
 	usePromptInputAttachments,
-} from "@palot/ui/components/ai-elements/prompt-input"
-import { AlertTriangleIcon, FileIcon, XIcon } from "lucide-react"
-import { memo, useMemo } from "react"
+} from "@palot/ui/components/ai-elements/prompt-input";
+import { AlertTriangleIcon, FileIcon, XIcon } from "lucide-react";
+import { memo, useMemo } from "react";
 
 interface PromptAttachmentPreviewProps {
 	/** Whether the selected model supports image input */
-	supportsImages?: boolean
+	supportsImages?: boolean;
 	/** Whether the selected model supports PDF input */
-	supportsPdf?: boolean
+	supportsPdf?: boolean;
 }
 
 /**
@@ -21,28 +21,28 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 	supportsImages,
 	supportsPdf,
 }: PromptAttachmentPreviewProps) {
-	const { files, remove } = usePromptInputAttachments()
+	const { files, remove } = usePromptInputAttachments();
 
 	// Check if any files are unsupported by the current model
 	const warning = useMemo(() => {
-		if (files.length === 0) return null
-		const hasImages = files.some((f) => f.mediaType?.startsWith("image/"))
-		const hasPdf = files.some((f) => f.mediaType === "application/pdf")
-		const unsupported: string[] = []
-		if (hasImages && supportsImages === false) unsupported.push("images")
-		if (hasPdf && supportsPdf === false) unsupported.push("PDFs")
-		if (unsupported.length === 0) return null
-		return `Selected model may not support ${unsupported.join(" or ")}`
-	}, [files, supportsImages, supportsPdf])
+		if (files.length === 0) return null;
+		const hasImages = files.some((f) => f.mediaType?.startsWith("image/"));
+		const hasPdf = files.some((f) => f.mediaType === "application/pdf");
+		const unsupported: string[] = [];
+		if (hasImages && supportsImages === false) unsupported.push("images");
+		if (hasPdf && supportsPdf === false) unsupported.push("PDFs");
+		if (unsupported.length === 0) return null;
+		return `Selected model may not support ${unsupported.join(" or ")}`;
+	}, [files, supportsImages, supportsPdf]);
 
-	if (files.length === 0) return null
+	if (files.length === 0) return null;
 
 	return (
 		<PromptInputHeader>
 			<div className="space-y-1.5 p-2">
 				<div className="flex flex-wrap gap-2">
 					{files.map((file) => {
-						const isImage = file.mediaType?.startsWith("image/")
+						const isImage = file.mediaType?.startsWith("image/");
 						return (
 							<div
 								key={file.id}
@@ -70,7 +70,7 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 									<XIcon className="size-2.5" />
 								</button>
 							</div>
-						)
+						);
 					})}
 				</div>
 				{warning && (
@@ -81,5 +81,5 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 				)}
 			</div>
 		</PromptInputHeader>
-	)
-})
+	);
+});

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron"
+import { contextBridge, ipcRenderer } from "electron";
 
 /**
  * Preload bridge — exposes a typed API from the main process to the renderer.
@@ -21,11 +21,11 @@ contextBridge.exposeInMainWorld("palot", {
 	 * Tier values: "liquid-glass" | "vibrancy" | "opaque"
 	 */
 	onChromeTier: (callback: (tier: string) => void) => {
-		const listener = (_event: unknown, tier: string) => callback(tier)
-		ipcRenderer.on("chrome-tier", listener)
+		const listener = (_event: unknown, tier: string) => callback(tier);
+		ipcRenderer.on("chrome-tier", listener);
 		return () => {
-			ipcRenderer.removeListener("chrome-tier", listener)
-		}
+			ipcRenderer.removeListener("chrome-tier", listener);
+		};
 	},
 
 	/** Get the current chrome tier (pull-based, avoids race with push event). */
@@ -40,10 +40,13 @@ contextBridge.exposeInMainWorld("palot", {
 	palotCloud: {
 		status: () => ipcRenderer.invoke("palot-cloud:status"),
 		bootstrap: () => ipcRenderer.invoke("palot-cloud:bootstrap"),
-		connect: (token: string) => ipcRenderer.invoke("palot-cloud:connect", token),
+		connect: (token: string) =>
+			ipcRenderer.invoke("palot-cloud:connect", token),
 		disconnect: () => ipcRenderer.invoke("palot-cloud:disconnect"),
-		startTopup: (packageId: string) => ipcRenderer.invoke("palot-cloud:topup-start", packageId),
-		topupOrder: (orderId: string) => ipcRenderer.invoke("palot-cloud:topup-order", orderId),
+		startTopup: (packageId: string) =>
+			ipcRenderer.invoke("palot-cloud:topup-start", packageId),
+		topupOrder: (orderId: string) =>
+			ipcRenderer.invoke("palot-cloud:topup-order", orderId),
 	},
 
 	/** Stops the managed OpenCode server. */
@@ -63,7 +66,8 @@ contextBridge.exposeInMainWorld("palot", {
 		store: (serverId: string, password: string) =>
 			ipcRenderer.invoke("credential:store", serverId, password),
 		get: (serverId: string) => ipcRenderer.invoke("credential:get", serverId),
-		delete: (serverId: string) => ipcRenderer.invoke("credential:delete", serverId),
+		delete: (serverId: string) =>
+			ipcRenderer.invoke("credential:delete", serverId),
 	},
 
 	/** Test connectivity to a remote OpenCode server. Returns null on success or error message. */
@@ -77,11 +81,12 @@ contextBridge.exposeInMainWorld("palot", {
 		getDiscovered: () => ipcRenderer.invoke("mdns:get-discovered"),
 		/** Subscribe to discovered server list changes. */
 		onChanged: (callback: (servers: unknown[]) => void) => {
-			const listener = (_event: unknown, servers: unknown[]) => callback(servers)
-			ipcRenderer.on("mdns:servers-changed", listener)
+			const listener = (_event: unknown, servers: unknown[]) =>
+				callback(servers);
+			ipcRenderer.on("mdns:servers-changed", listener);
 			return () => {
-				ipcRenderer.removeListener("mdns:servers-changed", listener)
-			}
+				ipcRenderer.removeListener("mdns:servers-changed", listener);
+			};
 		},
 	},
 
@@ -111,29 +116,35 @@ contextBridge.exposeInMainWorld("palot", {
 
 	/** Subscribes to update state changes pushed from the main process. */
 	onUpdateStateChanged: (callback: (state: unknown) => void) => {
-		const listener = (_event: unknown, state: unknown) => callback(state)
-		ipcRenderer.on("updater:state-changed", listener)
+		const listener = (_event: unknown, state: unknown) => callback(state);
+		ipcRenderer.on("updater:state-changed", listener);
 		return () => {
-			ipcRenderer.removeListener("updater:state-changed", listener)
-		}
+			ipcRenderer.removeListener("updater:state-changed", listener);
+		};
 	},
 
 	// --- Git operations ---
 
 	git: {
-		listBranches: (directory: string) => ipcRenderer.invoke("git:branches", directory),
-		getStatus: (directory: string) => ipcRenderer.invoke("git:status", directory),
+		listBranches: (directory: string) =>
+			ipcRenderer.invoke("git:branches", directory),
+		getStatus: (directory: string) =>
+			ipcRenderer.invoke("git:status", directory),
 		checkout: (directory: string, branch: string) =>
 			ipcRenderer.invoke("git:checkout", directory, branch),
 		stashAndCheckout: (directory: string, branch: string) =>
 			ipcRenderer.invoke("git:stash-and-checkout", directory, branch),
-		stashPop: (directory: string) => ipcRenderer.invoke("git:stash-pop", directory),
+		stashPop: (directory: string) =>
+			ipcRenderer.invoke("git:stash-pop", directory),
 		getRoot: (directory: string) => ipcRenderer.invoke("git:root", directory),
-		diffStat: (directory: string) => ipcRenderer.invoke("git:diff-stat", directory),
-		workingTreeDiff: (directory: string) => ipcRenderer.invoke("git:working-tree-diff", directory),
+		diffStat: (directory: string) =>
+			ipcRenderer.invoke("git:diff-stat", directory),
+		workingTreeDiff: (directory: string) =>
+			ipcRenderer.invoke("git:working-tree-diff", directory),
 		commitAll: (directory: string, message: string) =>
 			ipcRenderer.invoke("git:commit-all", directory, message),
-		push: (directory: string, remote?: string) => ipcRenderer.invoke("git:push", directory, remote),
+		push: (directory: string, remote?: string) =>
+			ipcRenderer.invoke("git:push", directory, remote),
 		createBranch: (directory: string, branchName: string) =>
 			ipcRenderer.invoke("git:create-branch", directory, branchName),
 		applyToLocal: (worktreeDir: string, localDir: string) =>
@@ -150,7 +161,8 @@ contextBridge.exposeInMainWorld("palot", {
 	getOpaqueWindows: () => ipcRenderer.invoke("prefs:get-opaque-windows"),
 
 	/** Set the opaque windows preference and persist it in the main process. */
-	setOpaqueWindows: (value: boolean) => ipcRenderer.invoke("prefs:set-opaque-windows", value),
+	setOpaqueWindows: (value: boolean) =>
+		ipcRenderer.invoke("prefs:set-opaque-windows", value),
 
 	/** Relaunch the app (used after toggling transparency, which requires a restart). */
 	relaunch: () => ipcRenderer.invoke("app:relaunch"),
@@ -172,24 +184,26 @@ contextBridge.exposeInMainWorld("palot", {
 		getTargets: () => ipcRenderer.invoke("open-in:targets"),
 		open: (directory: string, targetId: string, persistPreferred?: boolean) =>
 			ipcRenderer.invoke("open-in:open", directory, targetId, persistPreferred),
-		setPreferred: (targetId: string) => ipcRenderer.invoke("open-in:set-preferred", targetId),
+		setPreferred: (targetId: string) =>
+			ipcRenderer.invoke("open-in:set-preferred", targetId),
 	},
 
 	// --- Native theme (syncs macOS glass tint to app color scheme) ---
 
 	/** Set the native theme source to control macOS glass tint color. */
-	setNativeTheme: (source: string) => ipcRenderer.invoke("theme:set-native", source),
+	setNativeTheme: (source: string) =>
+		ipcRenderer.invoke("theme:set-native", source),
 
 	/** Get the system accent color as an 8-char hex RRGGBBAA string, or null if unavailable. */
 	getAccentColor: () => ipcRenderer.invoke("theme:accent-color"),
 
 	/** Subscribe to system accent color changes (fired when the user changes OS accent color). */
 	onAccentColorChanged: (callback: (color: string) => void) => {
-		const listener = (_event: unknown, color: string) => callback(color)
-		ipcRenderer.on("theme:accent-color-changed", listener)
+		const listener = (_event: unknown, color: string) => callback(color);
+		ipcRenderer.on("theme:accent-color-changed", listener);
 		return () => {
-			ipcRenderer.removeListener("theme:accent-color-changed", listener)
-		}
+			ipcRenderer.removeListener("theme:accent-color-changed", listener);
+		};
 	},
 
 	// --- Directory picker ---
@@ -198,11 +212,14 @@ contextBridge.exposeInMainWorld("palot", {
 	pickDirectory: () => ipcRenderer.invoke("dialog:open-directory"),
 
 	sealos: {
-		preflight: (directory: string) => ipcRenderer.invoke("sealos:preflight", directory),
+		preflight: (directory: string) =>
+			ipcRenderer.invoke("sealos:preflight", directory),
 		deploy: (directory: string, args?: Record<string, string>) =>
 			ipcRenderer.invoke("sealos:deploy", directory, args),
-		startLogin: (region: string) => ipcRenderer.invoke("sealos:login-start", region),
-		completeLogin: (sessionId: string) => ipcRenderer.invoke("sealos:login-complete", sessionId),
+		startLogin: (region: string) =>
+			ipcRenderer.invoke("sealos:login-start", region),
+		completeLogin: (sessionId: string) =>
+			ipcRenderer.invoke("sealos:login-complete", sessionId),
 		listWorkspaces: () => ipcRenderer.invoke("sealos:workspaces"),
 		switchWorkspace: (workspaceId: string) =>
 			ipcRenderer.invoke("sealos:switch-workspace", workspaceId),
@@ -210,8 +227,10 @@ contextBridge.exposeInMainWorld("palot", {
 			ipcRenderer.invoke("sealos:template-inputs", directory),
 		getDeploymentState: (directory: string) =>
 			ipcRenderer.invoke("sealos:deployment-state", directory),
-		updateDeployment: (directory: string) => ipcRenderer.invoke("sealos:update", directory),
-		getGitHubStatus: (directory: string) => ipcRenderer.invoke("sealos:github-status", directory),
+		updateDeployment: (directory: string) =>
+			ipcRenderer.invoke("sealos:update", directory),
+		getGitHubStatus: (directory: string) =>
+			ipcRenderer.invoke("sealos:github-status", directory),
 		getGitHubBuildResult: (directory: string) =>
 			ipcRenderer.invoke("sealos:github-last-build", directory),
 		startGitHubLogin: () => ipcRenderer.invoke("sealos:github-login-start"),
@@ -221,11 +240,14 @@ contextBridge.exposeInMainWorld("palot", {
 			ipcRenderer.invoke("sealos:github-prepare", directory),
 		publishGitHubSource: (directory: string) =>
 			ipcRenderer.invoke("sealos:github-publish", directory),
-		runGitHubBuild: (directory: string) => ipcRenderer.invoke("sealos:github-build", directory),
+		runGitHubBuild: (directory: string) =>
+			ipcRenderer.invoke("sealos:github-build", directory),
 		onGitHubBuildProgress: (callback: (progress: unknown) => void) => {
-			const listener = (_event: unknown, progress: unknown) => callback(progress)
-			ipcRenderer.on("sealos:github-build-progress", listener)
-			return () => ipcRenderer.removeListener("sealos:github-build-progress", listener)
+			const listener = (_event: unknown, progress: unknown) =>
+				callback(progress);
+			ipcRenderer.on("sealos:github-build-progress", listener);
+			return () =>
+				ipcRenderer.removeListener("sealos:github-build-progress", listener);
 		},
 		verifyRuntime: (directory: string, url: string) =>
 			ipcRenderer.invoke("sealos:verify-runtime", directory, url),
@@ -240,10 +262,10 @@ contextBridge.exposeInMainWorld("palot", {
 	 * a serialized Response.
 	 */
 	fetch: (req: {
-		url: string
-		method: string
-		headers: Record<string, string>
-		body: string | null
+		url: string;
+		method: string;
+		headers: Record<string, string>;
+		body: string | null;
 	}) => ipcRenderer.invoke("fetch:request", req),
 
 	// --- Notifications ---
@@ -254,18 +276,21 @@ contextBridge.exposeInMainWorld("palot", {
 	 * should navigate to the specified session.
 	 */
 	onNotificationNavigate: (callback: (data: { sessionId: string }) => void) => {
-		const listener = (_event: unknown, data: { sessionId: string }) => callback(data)
-		ipcRenderer.on("notification:navigate", listener)
+		const listener = (_event: unknown, data: { sessionId: string }) =>
+			callback(data);
+		ipcRenderer.on("notification:navigate", listener);
 		return () => {
-			ipcRenderer.removeListener("notification:navigate", listener)
-		}
+			ipcRenderer.removeListener("notification:navigate", listener);
+		};
 	},
 
 	/** Dismiss any active notification for a session (e.g. when the user navigates to it). */
-	dismissNotification: (sessionId: string) => ipcRenderer.invoke("notification:dismiss", sessionId),
+	dismissNotification: (sessionId: string) =>
+		ipcRenderer.invoke("notification:dismiss", sessionId),
 
 	/** Update the dock badge / app badge count. */
-	updateBadgeCount: (count: number) => ipcRenderer.invoke("notification:badge", count),
+	updateBadgeCount: (count: number) =>
+		ipcRenderer.invoke("notification:badge", count),
 
 	// --- Settings ---
 
@@ -278,11 +303,11 @@ contextBridge.exposeInMainWorld("palot", {
 
 	/** Subscribe to settings changes pushed from the main process. */
 	onSettingsChanged: (callback: (settings: unknown) => void) => {
-		const listener = (_event: unknown, settings: unknown) => callback(settings)
-		ipcRenderer.on("settings:changed", listener)
+		const listener = (_event: unknown, settings: unknown) => callback(settings);
+		ipcRenderer.on("settings:changed", listener);
 		return () => {
-			ipcRenderer.removeListener("settings:changed", listener)
-		}
+			ipcRenderer.removeListener("settings:changed", listener);
+		};
 	},
 
 	// --- Automations ---
@@ -294,20 +319,24 @@ contextBridge.exposeInMainWorld("palot", {
 		update: (input: unknown) => ipcRenderer.invoke("automation:update", input),
 		delete: (id: string) => ipcRenderer.invoke("automation:delete", id),
 		runNow: (id: string) => ipcRenderer.invoke("automation:run-now", id),
-		listRuns: (automationId?: string) => ipcRenderer.invoke("automation:list-runs", automationId),
-		archiveRun: (runId: string) => ipcRenderer.invoke("automation:archive-run", runId),
-		acceptRun: (runId: string) => ipcRenderer.invoke("automation:accept-run", runId),
-		markRunRead: (runId: string) => ipcRenderer.invoke("automation:mark-run-read", runId),
+		listRuns: (automationId?: string) =>
+			ipcRenderer.invoke("automation:list-runs", automationId),
+		archiveRun: (runId: string) =>
+			ipcRenderer.invoke("automation:archive-run", runId),
+		acceptRun: (runId: string) =>
+			ipcRenderer.invoke("automation:accept-run", runId),
+		markRunRead: (runId: string) =>
+			ipcRenderer.invoke("automation:mark-run-read", runId),
 		previewSchedule: (rrule: string, timezone: string) =>
 			ipcRenderer.invoke("automation:preview-schedule", rrule, timezone),
 	},
 
 	onAutomationRunsUpdated: (callback: () => void) => {
-		const listener = () => callback()
-		ipcRenderer.on("automation:runs-updated", listener)
+		const listener = () => callback();
+		ipcRenderer.on("automation:runs-updated", listener);
 		return () => {
-			ipcRenderer.removeListener("automation:runs-updated", listener)
-		}
+			ipcRenderer.removeListener("automation:runs-updated", listener);
+		};
 	},
 
 	// --- Onboarding ---
@@ -319,31 +348,51 @@ contextBridge.exposeInMainWorld("palot", {
 		installOpenCode: () => ipcRenderer.invoke("onboarding:install-opencode"),
 		/** Subscribe to install output lines (streamed from the install script). */
 		onInstallOutput: (callback: (text: string) => void) => {
-			const listener = (_event: unknown, text: string) => callback(text)
-			ipcRenderer.on("onboarding:install-output", listener)
+			const listener = (_event: unknown, text: string) => callback(text);
+			ipcRenderer.on("onboarding:install-output", listener);
 			return () => {
-				ipcRenderer.removeListener("onboarding:install-output", listener)
-			}
+				ipcRenderer.removeListener("onboarding:install-output", listener);
+			};
 		},
 		/** Quick detect all supported providers (Claude Code, Cursor, OpenCode). */
 		detectProviders: () => ipcRenderer.invoke("onboarding:detect-providers"),
 		/** Full scan of a specific provider's configuration. */
-		scanProvider: (provider: string) => ipcRenderer.invoke("onboarding:scan-provider", provider),
+		scanProvider: (provider: string) =>
+			ipcRenderer.invoke("onboarding:scan-provider", provider),
 		/** Dry-run migration preview for a provider. */
-		previewMigration: (provider: string, scanResult: unknown, categories: string[]) =>
-			ipcRenderer.invoke("onboarding:preview-migration", provider, scanResult, categories),
+		previewMigration: (
+			provider: string,
+			scanResult: unknown,
+			categories: string[],
+		) =>
+			ipcRenderer.invoke(
+				"onboarding:preview-migration",
+				provider,
+				scanResult,
+				categories,
+			),
 		/** Execute migration (writes files with backup). */
-		executeMigration: (provider: string, scanResult: unknown, categories: string[]) =>
-			ipcRenderer.invoke("onboarding:execute-migration", provider, scanResult, categories),
+		executeMigration: (
+			provider: string,
+			scanResult: unknown,
+			categories: string[],
+		) =>
+			ipcRenderer.invoke(
+				"onboarding:execute-migration",
+				provider,
+				scanResult,
+				categories,
+			),
 		/** Subscribe to migration progress updates (history writing). */
 		onMigrationProgress: (callback: (progress: unknown) => void) => {
-			const listener = (_event: unknown, progress: unknown) => callback(progress)
-			ipcRenderer.on("onboarding:migration-progress", listener)
+			const listener = (_event: unknown, progress: unknown) =>
+				callback(progress);
+			ipcRenderer.on("onboarding:migration-progress", listener);
 			return () => {
-				ipcRenderer.removeListener("onboarding:migration-progress", listener)
-			}
+				ipcRenderer.removeListener("onboarding:migration-progress", listener);
+			};
 		},
 		/** Restore the most recent migration backup. */
 		restoreBackup: () => ipcRenderer.invoke("onboarding:restore-backup"),
 	},
-})
+});

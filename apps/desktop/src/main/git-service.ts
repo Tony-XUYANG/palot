@@ -1,9 +1,9 @@
-import { readFile } from "node:fs/promises"
-import path from "node:path"
-import { app } from "electron"
-import type { BranchSummary, StatusResult } from "simple-git"
-import simpleGit from "simple-git"
-import { resolveGitRuntime } from "./runtime-resolver"
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { app } from "electron";
+import type { BranchSummary, StatusResult } from "simple-git";
+import simpleGit from "simple-git";
+import { resolveGitRuntime } from "./runtime-resolver";
 
 /**
  * Git service for the Electron main process.
@@ -17,15 +17,15 @@ function getGit(directory: string) {
 	const runtime = resolveGitRuntime({
 		isPackaged: app.isPackaged,
 		resourcesPath: process.resourcesPath,
-	})
+	});
 	if (!runtime) {
 		throw new Error(
 			app.isPackaged && process.platform === "win32" && process.arch === "x64"
 				? "The included Git runtime is missing. Reinstall Palot to repair the installation."
 				: "Git was not found. Install Git or configure PALOT_TEST_GIT_PATH for development.",
-		)
+		);
 	}
-	return simpleGit({ baseDir: directory, binary: runtime.path, trimmed: true })
+	return simpleGit({ baseDir: directory, binary: runtime.path, trimmed: true });
 }
 
 // ============================================================
@@ -34,39 +34,39 @@ function getGit(directory: string) {
 
 export interface GitBranchInfo {
 	/** Current branch name (empty string if detached HEAD) */
-	current: string
+	current: string;
 	/** Whether HEAD is detached */
-	detached: boolean
+	detached: boolean;
 	/** Local branch names */
-	local: string[]
+	local: string[];
 	/** Remote branch names (e.g. "origin/main") */
-	remote: string[]
+	remote: string[];
 }
 
 export interface GitStatusInfo {
 	/** Whether the working tree is clean (no staged, unstaged, or untracked changes) */
-	isClean: boolean
+	isClean: boolean;
 	/** Number of staged files */
-	staged: number
+	staged: number;
 	/** Number of modified (unstaged) files */
-	modified: number
+	modified: number;
 	/** Number of untracked files */
-	untracked: number
+	untracked: number;
 	/** Number of files with merge conflicts */
-	conflicted: number
+	conflicted: number;
 	/** Human-readable summary of dirty state */
-	summary: string
+	summary: string;
 }
 
 export interface GitCheckoutResult {
-	success: boolean
-	error?: string
+	success: boolean;
+	error?: string;
 }
 
 export interface GitStashResult {
-	success: boolean
-	stashed: boolean
-	error?: string
+	success: boolean;
+	stashed: boolean;
+	error?: string;
 }
 
 // ============================================================
@@ -77,22 +77,22 @@ export interface GitStashResult {
  * Lists all local and remote branches for a directory.
  */
 export async function listBranches(directory: string): Promise<GitBranchInfo> {
-	const git = getGit(directory)
-	const summary: BranchSummary = await git.branch(["-a"])
+	const git = getGit(directory);
+	const summary: BranchSummary = await git.branch(["-a"]);
 
-	const local: string[] = []
-	const remote: string[] = []
+	const local: string[] = [];
+	const remote: string[] = [];
 
 	for (const [name] of Object.entries(summary.branches)) {
 		// simple-git prefixes remote branches with "remotes/"
 		if (name.startsWith("remotes/")) {
 			// Strip "remotes/" prefix for cleaner display
-			const cleanName = name.replace(/^remotes\//, "")
+			const cleanName = name.replace(/^remotes\//, "");
 			// Skip HEAD pointer (e.g. "origin/HEAD -> origin/main")
-			if (cleanName.endsWith("/HEAD")) continue
-			remote.push(cleanName)
+			if (cleanName.endsWith("/HEAD")) continue;
+			remote.push(cleanName);
 		} else {
-			local.push(name)
+			local.push(name);
 		}
 	}
 
@@ -101,55 +101,59 @@ export async function listBranches(directory: string): Promise<GitBranchInfo> {
 		detached: summary.detached,
 		local,
 		remote,
-	}
+	};
 }
 
 /**
  * Gets the working tree status for a directory.
  */
 export async function getStatus(directory: string): Promise<GitStatusInfo> {
-	const git = getGit(directory)
-	const status: StatusResult = await git.status()
+	const git = getGit(directory);
+	const status: StatusResult = await git.status();
 
-	const staged = status.staged.length
-	const modified = status.modified.length + status.deleted.length + status.renamed.length
-	const untracked = status.not_added.length
-	const conflicted = status.conflicted.length
-	const isClean = status.isClean()
+	const staged = status.staged.length;
+	const modified =
+		status.modified.length + status.deleted.length + status.renamed.length;
+	const untracked = status.not_added.length;
+	const conflicted = status.conflicted.length;
+	const isClean = status.isClean();
 
 	// Build a human-readable summary
-	const parts: string[] = []
-	if (staged > 0) parts.push(`${staged} staged`)
-	if (modified > 0) parts.push(`${modified} modified`)
-	if (untracked > 0) parts.push(`${untracked} untracked`)
-	if (conflicted > 0) parts.push(`${conflicted} conflicted`)
-	const summary = isClean ? "Working tree clean" : parts.join(", ")
+	const parts: string[] = [];
+	if (staged > 0) parts.push(`${staged} staged`);
+	if (modified > 0) parts.push(`${modified} modified`);
+	if (untracked > 0) parts.push(`${untracked} untracked`);
+	if (conflicted > 0) parts.push(`${conflicted} conflicted`);
+	const summary = isClean ? "Working tree clean" : parts.join(", ");
 
-	return { isClean, staged, modified, untracked, conflicted, summary }
+	return { isClean, staged, modified, untracked, conflicted, summary };
 }
 
 /**
  * Checks out a branch. Fails if there are uncommitted changes
  * that would be overwritten (git's default behavior).
  */
-export async function checkout(directory: string, branch: string): Promise<GitCheckoutResult> {
-	const git = getGit(directory)
+export async function checkout(
+	directory: string,
+	branch: string,
+): Promise<GitCheckoutResult> {
+	const git = getGit(directory);
 	try {
 		// Check if the branch exists locally
-		const branches = await git.branchLocal()
+		const branches = await git.branchLocal();
 		if (branches.all.includes(branch)) {
-			await git.checkout(branch)
+			await git.checkout(branch);
 		} else {
 			// Try to check out a remote tracking branch
 			// This creates a local branch tracking the remote one
-			await git.checkout(["-b", branch, `origin/${branch}`])
+			await git.checkout(["-b", branch, `origin/${branch}`]);
 		}
-		return { success: true }
+		return { success: true };
 	} catch (err) {
 		return {
 			success: false,
 			error: err instanceof Error ? err.message : "Checkout failed",
-		}
+		};
 	}
 }
 
@@ -157,31 +161,38 @@ export async function checkout(directory: string, branch: string): Promise<GitCh
  * Stashes uncommitted changes, then checks out the target branch.
  * Returns whether changes were actually stashed (clean trees skip the stash).
  */
-export async function stashAndCheckout(directory: string, branch: string): Promise<GitStashResult> {
-	const git = getGit(directory)
+export async function stashAndCheckout(
+	directory: string,
+	branch: string,
+): Promise<GitStashResult> {
+	const git = getGit(directory);
 	try {
-		const status = await git.status()
-		const needsStash = !status.isClean()
+		const status = await git.status();
+		const needsStash = !status.isClean();
 
 		if (needsStash) {
-			await git.stash(["push", "-m", `palot: auto-stash before switching to ${branch}`])
+			await git.stash([
+				"push",
+				"-m",
+				`palot: auto-stash before switching to ${branch}`,
+			]);
 		}
 
 		// Now checkout
-		const branches = await git.branchLocal()
+		const branches = await git.branchLocal();
 		if (branches.all.includes(branch)) {
-			await git.checkout(branch)
+			await git.checkout(branch);
 		} else {
-			await git.checkout(["-b", branch, `origin/${branch}`])
+			await git.checkout(["-b", branch, `origin/${branch}`]);
 		}
 
-		return { success: true, stashed: needsStash }
+		return { success: true, stashed: needsStash };
 	} catch (err) {
 		return {
 			success: false,
 			stashed: false,
 			error: err instanceof Error ? err.message : "Stash and checkout failed",
-		}
+		};
 	}
 }
 
@@ -189,16 +200,16 @@ export async function stashAndCheckout(directory: string, branch: string): Promi
  * Pops the most recent stash entry.
  */
 export async function stashPop(directory: string): Promise<GitStashResult> {
-	const git = getGit(directory)
+	const git = getGit(directory);
 	try {
-		await git.stash(["pop"])
-		return { success: true, stashed: false }
+		await git.stash(["pop"]);
+		return { success: true, stashed: false };
 	} catch (err) {
 		return {
 			success: false,
 			stashed: false,
 			error: err instanceof Error ? err.message : "Stash pop failed",
-		}
+		};
 	}
 }
 
@@ -207,39 +218,39 @@ export async function stashPop(directory: string): Promise<GitStashResult> {
 // ============================================================
 
 export interface GitDiffStat {
-	filesChanged: number
-	insertions: number
-	deletions: number
-	files: { path: string; insertions: number; deletions: number }[]
+	filesChanged: number;
+	insertions: number;
+	deletions: number;
+	files: { path: string; insertions: number; deletions: number }[];
 }
 
 export interface GitWorkingTreeDiff {
-	file: string
-	before: string
-	after: string
-	additions: number
-	deletions: number
-	status: "added" | "deleted" | "modified"
+	file: string;
+	before: string;
+	after: string;
+	additions: number;
+	deletions: number;
+	status: "added" | "deleted" | "modified";
 }
 
 export interface GitCommitResult {
-	success: boolean
-	commitHash?: string
-	error?: string
+	success: boolean;
+	commitHash?: string;
+	error?: string;
 }
 
 export interface GitPushResult {
-	success: boolean
-	error?: string
+	success: boolean;
+	error?: string;
 }
 
 /**
  * Gets a summary of uncommitted changes (staged + unstaged) in a directory.
  */
 export async function getDiffStat(directory: string): Promise<GitDiffStat> {
-	const git = getGit(directory)
-	const status: StatusResult = await git.status()
-	const files: GitDiffStat["files"] = []
+	const git = getGit(directory);
+	const status: StatusResult = await git.status();
+	const files: GitDiffStat["files"] = [];
 
 	// Combine all changed files
 	const allFiles = new Set([
@@ -248,10 +259,10 @@ export async function getDiffStat(directory: string): Promise<GitDiffStat> {
 		...status.deleted,
 		...status.renamed.map((r) => r.to),
 		...status.not_added,
-	])
+	]);
 
 	for (const f of allFiles) {
-		files.push({ path: f, insertions: 0, deletions: 0 })
+		files.push({ path: f, insertions: 0, deletions: 0 });
 	}
 
 	return {
@@ -259,30 +270,38 @@ export async function getDiffStat(directory: string): Promise<GitDiffStat> {
 		insertions: 0,
 		deletions: 0,
 		files,
-	}
+	};
 }
 
 /**
  * Returns full before/after content for local working-tree changes.
  * Used only when OpenCode cannot provide session-scoped diffs.
  */
-export async function getWorkingTreeDiff(directory: string): Promise<GitWorkingTreeDiff[]> {
-	const git = getGit(directory)
-	const status = await git.status()
-	const changedFiles = [...new Set(status.files.map((file) => file.path))]
-	if (changedFiles.length === 0) return []
+export async function getWorkingTreeDiff(
+	directory: string,
+): Promise<GitWorkingTreeDiff[]> {
+	const git = getGit(directory);
+	const status = await git.status();
+	const changedFiles = [...new Set(status.files.map((file) => file.path))];
+	if (changedFiles.length === 0) return [];
 
-	const numstat = new Map<string, { additions: number; deletions: number }>()
+	const numstat = new Map<string, { additions: number; deletions: number }>();
 	try {
-		const output = await git.raw(["diff", "--numstat", "HEAD", "--", ...changedFiles])
+		const output = await git.raw([
+			"diff",
+			"--numstat",
+			"HEAD",
+			"--",
+			...changedFiles,
+		]);
 		for (const line of output.split(/\r?\n/)) {
-			const [added, deleted, ...pathParts] = line.split("\t")
-			const file = pathParts.join("\t")
-			if (!file) continue
+			const [added, deleted, ...pathParts] = line.split("\t");
+			const file = pathParts.join("\t");
+			if (!file) continue;
 			numstat.set(file, {
 				additions: added === "-" ? 0 : Number(added),
 				deletions: deleted === "-" ? 0 : Number(deleted),
-			})
+			});
 		}
 	} catch {
 		// Repositories without HEAD are handled from file contents below.
@@ -290,59 +309,72 @@ export async function getWorkingTreeDiff(directory: string): Promise<GitWorkingT
 
 	return await Promise.all(
 		changedFiles.map(async (file): Promise<GitWorkingTreeDiff> => {
-			const isAdded = status.not_added.includes(file) || status.created.includes(file)
-			const isDeleted = status.deleted.includes(file)
+			const isAdded =
+				status.not_added.includes(file) || status.created.includes(file);
+			const isDeleted = status.deleted.includes(file);
 			const [before, after] = await Promise.all([
-				isAdded ? Promise.resolve("") : git.show([`HEAD:${file}`]).catch(() => ""),
+				isAdded
+					? Promise.resolve("")
+					: git.show([`HEAD:${file}`]).catch(() => ""),
 				isDeleted
 					? Promise.resolve("")
 					: readFile(path.join(directory, file), "utf8").catch(() => ""),
-			])
-			const counts = numstat.get(file)
+			]);
+			const counts = numstat.get(file);
 			return {
 				file,
 				before,
 				after,
-				additions: counts?.additions ?? (isAdded ? after.split(/\r?\n/).length : 0),
-				deletions: counts?.deletions ?? (isDeleted ? before.split(/\r?\n/).length : 0),
+				additions:
+					counts?.additions ?? (isAdded ? after.split(/\r?\n/).length : 0),
+				deletions:
+					counts?.deletions ?? (isDeleted ? before.split(/\r?\n/).length : 0),
 				status: isAdded ? "added" : isDeleted ? "deleted" : "modified",
-			}
+			};
 		}),
-	)
+	);
 }
 
 /**
  * Commits all changes (staged + unstaged) with the given message.
  * Adds all tracked and untracked files before committing.
  */
-export async function commitAll(directory: string, message: string): Promise<GitCommitResult> {
-	const git = getGit(directory)
+export async function commitAll(
+	directory: string,
+	message: string,
+): Promise<GitCommitResult> {
+	const git = getGit(directory);
 	try {
-		await git.add("-A")
-		const result = await git.commit(message)
-		return { success: true, commitHash: result.commit }
+		await git.add("-A");
+		const result = await git.commit(message);
+		return { success: true, commitHash: result.commit };
 	} catch (err) {
 		return {
 			success: false,
 			error: err instanceof Error ? err.message : "Commit failed",
-		}
+		};
 	}
 }
 
 /**
  * Pushes the current branch to the remote. Sets upstream if needed.
  */
-export async function push(directory: string, remote = "origin"): Promise<GitPushResult> {
-	const git = getGit(directory)
+export async function push(
+	directory: string,
+	remote = "origin",
+): Promise<GitPushResult> {
+	const git = getGit(directory);
 	try {
-		const branch = (await git.raw(["rev-parse", "--abbrev-ref", "HEAD"])).trim()
-		await git.push(remote, branch, ["--set-upstream"])
-		return { success: true }
+		const branch = (
+			await git.raw(["rev-parse", "--abbrev-ref", "HEAD"])
+		).trim();
+		await git.push(remote, branch, ["--set-upstream"]);
+		return { success: true };
 	} catch (err) {
 		return {
 			success: false,
 			error: err instanceof Error ? err.message : "Push failed",
-		}
+		};
 	}
 }
 
@@ -354,15 +386,15 @@ export async function createBranch(
 	directory: string,
 	branchName: string,
 ): Promise<GitCheckoutResult> {
-	const git = getGit(directory)
+	const git = getGit(directory);
 	try {
-		await git.checkout(["-b", branchName])
-		return { success: true }
+		await git.checkout(["-b", branchName]);
+		return { success: true };
 	} catch (err) {
 		return {
 			success: false,
 			error: err instanceof Error ? err.message : "Branch creation failed",
-		}
+		};
 	}
 }
 
@@ -376,40 +408,49 @@ export async function applyDiffTextToLocal(
 	diffText: string,
 ): Promise<{ success: boolean; filesApplied: string[]; error?: string }> {
 	if (!diffText.trim()) {
-		return { success: true, filesApplied: [], error: "No changes to apply" }
+		return { success: true, filesApplied: [], error: "No changes to apply" };
 	}
 
-	const os = await import("node:os")
-	const fs = await import("node:fs/promises")
-	const tmpFile = path.join(os.tmpdir(), `palot-remote-patch-${Date.now()}.patch`)
+	const os = await import("node:os");
+	const fs = await import("node:fs/promises");
+	const tmpFile = path.join(
+		os.tmpdir(),
+		`palot-remote-patch-${Date.now()}.patch`,
+	);
 
 	try {
-		await fs.writeFile(tmpFile, diffText)
+		await fs.writeFile(tmpFile, diffText);
 
-		const localGit = getGit(localDir)
+		const localGit = getGit(localDir);
 		try {
 			try {
-				await localGit.raw(["apply", "--3way", tmpFile])
+				await localGit.raw(["apply", "--3way", tmpFile]);
 			} catch {
 				// --3way failed, try without it
-				await localGit.raw(["apply", tmpFile])
+				await localGit.raw(["apply", tmpFile]);
 			}
 		} finally {
-			await fs.unlink(tmpFile).catch(() => {})
+			await fs.unlink(tmpFile).catch(() => {});
 		}
 
 		// Get list of files that changed
-		const status = await localGit.status()
-		const filesApplied = [...status.modified, ...status.created, ...status.not_added]
+		const status = await localGit.status();
+		const filesApplied = [
+			...status.modified,
+			...status.created,
+			...status.not_added,
+		];
 
-		return { success: true, filesApplied }
+		return { success: true, filesApplied };
 	} catch (err) {
-		await import("node:fs/promises").then((f) => f.unlink(tmpFile)).catch(() => {})
+		await import("node:fs/promises")
+			.then((f) => f.unlink(tmpFile))
+			.catch(() => {});
 		return {
 			success: false,
 			filesApplied: [],
 			error: err instanceof Error ? err.message : "Failed to apply diff",
-		}
+		};
 	}
 }
 
@@ -424,47 +465,51 @@ export async function applyChangesToLocal(
 	worktreeDir: string,
 	localDir: string,
 ): Promise<{ success: boolean; filesApplied: string[]; error?: string }> {
-	const worktreeGit = getGit(worktreeDir)
+	const worktreeGit = getGit(worktreeDir);
 	try {
 		// Generate a diff of all uncommitted changes in the worktree
 		// First, add everything to get a complete picture
-		await worktreeGit.add("-A")
-		const diff = await worktreeGit.diff(["--cached"])
+		await worktreeGit.add("-A");
+		const diff = await worktreeGit.diff(["--cached"]);
 
 		if (!diff.trim()) {
-			return { success: true, filesApplied: [], error: "No changes to apply" }
+			return { success: true, filesApplied: [], error: "No changes to apply" };
 		}
 
 		// Write diff to a temp file, then apply it to the local directory
-		const os = await import("node:os")
-		const fs = await import("node:fs/promises")
-		const tmpFile = path.join(os.tmpdir(), `palot-patch-${Date.now()}.patch`)
-		await fs.writeFile(tmpFile, diff)
+		const os = await import("node:os");
+		const fs = await import("node:fs/promises");
+		const tmpFile = path.join(os.tmpdir(), `palot-patch-${Date.now()}.patch`);
+		await fs.writeFile(tmpFile, diff);
 
-		const localGit = getGit(localDir)
+		const localGit = getGit(localDir);
 		try {
 			try {
-				await localGit.raw(["apply", "--3way", tmpFile])
+				await localGit.raw(["apply", "--3way", tmpFile]);
 			} catch {
 				// --3way failed, try without it
-				await localGit.raw(["apply", tmpFile])
+				await localGit.raw(["apply", tmpFile]);
 			}
 		} finally {
-			await fs.unlink(tmpFile).catch(() => {})
+			await fs.unlink(tmpFile).catch(() => {});
 		}
 
 		// Get list of files that changed
-		const status = await localGit.status()
-		const filesApplied = [...status.modified, ...status.created, ...status.not_added]
+		const status = await localGit.status();
+		const filesApplied = [
+			...status.modified,
+			...status.created,
+			...status.not_added,
+		];
 
 		// Reset the worktree staging (we added everything just for the diff)
-		await worktreeGit.reset(["HEAD"])
+		await worktreeGit.reset(["HEAD"]);
 
-		return { success: true, filesApplied }
+		return { success: true, filesApplied };
 	} catch (err) {
 		// Reset staging on failure too
 		try {
-			await worktreeGit.reset(["HEAD"])
+			await worktreeGit.reset(["HEAD"]);
 		} catch {
 			// Best effort
 		}
@@ -472,7 +517,7 @@ export async function applyChangesToLocal(
 			success: false,
 			filesApplied: [],
 			error: err instanceof Error ? err.message : "Failed to apply changes",
-		}
+		};
 	}
 }
 
@@ -480,13 +525,16 @@ export async function applyChangesToLocal(
  * Gets the remote URL for a repository (defaults to "origin").
  * Returns null if no remote is configured.
  */
-export async function getRemoteUrl(directory: string, remote = "origin"): Promise<string | null> {
-	const git = getGit(directory)
+export async function getRemoteUrl(
+	directory: string,
+	remote = "origin",
+): Promise<string | null> {
+	const git = getGit(directory);
 	try {
-		const url = await git.raw(["remote", "get-url", remote])
-		return url.trim() || null
+		const url = await git.raw(["remote", "get-url", remote]);
+		return url.trim() || null;
 	} catch {
-		return null
+		return null;
 	}
 }
 
@@ -499,11 +547,11 @@ export async function getRemoteUrl(directory: string, remote = "origin"): Promis
  * Works from subdirectories and existing worktrees.
  */
 export async function getGitRoot(directory: string): Promise<string | null> {
-	const git = getGit(directory)
+	const git = getGit(directory);
 	try {
-		const root = await git.raw(["rev-parse", "--show-toplevel"])
-		return root.trim()
+		const root = await git.raw(["rev-parse", "--show-toplevel"]);
+		return root.trim();
 	} catch {
-		return null
+		return null;
 	}
 }

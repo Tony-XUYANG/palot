@@ -1,19 +1,28 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { createOpencodeClient } from "@opencode-ai/sdk/v2/client"
-import { createLogger } from "../lib/logger"
-import type { Event, OpenCodeProject, QuestionAnswer, Session, SessionStatus } from "../lib/types"
+import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { createLogger } from "../lib/logger";
+import type {
+	Event,
+	OpenCodeProject,
+	QuestionAnswer,
+	Session,
+	SessionStatus,
+} from "../lib/types";
 
-export type { OpencodeClient }
+export type { OpencodeClient };
 
 /**
  * Callable fetch signature. We avoid `typeof fetch` because Node 24 adds
  * static properties (e.g. `preconnect`) that wrapper functions don't carry.
  */
-type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+type FetchFn = (
+	input: RequestInfo | URL,
+	init?: RequestInit,
+) => Promise<Response>;
 
-const log = createLogger("opencode")
+const log = createLogger("opencode");
 
-const isElectron = typeof window !== "undefined" && "palot" in window
+const isElectron = typeof window !== "undefined" && "palot" in window;
 
 /**
  * Determines if a fetch error is a transient network error worth retrying.
@@ -21,9 +30,13 @@ const isElectron = typeof window !== "undefined" && "palot" in window
  * ERR_CONNECTION_RESET, and generic "Failed to fetch" / "Load failed".
  */
 function isTransientNetworkError(err: unknown): boolean {
-	if (!(err instanceof TypeError)) return false
-	const msg = err.message.toLowerCase()
-	return msg.includes("failed to fetch") || msg.includes("load failed") || msg.includes("network")
+	if (!(err instanceof TypeError)) return false;
+	const msg = err.message.toLowerCase();
+	return (
+		msg.includes("failed to fetch") ||
+		msg.includes("load failed") ||
+		msg.includes("network")
+	);
 }
 
 /**
@@ -37,31 +50,38 @@ function isTransientNetworkError(err: unknown): boolean {
  * Only retries on TypeError (network-level failures). HTTP error responses
  * (4xx, 5xx) are NOT retried — they indicate server-side issues.
  */
-function createRetryFetch(baseFetch: FetchFn = fetch, maxRetries = 2, baseDelayMs = 150): FetchFn {
-	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		let lastError: unknown
+function createRetryFetch(
+	baseFetch: FetchFn = fetch,
+	maxRetries = 2,
+	baseDelayMs = 150,
+): FetchFn {
+	return async (
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> => {
+		let lastError: unknown;
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				return await baseFetch(input, init)
+				return await baseFetch(input, init);
 			} catch (err) {
-				lastError = err
+				lastError = err;
 				if (attempt < maxRetries && isTransientNetworkError(err)) {
-					const delay = baseDelayMs * 2 ** attempt
+					const delay = baseDelayMs * 2 ** attempt;
 					log.warn("Transient network error, retrying", {
 						attempt: attempt + 1,
 						maxRetries,
 						delay,
 						error: String(err),
 						url: input instanceof Request ? input.url : String(input),
-					})
-					await new Promise((resolve) => setTimeout(resolve, delay))
-					continue
+					});
+					await new Promise((resolve) => setTimeout(resolve, delay));
+					continue;
 				}
-				throw err
+				throw err;
 			}
 		}
-		throw lastError
-	}
+		throw lastError;
+	};
 }
 
 // ============================================================
@@ -76,8 +96,9 @@ function createRetryFetch(baseFetch: FetchFn = fetch, maxRetries = 2, baseDelayM
  */
 function isSseRequest(request: Request): boolean {
 	return (
-		request.headers.get("accept") === "text/event-stream" || request.url.includes("/global/event")
-	)
+		request.headers.get("accept") === "text/event-stream" ||
+		request.url.includes("/global/event")
+	);
 }
 
 /**
@@ -95,67 +116,70 @@ function isSseRequest(request: Request): boolean {
  * SSE) to support HTTP Basic Auth for remote OpenCode servers.
  */
 function createIpcFetch(authHeader?: string): FetchFn {
-	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+	return async (
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> => {
 		// Normalize input to a Request object (the SDK always passes a Request,
 		// but handle URL/string too for robustness)
-		const request = input instanceof Request ? input : new Request(input, init)
+		const request = input instanceof Request ? input : new Request(input, init);
 
 		// SSE streams must stay in the renderer — they need a streaming body
 		if (isSseRequest(request)) {
 			// Inject auth header into SSE requests if needed
 			if (authHeader) {
-				const headers = new Headers(request.headers)
-				headers.set("Authorization", authHeader)
-				return fetch(new Request(request, { headers }))
+				const headers = new Headers(request.headers);
+				headers.set("Authorization", authHeader);
+				return fetch(new Request(request, { headers }));
 			}
-			return fetch(request)
+			return fetch(request);
 		}
 
 		// Serialize the Request into a plain object for IPC transport
-		const headers: Record<string, string> = {}
+		const headers: Record<string, string> = {};
 		request.headers.forEach((value, key) => {
-			headers[key] = value
-		})
+			headers[key] = value;
+		});
 
 		// Inject auth header for remote servers
 		if (authHeader) {
-			headers.Authorization = authHeader
+			headers.Authorization = authHeader;
 		}
 
-		const body = request.body ? await request.text() : null
+		const body = request.body ? await request.text() : null;
 
 		const serialized = {
 			url: request.url,
 			method: request.method,
 			headers,
 			body,
-		}
+		};
 
-		log.info("IPC fetch →", { method: request.method, url: request.url })
-		const start = performance.now()
+		log.info("IPC fetch →", { method: request.method, url: request.url });
+		const start = performance.now();
 		// Send through IPC → main process → net.fetch() → back
-		const result = await window.palot.fetch(serialized)
-		const durationMs = Math.round(performance.now() - start)
+		const result = await window.palot.fetch(serialized);
+		const durationMs = Math.round(performance.now() - start);
 		log.info("IPC fetch ←", {
 			method: request.method,
 			url: request.url,
 			status: result.status,
 			durationMs,
-		})
+		});
 
 		// HTTP spec: 101, 204, 205, 304 are "null body statuses" and the
 		// Response constructor throws if you pass a non-null body with them.
 		// The main process may serialize an empty string for these, so we
 		// must explicitly pass null.
-		const isNullBodyStatus = [101, 204, 205, 304].includes(result.status)
+		const isNullBodyStatus = [101, 204, 205, 304].includes(result.status);
 
 		// Reconstruct a Response object from the serialized result
 		return new Response(isNullBodyStatus ? null : result.body, {
 			status: result.status,
 			statusText: result.statusText,
 			headers: result.headers,
-		})
-	}
+		});
+	};
 }
 
 // ============================================================
@@ -165,8 +189,11 @@ function createIpcFetch(authHeader?: string): FetchFn {
 /**
  * Build an HTTP Basic Auth header value from username and password.
  */
-export function buildBasicAuthHeader(username: string, password: string): string {
-	return `Basic ${btoa(`${username}:${password}`)}`
+export function buildBasicAuthHeader(
+	username: string,
+	password: string,
+): string {
+	return `Basic ${btoa(`${username}:${password}`)}`;
 }
 
 // ============================================================
@@ -175,9 +202,9 @@ export function buildBasicAuthHeader(username: string, password: string): string
 
 export interface ConnectOptions {
 	/** Project directory for scoped requests. */
-	directory?: string
+	directory?: string;
 	/** Pre-built Authorization header value (e.g. "Basic dXNlcjpwYXNz"). */
-	authHeader?: string
+	authHeader?: string;
 }
 
 /**
@@ -194,13 +221,18 @@ export interface ConnectOptions {
  * via IPC to bypass Chromium's 6-connections-per-origin HTTP/1.1 limit.
  * SSE requests (for the event stream) still use the browser's native fetch.
  */
-export function connectToServer(url: string, options?: ConnectOptions): OpencodeClient {
-	const { directory, authHeader } = options ?? {}
+export function connectToServer(
+	url: string,
+	options?: ConnectOptions,
+): OpencodeClient {
+	const { directory, authHeader } = options ?? {};
 
 	// In Electron: use IPC-based fetch (with retry wrapper on top) for API calls,
 	// falling back to browser fetch only for SSE streams.
 	// In browser: use regular fetch with retry wrapper (no IPC available).
-	const baseFetch = isElectron ? createIpcFetch(authHeader) : createBrowserFetch(authHeader)
+	const baseFetch = isElectron
+		? createIpcFetch(authHeader)
+		: createBrowserFetch(authHeader);
 
 	return createOpencodeClient({
 		baseUrl: url,
@@ -208,7 +240,7 @@ export function connectToServer(url: string, options?: ConnectOptions): Opencode
 		// Wrap with retry logic to handle transient Chromium network errors
 		// (e.g. ERR_ALPN_NEGOTIATION_FAILED on localhost connections)
 		fetch: createRetryFetch(baseFetch) as typeof fetch,
-	})
+	});
 }
 
 /**
@@ -216,21 +248,26 @@ export function connectToServer(url: string, options?: ConnectOptions): Opencode
  * Used in non-Electron (browser dev) mode.
  */
 function createBrowserFetch(authHeader?: string): FetchFn {
-	if (!authHeader) return fetch
-	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		const request = input instanceof Request ? input : new Request(input, init)
-		const headers = new Headers(request.headers)
-		headers.set("Authorization", authHeader)
-		return fetch(new Request(request, { headers }))
-	}
+	if (!authHeader) return fetch;
+	return async (
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> => {
+		const request = input instanceof Request ? input : new Request(input, init);
+		const headers = new Headers(request.headers);
+		headers.set("Authorization", authHeader);
+		return fetch(new Request(request, { headers }));
+	};
 }
 
 /**
  * Fetch all projects known to the server.
  */
-export async function listProjects(client: OpencodeClient): Promise<OpenCodeProject[]> {
-	const result = await client.project.list()
-	return (result.data as OpenCodeProject[]) ?? []
+export async function listProjects(
+	client: OpencodeClient,
+): Promise<OpenCodeProject[]> {
+	const result = await client.project.list();
+	return (result.data as OpenCodeProject[]) ?? [];
 }
 
 /**
@@ -248,12 +285,12 @@ export async function listSessions(
 		limit: options?.limit,
 		roots: options?.roots,
 		search: options?.search,
-	}
-	log.info("Listing sessions", params)
-	const result = await client.session.list(params)
-	const sessions = (result.data as Session[]) ?? []
-	log.info("Listed sessions", { count: sessions.length, ...params })
-	return sessions
+	};
+	log.info("Listing sessions", params);
+	const result = await client.session.list(params);
+	const sessions = (result.data as Session[]) ?? [];
+	log.info("Listed sessions", { count: sessions.length, ...params });
+	return sessions;
 }
 
 /**
@@ -262,16 +299,19 @@ export async function listSessions(
 export async function getSessionStatuses(
 	client: OpencodeClient,
 ): Promise<Record<string, SessionStatus>> {
-	const result = await client.session.status()
-	return (result.data as Record<string, SessionStatus>) ?? {}
+	const result = await client.session.status();
+	return (result.data as Record<string, SessionStatus>) ?? {};
 }
 
 /**
  * Create a new session (= new agent).
  */
-export async function createSession(client: OpencodeClient, title?: string): Promise<Session> {
-	const result = await client.session.create({ title })
-	return result.data as Session
+export async function createSession(
+	client: OpencodeClient,
+	title?: string,
+): Promise<Session> {
+	const result = await client.session.create({ title });
+	return result.data as Session;
 }
 
 /**
@@ -282,10 +322,10 @@ export async function sendPrompt(
 	sessionId: string,
 	text: string,
 	options?: {
-		providerID?: string
-		modelID?: string
-		agent?: string
-		variant?: string
+		providerID?: string;
+		modelID?: string;
+		agent?: string;
+		variant?: string;
 	},
 ): Promise<void> {
 	await client.session.promptAsync({
@@ -297,14 +337,17 @@ export async function sendPrompt(
 				: undefined,
 		agent: options?.agent,
 		variant: options?.variant,
-	})
+	});
 }
 
 /**
  * Abort a running session.
  */
-export async function abortSession(client: OpencodeClient, sessionId: string): Promise<void> {
-	await client.session.abort({ sessionID: sessionId })
+export async function abortSession(
+	client: OpencodeClient,
+	sessionId: string,
+): Promise<void> {
+	await client.session.abort({ sessionID: sessionId });
 }
 
 /**
@@ -315,35 +358,44 @@ export async function renameSession(
 	sessionId: string,
 	title: string,
 ): Promise<void> {
-	await client.session.update({ sessionID: sessionId, title })
+	await client.session.update({ sessionID: sessionId, title });
 }
 
 /**
  * Delete a session.
  */
-export async function deleteSession(client: OpencodeClient, sessionId: string): Promise<void> {
-	await client.session.delete({ sessionID: sessionId })
+export async function deleteSession(
+	client: OpencodeClient,
+	sessionId: string,
+): Promise<void> {
+	await client.session.delete({ sessionID: sessionId });
 }
 
 /**
  * Fetch a single session by ID.
  * Returns null if the session is not found or the request fails.
  */
-export async function getSession(client: OpencodeClient, sessionId: string): Promise<Session | null> {
+export async function getSession(
+	client: OpencodeClient,
+	sessionId: string,
+): Promise<Session | null> {
 	try {
-		const result = await client.session.get({ sessionID: sessionId })
-		return (result.data as Session) ?? null
+		const result = await client.session.get({ sessionID: sessionId });
+		return (result.data as Session) ?? null;
 	} catch {
-		return null
+		return null;
 	}
 }
 
 /**
  * Get file diffs for a session.
  */
-export async function getSessionDiff(client: OpencodeClient, sessionId: string) {
-	const result = await client.session.diff({ sessionID: sessionId })
-	return result.data ?? []
+export async function getSessionDiff(
+	client: OpencodeClient,
+	sessionId: string,
+) {
+	const result = await client.session.diff({ sessionID: sessionId });
+	return result.data ?? [];
 }
 
 /**
@@ -359,7 +411,7 @@ export async function respondToPermission(
 		sessionID: sessionId,
 		permissionID: permissionId,
 		response,
-	})
+	});
 }
 
 /**
@@ -370,14 +422,17 @@ export async function replyToQuestion(
 	requestId: string,
 	answers: QuestionAnswer[],
 ): Promise<void> {
-	await client.question.reply({ requestID: requestId, answers })
+	await client.question.reply({ requestID: requestId, answers });
 }
 
 /**
  * Reject a question request from the AI assistant.
  */
-export async function rejectQuestion(client: OpencodeClient, requestId: string): Promise<void> {
-	await client.question.reject({ requestID: requestId })
+export async function rejectQuestion(
+	client: OpencodeClient,
+	requestId: string,
+): Promise<void> {
+	await client.question.reject({ requestID: requestId });
 }
 
 /**
@@ -387,7 +442,7 @@ export async function rejectQuestion(client: OpencodeClient, requestId: string):
  * automatic query invalidation in the UI.
  */
 export async function disposeInstance(client: OpencodeClient): Promise<void> {
-	await client.instance.dispose()
+	await client.instance.dispose();
 }
 
 /**
@@ -396,8 +451,10 @@ export async function disposeInstance(client: OpencodeClient): Promise<void> {
  * files, agents, skills, commands, etc. from disk. The resulting
  * `global.disposed` SSE event triggers automatic query invalidation in the UI.
  */
-export async function disposeAllInstances(client: OpencodeClient): Promise<void> {
-	await client.global.dispose()
+export async function disposeAllInstances(
+	client: OpencodeClient,
+): Promise<void> {
+	await client.global.dispose();
 }
 
 /**
@@ -405,8 +462,8 @@ export async function disposeAllInstances(client: OpencodeClient): Promise<void>
  * Wraps each Event with the directory it belongs to.
  */
 export interface GlobalEvent {
-	directory: string
-	payload: Event
+	directory: string;
+	payload: Event;
 }
 
 /**
@@ -418,8 +475,8 @@ export interface GlobalEvent {
 export async function subscribeToGlobalEvents(
 	client: OpencodeClient,
 ): Promise<AsyncIterable<GlobalEvent>> {
-	const result = await client.global.event()
-	return result.stream as AsyncIterable<GlobalEvent>
+	const result = await client.global.event();
+	return result.stream as AsyncIterable<GlobalEvent>;
 }
 
 /**
@@ -434,19 +491,22 @@ export async function revertSession(
 	const result = await client.session.revert({
 		sessionID: sessionId,
 		messageID: messageId,
-	})
-	return result.data as Session
+	});
+	return result.data as Session;
 }
 
 /**
  * Unrevert a session (redo).
  * Restores previously reverted messages and filesystem state.
  */
-export async function unrevertSession(client: OpencodeClient, sessionId: string): Promise<Session> {
+export async function unrevertSession(
+	client: OpencodeClient,
+	sessionId: string,
+): Promise<Session> {
 	const result = await client.session.unrevert({
 		sessionID: sessionId,
-	})
-	return result.data as Session
+	});
+	return result.data as Session;
 }
 
 /**
@@ -463,7 +523,7 @@ export async function executeCommand(
 		sessionID: sessionId,
 		command,
 		arguments: args,
-	})
+	});
 }
 
 /**
@@ -472,17 +532,20 @@ export async function executeCommand(
 export async function listCommands(
 	client: OpencodeClient,
 ): Promise<Array<{ name: string; description?: string }>> {
-	const result = await client.command.list()
-	return (result.data ?? []) as Array<{ name: string; description?: string }>
+	const result = await client.command.list();
+	return (result.data ?? []) as Array<{ name: string; description?: string }>;
 }
 
 /**
  * Search for files in the project.
  * Returns file paths as strings (from the OpenCode /find/file endpoint).
  */
-export async function findFiles(client: OpencodeClient, query: string): Promise<string[]> {
-	const result = await client.find.files({ query })
-	return (result.data ?? []) as string[]
+export async function findFiles(
+	client: OpencodeClient,
+	query: string,
+): Promise<string[]> {
+	const result = await client.find.files({ query });
+	return (result.data ?? []) as string[];
 }
 
 /**
@@ -498,23 +561,29 @@ export async function forkSession(
 	const result = await client.session.fork({
 		sessionID: sessionId,
 		messageID: messageId,
-	})
-	return result.data as Session
+	});
+	return result.data as Session;
 }
 
 /**
  * Summarize/compact a session conversation.
  */
-export async function summarizeSession(client: OpencodeClient, sessionId: string): Promise<void> {
-	await client.session.summarize({ sessionID: sessionId })
+export async function summarizeSession(
+	client: OpencodeClient,
+	sessionId: string,
+): Promise<void> {
+	await client.session.summarize({ sessionID: sessionId });
 }
 
 /**
  * Get messages for a session (for initial load of activity feed).
  */
-export async function getSessionMessages(client: OpencodeClient, sessionId: string) {
+export async function getSessionMessages(
+	client: OpencodeClient,
+	sessionId: string,
+) {
 	const result = await client.session.messages({
 		sessionID: sessionId,
-	})
-	return result.data ?? []
+	});
+	return result.data ?? [];
 }

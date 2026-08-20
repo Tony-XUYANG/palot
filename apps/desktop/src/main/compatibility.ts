@@ -6,13 +6,13 @@
  * decide whether to pass, warn, or block.
  */
 
-import { execFile } from "node:child_process"
-import { app } from "electron"
-import { coerce, satisfies, valid } from "semver"
-import { createLogger } from "./logger"
-import { resolveOpenCodeRuntime, type RuntimeSource } from "./runtime-resolver"
+import { execFile } from "node:child_process";
+import { app } from "electron";
+import { coerce, satisfies, valid } from "semver";
+import { createLogger } from "./logger";
+import { type RuntimeSource, resolveOpenCodeRuntime } from "./runtime-resolver";
 
-const log = createLogger("compatibility")
+const log = createLogger("compatibility");
 
 // ============================================================
 // Compatibility ranges (standard semver range syntax)
@@ -25,21 +25,21 @@ export const OPENCODE_COMPAT = {
 	tested: "~1.18.0",
 	/** Known-broken versions. These are hard-blocked with a specific message. */
 	blocked: [] as string[],
-}
+};
 
 // ============================================================
 // Types
 // ============================================================
 
 export interface OpenCodeCheckResult {
-	installed: boolean
-	version: string | null
-	path: string | null
-	source: "bundled" | "user" | "path" | null
-	repairRequired: boolean
-	compatible: boolean
-	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown"
-	message: string | null
+	installed: boolean;
+	version: string | null;
+	path: string | null;
+	source: "bundled" | "user" | "path" | null;
+	repairRequired: boolean;
+	compatible: boolean;
+	compatibility: "ok" | "too-old" | "too-new" | "blocked" | "unknown";
+	message: string | null;
 }
 
 // ============================================================
@@ -51,38 +51,46 @@ function execAsync(cmd: string, args: string[]): Promise<string | null> {
 	return new Promise((resolve) => {
 		execFile(cmd, args, { env: process.env, timeout: 5000 }, (err, stdout) => {
 			if (err) {
-				resolve(null)
-				return
+				resolve(null);
+				return;
 			}
-			resolve(stdout.trim())
-		})
-	})
+			resolve(stdout.trim());
+		});
+	});
 }
 
 function toCheckSource(source: RuntimeSource): "bundled" | "user" | "path" {
-	return source === "bundled" || source === "path" ? source : "user"
+	return source === "bundled" || source === "path" ? source : "user";
 }
 
 /** Try to find the opencode binary and get its version. */
 async function detectOpenCode(): Promise<{
-	version: string | null
-	path: string | null
-	source: "bundled" | "user" | "path" | null
+	version: string | null;
+	path: string | null;
+	source: "bundled" | "user" | "path" | null;
 }> {
 	const runtime = resolveOpenCodeRuntime({
 		isPackaged: app.isPackaged,
 		resourcesPath: process.resourcesPath,
-	})
-	if (!runtime) return { version: null, path: null, source: null }
+	});
+	if (!runtime) return { version: null, path: null, source: null };
 
-	const versionOutput = await execAsync(runtime.path, ["--version"])
+	const versionOutput = await execAsync(runtime.path, ["--version"]);
 	if (versionOutput) {
-		const match = versionOutput.match(/v?(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)/)
-		const version = match ? match[1] : versionOutput.trim()
-		return { version, path: runtime.path, source: toCheckSource(runtime.source) }
+		const match = versionOutput.match(/v?(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)/);
+		const version = match ? match[1] : versionOutput.trim();
+		return {
+			version,
+			path: runtime.path,
+			source: toCheckSource(runtime.source),
+		};
 	}
 
-	return { version: null, path: runtime.path, source: toCheckSource(runtime.source) }
+	return {
+		version: null,
+		path: runtime.path,
+		source: toCheckSource(runtime.source),
+	};
 }
 
 // ============================================================
@@ -94,13 +102,14 @@ async function detectOpenCode(): Promise<{
  * Runs the binary to get its version, then compares against the compatibility range.
  */
 export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
-	log.info("Checking OpenCode installation...")
+	log.info("Checking OpenCode installation...");
 
-	const { version, path: binaryPath, source } = await detectOpenCode()
+	const { version, path: binaryPath, source } = await detectOpenCode();
 
 	if (!version) {
-		log.warn("OpenCode CLI not found")
-		const repairRequired = app.isPackaged && process.platform === "win32" && process.arch === "x64"
+		log.warn("OpenCode CLI not found");
+		const repairRequired =
+			app.isPackaged && process.platform === "win32" && process.arch === "x64";
 		return {
 			installed: false,
 			version: null,
@@ -109,21 +118,20 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			repairRequired,
 			compatible: false,
 			compatibility: "unknown",
-			message:
-				repairRequired
-					? "The included OpenCode runtime is missing or cannot run. Reinstall Palot to repair the installation."
-					: "OpenCode CLI not found. Install it from https://opencode.ai",
-		}
+			message: repairRequired
+				? "The included OpenCode runtime is missing or cannot run. Reinstall Palot to repair the installation."
+				: "OpenCode CLI not found. Install it from https://opencode.ai",
+		};
 	}
 
-	log.info("OpenCode found", { version, path: binaryPath })
+	log.info("OpenCode found", { version, path: binaryPath });
 
 	// Coerce loose version strings (e.g. "1.3" -> "1.3.0") into valid semver.
 	// Non-semver versions (e.g. "local", "dev", "unknown") are assumed compatible --
 	// these are typically local/dev builds where the user knows what they're doing.
-	const parsed = valid(version) ?? coerce(version)?.version ?? null
+	const parsed = valid(version) ?? coerce(version)?.version ?? null;
 	if (!parsed) {
-		log.info("Non-semver version detected, assuming compatible", { version })
+		log.info("Non-semver version detected, assuming compatible", { version });
 		return {
 			installed: true,
 			version,
@@ -133,7 +141,7 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			compatible: true,
 			compatibility: "ok",
 			message: null,
-		}
+		};
 	}
 
 	// Check blocked versions
@@ -148,7 +156,7 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 				compatible: false,
 				compatibility: "blocked",
 				message: `OpenCode ${version} has known issues with this version of Palot. Please update.`,
-			}
+			};
 		}
 	}
 
@@ -163,7 +171,7 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			compatible: false,
 			compatibility: "too-old",
 			message: `OpenCode ${version} is too old. Palot requires ${OPENCODE_COMPAT.supported}.`,
-		}
+		};
 	}
 
 	// Check tested range -- supported but newer than what we've tested against
@@ -177,7 +185,7 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 			compatible: true,
 			compatibility: "too-new",
 			message: `OpenCode ${version} is newer than tested. Palot is tested with ${OPENCODE_COMPAT.tested}. Some features may not work as expected.`,
-		}
+		};
 	}
 
 	// Within the tested range -- fully compatible
@@ -190,5 +198,5 @@ export async function checkOpenCode(): Promise<OpenCodeCheckResult> {
 		compatible: true,
 		compatibility: "ok",
 		message: null,
-	}
+	};
 }
