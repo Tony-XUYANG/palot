@@ -1,5 +1,11 @@
 # @palot/desktop
 
+## 0.12.0-beta.6
+
+### Minor Changes
+
+- [#18](https://github.com/Tony-XUYANG/palot/pull/18) [`3a7fd6d`](https://github.com/Tony-XUYANG/palot/commit/3a7fd6da6755a4b39ffbbda8e27c01c2aac7631f) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Add a Windows China update mirror with automatic GitHub fallback, visible update-source status, and explicit domestic-network guidance for domestic models and optional Codex access.
+
 ## 0.12.0-beta.5
 
 ### Patch Changes
