@@ -249,3 +249,31 @@ completed successfully across Windows x64, macOS arm64/x64, and Linux x64.
 
 The next required evidence is a signed, timestamped public `beta.4 -> rc.1` (or newer signed
 baseline) pass. No RC or stable version may be promoted to Latest until that check succeeds.
+
+## 10. Public `v0.12.0-beta.5` Release
+
+The [public prerelease](https://github.com/Tony-XUYANG/palot/releases/tag/v0.12.0-beta.5) was built
+from the `main` merge commit `07dd2b5` after [PR #16](https://github.com/Tony-XUYANG/palot/pull/16)
+passed Lint, type checking, build, release gates, Changeset validation, and CodeQL. The
+[release workflow](https://github.com/Tony-XUYANG/palot/actions/runs/32345379364) completed
+successfully across Windows x64, macOS arm64/x64, and Linux x64.
+
+- Windows installer: `Palot-0.12.0-beta.5-win-x64.exe`, 250,831,351 bytes, SHA-256
+  `d0e47cb043c9269fe0b787b04b350d1de68928a8569c3a8a07604d3821ca153b`.
+- The Windows release job passed runtime preparation, update-manifest integrity, the unsigned Beta
+  policy, the `v0.11.0` upgrade test, empty-PATH bundled runtime checks, launch, uninstall data
+  preservation, and the unpacked-package sensitive-information scan.
+- A local Windows 11 Pro x64 VM independently passed with the non-administrator Chinese user,
+  an installation path containing spaces, no system Git/OpenCode/Docker, all four bundled runtimes,
+  and preserved user data after uninstall.
+- A fresh Windows 10 Enterprise Sandbox independently passed the same installer, runtime, launch,
+  upgrade, uninstall, and data-preservation checks.
+- The public automatic-update job installed the published `beta.5` release through the real GitHub
+  update channel from the pinned public `beta.3` baseline and preserved user data.
+- The release adds complete Simplified Chinese localization and promotes verified Alibaba Model
+  Studio and Tencent Token Plan integrations. It remains intentionally unsigned and is therefore a
+  prerelease rather than a stable release.
+
+The next hard gate is a trusted, timestamped Windows signature followed by a signed public
+`beta.5 -> rc.1` (or newer signed baseline) automatic-update pass. No RC or stable release may be
+promoted to Latest until that gate succeeds.
