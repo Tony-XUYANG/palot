@@ -19,6 +19,8 @@
 			"scripts/run-electron-updater-driver.test.cjs",
 			"scripts/scan-windows-package.cjs",
 			"scripts/scan-windows-package.test.cjs",
+			"scripts/upload-alibaba-oss-release.cjs",
+			"scripts/upload-alibaba-oss-release.test.cjs",
 			"*.json",
 			"**/package.json",
 			"**/tsconfig.json",

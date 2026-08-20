@@ -147,16 +147,16 @@ export const enUSResources = {
 		providers: {
 			title: "Choose a model provider",
 			description:
-				"Palot prioritizes providers that are practical to use in China while keeping Codex and global providers available.",
+				"Palot prioritizes domestic providers that work directly on mainland China networks while keeping Codex and global providers available.",
 			china: "China",
 			codex: "Codex",
 			global: "Global",
 			chinaDescription:
-				"Recommended for users in China. DeepSeek and GLM are verified for the first Windows release; other domestic providers remain compatible.",
+				"Domestic providers use their official APIs and work directly on mainland China networks. DeepSeek and GLM are verified; other domestic providers remain compatible.",
 			codexDescription:
-				"Optional OpenAI access through ChatGPT OAuth or an official API key. Account, billing, and network requirements still apply.",
+				"Optional OpenAI access through ChatGPT OAuth or an official API key. OpenAI account, billing, region, and network requirements apply. Palot does not provide proxies or third-party relays.",
 			globalDescription:
-				"Advanced compatibility for global providers. Availability depends on each provider's supported regions, account, and network.",
+				"Advanced compatibility for global providers. Availability depends on each provider's supported regions, account, billing, and network. Palot does not provide proxies or third-party relays.",
 			waitingServer: "Waiting for OpenCode server...",
 			connectingServer:
 				"Palot is connecting to the OpenCode background process. This should only take a moment.",
@@ -385,6 +385,10 @@ export const enUSResources = {
 			versionAvailable: "Version {{version}} available",
 			updateReady: "Update downloaded, restart to apply",
 			updateFailed: "Update check failed",
+			updateSource: "Source: {{source}}",
+			sourceChina: "China mirror",
+			sourceGithub: "GitHub",
+			sourceGithubFallback: "GitHub fallback",
 			checkUpdates: "Check for updates",
 			download: "Download",
 			downloading: "Downloading...",
@@ -420,16 +424,16 @@ export const enUSResources = {
 			connected: "Connected",
 			recommendedChina: "Recommended in China",
 			recommendedChinaDescription:
-				"DeepSeek and GLM passed Palot's real code-edit and automated-test acceptance. Bring your own provider key.",
+				"Domestic providers use official APIs that work directly on mainland China networks. DeepSeek and GLM passed Palot's real code-edit and automated-test acceptance. Bring your own provider key.",
 			moreChina: "More providers in China",
 			moreChinaDescription:
 				"Additional providers remain compatible but do not block the first Windows release.",
 			codexTitle: "OpenAI Codex (Optional)",
 			codexDescription:
-				"Uses official ChatGPT OAuth or an OpenAI API key. Account, billing, region, and network requirements still apply.",
+				"Uses official ChatGPT OAuth or an OpenAI API key. OpenAI account, billing, region, and network requirements apply. Palot does not provide proxies or third-party relays.",
 			globalTitle: "Global providers (Advanced)",
 			globalDescription:
-				"Compatibility access for global providers. Availability depends on each provider's account and network requirements.",
+				"Compatibility access for global providers. Availability depends on each provider's account, billing, region, and network requirements. Palot does not provide proxies or third-party relays.",
 			browseAll: "Browse all {{count}} providers",
 			verified: "Verified",
 			free: "Free",
@@ -1052,11 +1056,11 @@ export const enUSResources = {
 		percentComplete: "{{percent}}% complete",
 		startingDownload: "Starting download...",
 		downloadedRestart: "{{version}} downloaded. Restart to apply.",
-		downloadGithubDescription:
-			"{{version}} is available. Download from GitHub to update.",
+		downloadPageDescription:
+			"{{version}} is available. Open the download page to update.",
 		updateWord: "Update",
 		restartNow: "Restart now",
-		downloadGithub: "Download from GitHub",
+		openDownloadPage: "Open download page",
 		dismiss: "Dismiss update notification",
 	},
 	native: {
@@ -1247,16 +1251,16 @@ export const zhCNResources = {
 		providers: {
 			title: "选择模型服务商",
 			description:
-				"Palot 优先推荐适合中国用户的模型，同时保留 Codex 和海外模型入口。",
+				"Palot 优先推荐可在中国大陆网络直接使用的国产模型，同时保留 Codex 和海外模型入口。",
 			china: "国产模型",
 			codex: "Codex",
 			global: "海外模型",
 			chinaDescription:
-				"推荐中国用户使用。DeepSeek 和 GLM 已通过首个 Windows 版本验收，其他国产模型保持兼容。",
+				"国产模型通过各厂商官方接口，可在中国大陆网络环境直接使用。DeepSeek 和 GLM 已通过验收，其他国产模型保持兼容。",
 			codexDescription:
-				"可选的 OpenAI 入口，支持 ChatGPT OAuth 或官方 API Key，仍需满足账号、计费和网络条件。",
+				"可选的 OpenAI 入口，支持 ChatGPT OAuth 或官方 API Key。用户需自行满足 OpenAI 的账号、计费、地区和网络条件；Palot 不提供代理或第三方中转。",
 			globalDescription:
-				"海外模型兼容入口，实际可用性取决于服务商支持的地区、账号和网络。",
+				"海外模型兼容入口，实际可用性取决于服务商支持的地区、账号、计费和网络条件；Palot 不提供代理或第三方中转。",
 			waitingServer: "正在等待 OpenCode 服务器...",
 			connectingServer: "Palot 正在连接 OpenCode 后台进程，请稍候。",
 			skipForNow: "暂时跳过",
@@ -1475,6 +1479,10 @@ export const zhCNResources = {
 			versionAvailable: "发现新版本 {{version}}",
 			updateReady: "更新已下载，重启后安装",
 			updateFailed: "检查更新失败",
+			updateSource: "更新来源：{{source}}",
+			sourceChina: "国内镜像",
+			sourceGithub: "GitHub",
+			sourceGithubFallback: "GitHub 回退",
 			checkUpdates: "检查更新",
 			download: "下载",
 			downloading: "正在下载...",
@@ -1508,16 +1516,16 @@ export const zhCNResources = {
 			connected: "已连接",
 			recommendedChina: "中国用户推荐",
 			recommendedChinaDescription:
-				"DeepSeek 与 GLM 已通过 Palot 的真实代码修改和自动检查验收，请使用自己的模型 Key。",
+				"国产模型通过厂商官方接口，可在中国大陆网络环境直接使用。DeepSeek 与 GLM 已通过 Palot 的真实代码修改和自动检查验收，请使用自己的模型 Key。",
 			moreChina: "更多国产模型",
 			moreChinaDescription:
 				"其他国产模型保持兼容，但暂不作为首个 Windows 正式版的发布门槛。",
 			codexTitle: "OpenAI Codex（可选）",
 			codexDescription:
-				"支持官方 ChatGPT OAuth 或 OpenAI API Key，仍需满足账号、计费、地区和网络条件。",
+				"支持官方 ChatGPT OAuth 或 OpenAI API Key。用户需自行满足 OpenAI 的账号、计费、地区和网络条件；Palot 不提供代理或第三方中转。",
 			globalTitle: "海外模型（高级）",
 			globalDescription:
-				"提供海外模型兼容入口，实际可用性取决于各平台的账号和网络要求。",
+				"提供海外模型兼容入口，实际可用性取决于各平台的账号、计费、地区和网络要求；Palot 不提供代理或第三方中转。",
 			browseAll: "浏览全部 {{count}} 个模型服务商",
 			verified: "已验证",
 			free: "免费",
@@ -2123,10 +2131,10 @@ export const zhCNResources = {
 		percentComplete: "已完成 {{percent}}%",
 		startingDownload: "正在开始下载...",
 		downloadedRestart: "{{version}} 已下载，重启后安装。",
-		downloadGithubDescription: "{{version}} 已发布，请从 GitHub 下载更新。",
+		downloadPageDescription: "{{version}} 已发布，请打开下载页面更新。",
 		updateWord: "更新",
 		restartNow: "立即重启",
-		downloadGithub: "从 GitHub 下载",
+		openDownloadPage: "打开下载页面",
 		dismiss: "关闭更新通知",
 	},
 	native: {

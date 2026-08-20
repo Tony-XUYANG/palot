@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import type { UpdateState } from "../../preload/api";
 import { isElectron } from "../services/backend";
 
-const defaultState: UpdateState = { status: "idle", canAutoInstall: true };
+const defaultState: UpdateState = {
+	status: "idle",
+	canAutoInstall: true,
+	source: "github",
+	fallbackUsed: false,
+};
 
 /**
  * Hook that tracks the auto-updater state from the main process.
@@ -10,7 +15,7 @@ const defaultState: UpdateState = { status: "idle", canAutoInstall: true };
  * action helpers for check / download / install.
  *
  * On unsigned macOS builds, `canAutoInstall` will be false and the
- * "install" action is replaced with opening the GitHub release page.
+ * "install" action is replaced with opening the configured download page.
  *
  * In browser mode (non-Electron), always returns idle state and no-op actions.
  */

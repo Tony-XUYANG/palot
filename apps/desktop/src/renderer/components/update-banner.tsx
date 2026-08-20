@@ -17,7 +17,7 @@ import { useUpdater } from "../hooks/use-updater";
  * or dismissed by the user.
  *
  * On unsigned macOS builds (canAutoInstall=false), the "ready" state shows
- * a "Download from GitHub" button that opens the release page instead of
+ * an external download button that opens the configured download page instead of
  * attempting an in-place install via Squirrel.Mac.
  */
 export function UpdateBanner() {
@@ -93,7 +93,7 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<ExternalLinkIcon className="size-3.5" aria-hidden="true" />
-								{t("update.downloadGithub")}
+								{t("update.openDownloadPage")}
 							</button>
 						)}
 					</>
@@ -153,7 +153,7 @@ export function UpdateBanner() {
 														? t("update.version", { version })
 														: t("update.updateWord"),
 												})
-											: t("update.downloadGithubDescription", {
+											: t("update.downloadPageDescription", {
 													version: version
 														? t("update.version", { version })
 														: t("update.updateWord"),
@@ -186,7 +186,7 @@ export function UpdateBanner() {
 								className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
 								<ExternalLinkIcon className="size-3.5" aria-hidden="true" />
-								{t("update.downloadGithub")}
+								{t("update.openDownloadPage")}
 							</button>
 						)}
 					</>

@@ -111,7 +111,7 @@ contextBridge.exposeInMainWorld("palot", {
 	/** Quits the app and installs the downloaded update. */
 	installUpdate: () => ipcRenderer.invoke("updater:install"),
 
-	/** Opens the GitHub release page for the current update version. */
+	/** Opens the configured download page for the current update version. */
 	openReleasePage: () => ipcRenderer.invoke("updater:open-release-page"),
 
 	/** Subscribes to update state changes pushed from the main process. */

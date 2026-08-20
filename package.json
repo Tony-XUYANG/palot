@@ -21,7 +21,9 @@
 		"clean": "turbo clean",
 		"changeset": "changeset",
 		"version-packages": "changeset version",
-		"release": "changeset publish"
+		"release": "changeset publish",
+		"validate:china-distribution": "bun scripts/validate-china-distribution.ts",
+		"release:mirror:china": "node scripts/upload-alibaba-oss-release.cjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.2",
@@ -29,6 +31,7 @@
 		"@changesets/cli": "^2.29.8",
 		"@fontsource/geist-mono": "^5.2.7",
 		"@typescript/native-preview": "^7.0.0-dev.20260207.1",
+		"ali-oss": "6.23.0",
 		"png-to-ico": "^3.0.1",
 		"sharp": "^0.34.5",
 		"turbo": "^2.8.3",
