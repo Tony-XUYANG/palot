@@ -830,6 +830,10 @@ function ApiKeyView({
 	const { t } = useTranslation("settings");
 	const [apiKey, setApiKey] = useState("");
 	const isLoading = state.status === "loading";
+	const providerKeyHint =
+		provider.id === "tencent-coding-plan"
+			? t("connect.tencentCodingPlanKeyHint")
+			: null;
 
 	const handleSubmit = useCallback(
 		(e: React.FormEvent) => {
@@ -872,6 +876,9 @@ function ApiKeyView({
 						<p className="text-xs text-muted-foreground">
 							{t("connect.envAlternative", { variable: provider.env[0] })}
 						</p>
+					)}
+					{providerKeyHint && (
+						<p className="text-xs text-muted-foreground">{providerKeyHint}</p>
 					)}
 				</div>
 

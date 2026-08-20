@@ -10,8 +10,8 @@
 export const CHINA_PROVIDER_IDS = [
 	"deepseek",
 	"zhipuai",
-	"kimi-for-coding",
 	"alibaba-cn",
+	"kimi-for-coding",
 	"moonshotai-cn",
 	"siliconflow-cn",
 	"minimax-cn",
@@ -23,7 +23,11 @@ export const CHINA_PROVIDER_IDS = [
 ] as const;
 
 /** Providers that passed Palot's real code-edit and automated-test acceptance run. */
-export const VERIFIED_CHINA_PROVIDER_IDS = ["deepseek", "zhipuai"] as const;
+export const VERIFIED_CHINA_PROVIDER_IDS = [
+	"deepseek",
+	"zhipuai",
+	"alibaba-cn",
+] as const;
 
 /** Backwards-compatible name for the domestic providers promoted in the first release. */
 export const FIRST_TIER_CHINA_PROVIDER_IDS = VERIFIED_CHINA_PROVIDER_IDS;
@@ -82,9 +86,9 @@ export const CHINA_MODEL_REGISTRY = [
 	},
 	{
 		providerID: "alibaba-cn",
-		modelID: "qwen-flash",
-		tier: "candidate",
-		firstTier: false,
+		modelID: "qwen3-coder-plus",
+		tier: "verified",
+		firstTier: true,
 	},
 	{
 		providerID: "moonshotai-cn",

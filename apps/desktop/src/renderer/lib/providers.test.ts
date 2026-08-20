@@ -40,7 +40,11 @@ describe("provider recommendations", () => {
 	});
 
 	it("prioritizes domestic providers that passed real-world acceptance", () => {
-		assert.deepEqual(VERIFIED_CHINA_PROVIDER_IDS, ["deepseek", "zhipuai"]);
+		assert.deepEqual(VERIFIED_CHINA_PROVIDER_IDS, [
+			"deepseek",
+			"zhipuai",
+			"alibaba-cn",
+		]);
 		assert.equal(FIRST_TIER_CHINA_PROVIDER_IDS, VERIFIED_CHINA_PROVIDER_IDS);
 		assert.deepEqual(
 			CHINA_PROVIDER_IDS.slice(0, FIRST_TIER_CHINA_PROVIDER_IDS.length),
@@ -171,6 +175,7 @@ describe("provider recommendations", () => {
 		const verified = resolveVerifiedChinaModelCandidates([
 			{ id: "deepseek", models: { "deepseek-chat": {} } },
 			{ id: "zhipuai", models: { "glm-4.7-flash": {} } },
+			{ id: "alibaba-cn", models: { "qwen3-coder-plus": {} } },
 			{ id: "kimi-for-coding", models: { "kimi-for-coding": {} } },
 		]);
 
@@ -178,7 +183,11 @@ describe("provider recommendations", () => {
 			verified.map(
 				(candidate) => `${candidate.providerID}/${candidate.modelID}`,
 			),
-			["deepseek/deepseek-chat", "zhipuai/glm-4.7-flash"],
+			[
+				"deepseek/deepseek-chat",
+				"zhipuai/glm-4.7-flash",
+				"alibaba-cn/qwen3-coder-plus",
+			],
 		);
 	});
 });

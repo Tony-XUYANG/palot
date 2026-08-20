@@ -481,6 +481,8 @@ export const enUSResources = {
 			copyEnv: "Copy the {{variable}} export line",
 			getKeyAt: "Get an API key at {{host}}",
 			envAlternative: "You can also set the {{variable}} environment variable.",
+			tencentCodingPlanKeyHint:
+				"Use the API key issued by Tencent Cloud Coding Plan. Tencent Cloud SecretId/SecretKey and Token Plan keys are not accepted.",
 			browserOpened:
 				"A browser window has been opened. Sign in and paste the authorization code below.",
 			authorizationCode: "Authorization code",
@@ -1561,6 +1563,8 @@ export const zhCNResources = {
 			copyEnv: "复制 {{variable}} 导出命令",
 			getKeyAt: "前往 {{host}} 获取 API Key",
 			envAlternative: "也可以通过 {{variable}} 环境变量进行设置。",
+			tencentCodingPlanKeyHint:
+				"请使用腾讯云 Coding Plan 签发的专用 API Key。腾讯云 SecretId/SecretKey 和 Token Plan Key 均不能用于此入口。",
 			browserOpened: "浏览器窗口已打开。请完成登录，然后在下方粘贴授权码。",
 			authorizationCode: "授权码",
 			pasteCode: "在此粘贴授权码...",
