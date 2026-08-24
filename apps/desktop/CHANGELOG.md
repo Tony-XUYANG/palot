@@ -1,5 +1,18 @@
 # @palot/desktop
 
+## 0.12.0-beta.7
+
+### Patch Changes
+
+- [#23](https://github.com/Tony-XUYANG/palot/pull/23) [`97025dc`](https://github.com/Tony-XUYANG/palot/commit/97025dcd28f14d922a9efa835c650113a93edaaf) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Keep the Sealos analysis snapshot and deployment template on the same immutable image digest after
+  a Docker-free GitHub Actions build.
+
+- [#25](https://github.com/Tony-XUYANG/palot/pull/25) [`a403f6a`](https://github.com/Tony-XUYANG/palot/commit/a403f6a9ccbd787e617f02b0cbf6e0c040e14cc6) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Prevent a version-PR dispatch from rebuilding and overwriting artifacts for an existing product
+  release before the generated version change is merged.
+
+- [#22](https://github.com/Tony-XUYANG/palot/pull/22) [`7d36938`](https://github.com/Tony-XUYANG/palot/commit/7d369383ce5eee6cb3570349e18e897c23b253b1) Thanks [@Tony-XUYANG](https://github.com/Tony-XUYANG)! - Verify every mirrored Windows release by installing it in isolation and confirming that the
+  packaged updater reads the Alibaba OSS feed without falling back to GitHub.
+
 ## 0.12.0-beta.6
 
 ### Minor Changes
