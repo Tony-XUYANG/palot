@@ -89,7 +89,15 @@ jobs:
         run: |
           PUBLISHED="${{ steps.changesets.outputs.published }}"
           REBUILD_CURRENT="${{ inputs.rebuild_current_version }}"
-          if [[ "$PUBLISHED" == "true" || "$REBUILD_CURRENT" == "true" ]]; then
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            TAG_EXISTS=true
+          else
+            TAG_EXISTS=false
+          fi
+          # Private desktop packages are versioned but intentionally not tagged by Changesets.
+          # The product v-tag is the authoritative signal for whether a desktop release exists.
+          if [[ "$PUBLISHED" == "true" || "$REBUILD_CURRENT" == "true" || "$TAG_EXISTS" == "false" ]]; then
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           else
             echo "should-release=false" >> "$GITHUB_OUTPUT"
