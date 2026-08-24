@@ -20,6 +20,7 @@
     "calm-model-guidance",
     "calm-resumable-sealos-flow",
     "calm-windows-runtime",
+    "clean-sealos-build-artifacts",
     "fresh-cloud-recovery",
     "fresh-tencent-token-plan",
     "gentle-public-repo",
@@ -33,6 +34,7 @@
     "secure-windows-package",
     "silent-windows-updates",
     "steady-agent-engines",
+    "tidy-china-update-source",
     "verified-alibaba-provider",
     "verified-tencent-token-plan",
     "warm-verified-china-models"
