@@ -81,7 +81,11 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Test release gates
-        run: bun test scripts/verify-windows-update-manifest.test.cjs
+        run: >-
+          bun test
+          scripts/verify-windows-update-manifest.test.cjs
+          scripts/run-electron-updater-driver.test.cjs
+          scripts/run-electron-updater-source-driver.test.cjs
 
   build:
     name: Build
