@@ -277,3 +277,35 @@ successfully across Windows x64, macOS arm64/x64, and Linux x64.
 The next hard gate is a trusted, timestamped Windows signature followed by a signed public
 `beta.5 -> rc.1` (or newer signed baseline) automatic-update pass. No RC or stable release may be
 promoted to Latest until that gate succeeds.
+
+## 11. Public `v0.12.0-beta.6` and China Mirror Acceptance
+
+The [public prerelease](https://github.com/Tony-XUYANG/palot/releases/tag/v0.12.0-beta.6) was built
+from commit `a0258fe`. The second attempt of [release workflow
+32681511300](https://github.com/Tony-XUYANG/palot/actions/runs/32681511300/attempts/2) completed
+successfully after the Windows update feed was corrected to ignore a conflicting private-package
+metadata tag.
+
+- Windows installer: `Palot-0.12.0-beta.6-win-x64.exe`, 250,834,278 bytes, SHA-256
+  `5c957fadd8403e6f856500e7be7d64d20d983e66741e7de0ed844125705cca5e`. The GitHub asset digest,
+  Alibaba OSS copy, and fresh domestic-mirror download produced the same value.
+- The Windows release job passed runtime preparation, update-manifest integrity, the unsigned Beta
+  policy, the `v0.11.0` upgrade test, empty-PATH bundled runtime checks, launch, uninstall data
+  preservation, and the unpacked-package sensitive-information scan.
+- A persistent Windows 11 Pro x64 build 26200 VM independently upgraded public `beta.5` to
+  `beta.6` as the non-administrator Chinese user `Palot测试用户`. Git, OpenCode, and Docker were
+  absent from the system PATH; the installation path contained spaces; all four bundled runtimes
+  launched; and uninstall preserved isolated XDG and Electron data.
+- A fresh Windows 10 Enterprise x64 build 19041 Sandbox independently passed the same `beta.5` to
+  `beta.6` upgrade, bundled-runtime, launch, uninstall, and data-preservation checks.
+- The public automatic-update gate installed `beta.6` from the pinned public `beta.3` baseline and
+  preserved user data. PR #20 disabled private-package Changesets tags so package metadata can no
+  longer take precedence over the product `v<version>` release in Electron Updater's prerelease
+  feed.
+- The Windows update manifest, installer, and blockmap are publicly available over HTTPS from the
+  Hangzhou OSS mirror under `palot/windows/`. Anonymous reads returned HTTP 200, while the GitHub
+  uploader RAM identity is restricted to `oss:PutObject` for that prefix.
+
+The release remains intentionally unsigned and must stay a prerelease. A trusted Authenticode
+signature, timestamp, signed upgrade test, and signed public automatic-update pass remain hard
+requirements for `v0.12.0-rc.1` and the stable release.
