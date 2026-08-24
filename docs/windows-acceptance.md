@@ -309,3 +309,26 @@ metadata tag.
 The release remains intentionally unsigned and must stay a prerelease. A trusted Authenticode
 signature, timestamp, signed upgrade test, and signed public automatic-update pass remain hard
 requirements for `v0.12.0-rc.1` and the stable release.
+
+## 12. Domestic Model and Sealos Runtime Reverification
+
+On 2026-08-24, the existing DeepSeek and GLM acceptance workload was reverified without creating,
+updating, or deleting cluster resources. Sealos authentication remained on the Hangzhou region and
+workspace `ns-fmb1gbvg`.
+
+- GitHub Actions run
+  [31572138646](https://github.com/Tony-XUYANG/palot-acceptance-web/actions/runs/31572138646)
+  had built commit `3388e22` for `linux/amd64` and published the immutable image used by the live
+  Deployment.
+- Deployment `palot-acceptance-nqykmwuy` remained `1/1` Ready with one populated Service endpoint,
+  one Ready Pod, and zero container restarts.
+- Launchpad reported an open public HTTP network on port 3000 whose host matched the App resource
+  URL: <https://palot-acceptance-kqmzszvo.sealoshzh.site>.
+- `/`, `/health`, `/api/ready`, and `/api/info` returned HTTP 200; `POST /health` returned JSON 405
+  with `Allow: GET`; and a random missing path returned a quiet JSON 404.
+- The final 60-second runtime comparison reported no Pod replacement, restart delta, readiness
+  change, active Warning Event, log finding, or kubectl error.
+
+The recheck also found that historical `.sealos/analysis.json` and template files could retain an
+older image digest after a later remote build. Palot now synchronizes both artifacts to the same
+immutable digest before a deploy or update can proceed.

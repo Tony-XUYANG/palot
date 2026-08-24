@@ -10,7 +10,7 @@ import {
 	isTransientFetchError,
 	isTransientKubectlError,
 	readSealosTemplateInputs,
-	updateSealosTemplateImage,
+	synchronizeSealosBuildArtifacts,
 } from "./sealos-service.ts";
 
 const roots: string[] = [];
@@ -99,19 +99,53 @@ describe("Sealos template helpers", () => {
 	it("writes an immutable GHCR image into the application deployment", async () => {
 		const { root, file } = await createTemplate();
 		const image = `ghcr.io/owner/demo@sha256:${"a".repeat(64)}`;
+		const analysisPath = path.join(root, ".sealos", "analysis.json");
+		await writeFile(
+			analysisPath,
+			JSON.stringify({ project: { repo_name: "demo" }, image_ref: "old" }),
+			"utf8",
+		);
 		const original = await readFile(file, "utf8");
 		await writeFile(file, original.replace("---\n", "---\n---\n"), "utf8");
-		await updateSealosTemplateImage(root, image);
-		await updateSealosTemplateImage(root, image);
+		await synchronizeSealosBuildArtifacts(root, image);
+		await synchronizeSealosBuildArtifacts(root, image);
 		const template = await readFile(file, "utf8");
+		const analysis = JSON.parse(await readFile(analysisPath, "utf8")) as {
+			project?: { repo_name?: string };
+			image_ref?: string;
+		};
 		assert.match(template, new RegExp(image));
 		assert.equal(template.match(/^---$/gm)?.length, 1);
+		assert.equal(analysis.image_ref, image);
+		assert.equal(analysis.project?.repo_name, "demo");
+	});
+
+	it("keeps template updates compatible when no analysis snapshot exists", async () => {
+		const { root, file } = await createTemplate();
+		const image = `ghcr.io/owner/demo@sha256:${"b".repeat(64)}`;
+		await synchronizeSealosBuildArtifacts(root, image);
+		assert.match(await readFile(file, "utf8"), new RegExp(image));
+	});
+
+	it("does not update the template when the analysis snapshot is invalid", async () => {
+		const { root, file } = await createTemplate();
+		const analysisPath = path.join(root, ".sealos", "analysis.json");
+		const original = await readFile(file, "utf8");
+		await writeFile(analysisPath, "[]", "utf8");
+		await assert.rejects(
+			synchronizeSealosBuildArtifacts(
+				root,
+				`ghcr.io/owner/demo@sha256:${"c".repeat(64)}`,
+			),
+			/analysis snapshot must contain a JSON object/,
+		);
+		assert.equal(await readFile(file, "utf8"), original);
 	});
 
 	it("rejects mutable image references", async () => {
 		const { root } = await createTemplate();
 		await assert.rejects(
-			updateSealosTemplateImage(root, "ghcr.io/owner/demo:latest"),
+			synchronizeSealosBuildArtifacts(root, "ghcr.io/owner/demo:latest"),
 		);
 	});
 
