@@ -63,6 +63,9 @@ mac:
 
 win:
   icon: resources/icon.ico
+  signtoolOptions:
+    signingHashAlgorithms: [sha256]
+    rfc3161TimeStampServer: http://timestamp.digicert.com
   target:
     - target: nsis
       arch: [x64]
