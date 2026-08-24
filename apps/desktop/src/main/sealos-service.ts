@@ -646,7 +646,7 @@ export async function readSealosTemplateInputs(
 	return [];
 }
 
-export async function updateSealosTemplateImage(
+export async function synchronizeSealosBuildArtifacts(
 	directory: string,
 	image: string,
 ): Promise<void> {
@@ -659,7 +659,23 @@ export async function updateSealosTemplateImage(
 		"template",
 		"index.yaml",
 	);
+	const analysisPath = path.join(
+		path.resolve(directory),
+		".sealos",
+		"analysis.json",
+	);
 	const documents = parseAllDocuments(await readFile(templatePath, "utf8"));
+	let analysis: Record<string, unknown> | null = null;
+	try {
+		const parsed = JSON.parse(await readFile(analysisPath, "utf8")) as unknown;
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			throw new Error("The Sealos analysis snapshot must contain a JSON object");
+		}
+		analysis = parsed as Record<string, unknown>;
+		analysis.image_ref = image;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+	}
 	let updated = false;
 	for (const document of documents) {
 		const value = document.toJS() as {
@@ -680,14 +696,22 @@ export async function updateSealosTemplateImage(
 		throw new Error(
 			"The Sealos template does not contain an application Deployment",
 		);
-	await writeFile(
-		templatePath,
-		documents
-			.filter((document) => document.toJS() !== null)
-			.map((document) => document.toString())
-			.join(""),
-		"utf8",
-	);
+	const writes: Promise<void>[] = [
+		writeFile(
+			templatePath,
+			documents
+				.filter((document) => document.toJS() !== null)
+				.map((document) => document.toString())
+				.join(""),
+			"utf8",
+		),
+	];
+	if (analysis) {
+		writes.push(
+			writeFile(analysisPath, JSON.stringify(analysis, null, 2), "utf8"),
+		);
+	}
+	await Promise.all(writes);
 }
 
 function getTemplateImage(yaml: string): string | null {

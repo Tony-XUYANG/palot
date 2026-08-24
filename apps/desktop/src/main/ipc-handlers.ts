@@ -104,7 +104,7 @@ import {
 	startSealosLogin,
 	switchSealosWorkspace,
 	updateSealosDeployment,
-	updateSealosTemplateImage,
+	synchronizeSealosBuildArtifacts,
 	verifySealosRuntime,
 } from "./sealos-service";
 import {
@@ -603,7 +603,7 @@ export function registerIpcHandlers(): void {
 			const result = await runGitHubBuild(directory, (progress) => {
 				event.sender.send("sealos:github-build-progress", progress);
 			});
-			await updateSealosTemplateImage(directory, result.image);
+			await synchronizeSealosBuildArtifacts(directory, result.image);
 			return result;
 		}),
 	);
