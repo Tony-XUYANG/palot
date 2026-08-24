@@ -24,7 +24,9 @@ env:
   # releases use it as their automatic-update baseline; beta.3 itself is the bootstrap exception.
   WINDOWS_AUTO_UPDATE_BASE_VERSION: "0.12.0-beta.3"
   WINDOWS_AUTO_UPDATE_BASE_SHA256: "d5915efff4fa290bc7af176e1075acd2237a2bd6c7e8d0fee1a5c73e603987f4"
+  WINDOWS_SIGNING_MODE: ${{ vars.WINDOWS_SIGNING_MODE }}
   WINDOWS_SIGNING_PUBLISHER: ${{ vars.WINDOWS_SIGNING_PUBLISHER }}
+  WINDOWS_SIGNING_CERT_SHA1: ${{ vars.WINDOWS_SIGNING_CERT_SHA1 }}
   PALOT_CN_UPDATE_BASE_URL: ${{ vars.PALOT_CN_UPDATE_BASE_URL }}
   PALOT_CN_DOWNLOAD_PAGE_URL: ${{ vars.PALOT_CN_DOWNLOAD_PAGE_URL }}
   ALIYUN_OSS_REGION: ${{ vars.ALIYUN_OSS_REGION }}
@@ -247,36 +249,55 @@ jobs:
 
       - name: Validate Windows signing configuration
         if: matrix.platform == 'win'
-        shell: pwsh
         env:
           WINDOWS_CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
-        run: |
-          $version = "${{ needs.changeset.outputs.version }}"
-          $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
-          if (-not $allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
-            throw "Windows RC and stable releases require WINDOWS_CSC_LINK before packaging"
-          }
-          if (-not $allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
-            throw "Windows RC and stable releases require the WINDOWS_SIGNING_PUBLISHER repository variable"
-          }
-          if (
-            -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK) -and
-            [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)
-          ) {
-            throw "Signed Windows releases require the WINDOWS_SIGNING_PUBLISHER repository variable"
-          }
-          if ($allowsUnsignedPreview -and [string]::IsNullOrWhiteSpace($env:WINDOWS_CSC_LINK)) {
-            Write-Host "Unsigned Windows installer allowed for this Alpha or Beta preview"
-          }
+          SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
+        run: >-
+          node ./scripts/validate-windows-signing-config.cjs
+          --version "${{ needs.changeset.outputs.version }}"
+
+      - name: Cache SSL.com eSigner CKA
+        if: matrix.platform == 'win' && env.WINDOWS_SIGNING_MODE == 'sslcom-esigner'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/palot-esigner-cache
+          key: sslcom-esigner-cka-1.0.6-e4971440e4ebed94328492cf36e18999554c5c657c856f1cb14a6072c8b1c263
+
+      - name: Load SSL.com eSigner certificate
+        if: matrix.platform == 'win' && env.WINDOWS_SIGNING_MODE == 'sslcom-esigner'
+        shell: pwsh
+        env:
+          SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
+          SSL_COM_ESIGNER_MODE: product
+        run: >-
+          ./scripts/setup-sslcom-esigner.ps1
+          -CacheDirectory "${{ runner.temp }}/palot-esigner-cache"
+          -InstallDirectory "${{ runner.temp }}/palot-esigner-cka"
 
       - name: Package Windows app
         if: matrix.platform == 'win'
-        run: bun run electron-builder ${{ matrix.eb-flags }} --config electron-builder.yml --publish never
+        shell: pwsh
+        run: |
+          $config = if ($env:WINDOWS_SIGNING_MODE -eq "sslcom-esigner") {
+            "electron-builder.esigner.cjs"
+          } else {
+            "electron-builder.yml"
+          }
+          bun run electron-builder ${{ matrix.eb-flags }} --config $config --publish never
         working-directory: apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+
+      - name: Clean up SSL.com eSigner state
+        if: always() && matrix.platform == 'win' && env.WINDOWS_SIGNING_MODE == 'sslcom-esigner'
+        shell: pwsh
+        run: ./scripts/cleanup-sslcom-esigner.ps1
 
       - name: Package unsigned macOS or Linux app
         if: matrix.platform != 'win'
@@ -313,17 +334,19 @@ jobs:
           }
           $version = "${{ needs.changeset.outputs.version }}"
           $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
+          $requiresSignature = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_MODE)
           $testArguments = @{
             InstallerPath = $installers[0].FullName
             PreviousInstallerPath = $previousInstaller
           }
-          if (-not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
+          if ($requiresSignature) {
             $testArguments.ExpectedPublisher = $env:WINDOWS_SIGNING_PUBLISHER
-          }
-          if ($allowsUnsignedPreview) {
-            $testArguments.AllowUnsigned = $true
-          } else {
             $testArguments.RequireTimestamp = $true
+          } else {
+            if (-not $allowsUnsignedPreview) {
+              throw "RC and stable Windows installers must be signed"
+            }
+            $testArguments.AllowUnsigned = $true
           }
           ./scripts/test-windows-installer.ps1 @testArguments
 
@@ -598,14 +621,15 @@ jobs:
             ExpectedSource = "china"
           }
           $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
-          if ($allowsUnsignedPreview) {
-            $arguments.AllowUnsigned = $true
-          } else {
-            if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
-              throw "RC and stable China update-source checks require WINDOWS_SIGNING_PUBLISHER"
-            }
+          $requiresSignature = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_MODE)
+          if ($requiresSignature) {
             $arguments.ExpectedPublisher = $env:WINDOWS_SIGNING_PUBLISHER
             $arguments.RequireTimestamp = $true
+          } else {
+            if (-not $allowsUnsignedPreview) {
+              throw "RC and stable China update-source checks require Windows signing"
+            }
+            $arguments.AllowUnsigned = $true
           }
           ./scripts/test-windows-update-source.ps1 @arguments
 
@@ -668,12 +692,12 @@ jobs:
             AllowUnsigned = $true
           }
           $allowsUnsignedPreview = $version -match '-(?:alpha|beta)(?:\.|$)'
-          if (-not $allowsUnsignedPreview) {
-            if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_PUBLISHER)) {
-              throw "RC and stable automatic updates require WINDOWS_SIGNING_PUBLISHER"
-            }
+          $requiresSignature = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_MODE)
+          if ($requiresSignature) {
             $arguments.ExpectedPublisher = $env:WINDOWS_SIGNING_PUBLISHER
             $arguments.RequireTargetTimestamp = $true
+          } elseif (-not $allowsUnsignedPreview) {
+            throw "RC and stable automatic updates require Windows signing"
           }
           ./scripts/test-windows-auto-update.ps1 @arguments
 
