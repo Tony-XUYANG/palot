@@ -88,6 +88,7 @@ jobs:
         id: decide
         run: |
           PUBLISHED="${{ steps.changesets.outputs.published }}"
+          HAS_CHANGESETS="${{ steps.changesets.outputs.hasChangesets }}"
           REBUILD_CURRENT="${{ inputs.rebuild_current_version }}"
           TAG="${{ steps.version.outputs.tag }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -97,11 +98,14 @@ jobs:
           fi
           # Private desktop packages are versioned but intentionally not tagged by Changesets.
           # The product v-tag is the authoritative signal for whether a desktop release exists.
-          if [[ "$PUBLISHED" == "true" || "$REBUILD_CURRENT" == "true" || "$TAG_EXISTS" == "false" ]]; then
-            echo "should-release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should-release=false" >> "$GITHUB_OUTPUT"
-          fi
+          # A version PR mutates package.json in this runner before it is merged. It must stop this
+          # dispatch even though the resulting future product tag does not exist yet.
+          node scripts/decide-release.cjs \
+            --published "$PUBLISHED" \
+            --has-changesets "$HAS_CHANGESETS" \
+            --rebuild-current "$REBUILD_CURRENT" \
+            --tag-exists "$TAG_EXISTS" \
+            --github-output "$GITHUB_OUTPUT"
 
   # ──────────────────────────────────────────────
   # Job 2: Build JS bundle (once, on Linux)

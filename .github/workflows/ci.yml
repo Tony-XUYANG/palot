@@ -86,6 +86,7 @@ jobs:
           scripts/verify-windows-update-manifest.test.cjs
           scripts/run-electron-updater-driver.test.cjs
           scripts/run-electron-updater-source-driver.test.cjs
+          scripts/decide-release.test.cjs
 
   build:
     name: Build
