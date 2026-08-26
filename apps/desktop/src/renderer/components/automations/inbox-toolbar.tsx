@@ -44,7 +44,7 @@ export function InboxToolbar({ onNewClick }: InboxToolbarProps) {
 					onClick={onNewClick}
 				>
 					<PlusIcon className="size-3.5" />
-					New
+					{t("common.actions.create")}
 				</Button>
 			</div>
 		</div>

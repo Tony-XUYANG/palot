@@ -39,6 +39,7 @@ function agentEqual(prev: Agent | null, next: Agent | null): boolean {
 		prev.duration === next.duration &&
 		// currentActivity is derived from tree-scoped requests; always compare it
 		// so status changes from descendant sub-agents propagate to the sidebar.
+		prev.currentActivityType === next.currentActivityType &&
 		prev.currentActivity === next.currentActivity &&
 		prev.parentId === next.parentId &&
 		prev.worktreePath === next.worktreePath &&
@@ -348,11 +349,16 @@ export const agentFamily = atomFamily((sessionId: string) => {
 			branch: entry.branch ?? "",
 			duration: formatRelativeTime(lastActiveAt),
 			currentActivity: effectiveQ
-				? `Asking: ${effectiveQ.request.questions[0]?.header ?? "Question"}`
+				? effectiveQ.request.questions[0]?.header
 				: effectivePerm
-					? `Waiting for approval: ${effectivePerm.request.permission}`
+					? effectivePerm.request.permission
+					: undefined,
+			currentActivityType: effectiveQ
+				? "question"
+				: effectivePerm
+					? "permission"
 					: status.type === "busy"
-						? "Working..."
+						? "working"
 						: undefined,
 			activities: [],
 			permissions,

@@ -1,4 +1,14 @@
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@palot/ui/components/alert-dialog";
+import {
 	Collapsible,
 	CollapsibleContent,
 } from "@palot/ui/components/collapsible";
@@ -57,6 +67,7 @@ import {
 	useTransition,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { activeServerConfigAtom } from "../atoms/connection";
 import {
 	agentFamily,
@@ -138,6 +149,8 @@ export function AppSidebarContent({
 	const automationsEnabled = useAtomValue(automationsEnabledAtom);
 	const activeServer = useAtomValue(activeServerConfigAtom);
 	const isLocalServer = activeServer.type === "local";
+	const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	// --- Project search state ---
 	const [projectSearch, setProjectSearch] = useState("");
@@ -203,6 +216,44 @@ export function AppSidebarContent({
 
 	const hasContent = agents.length > 0 || projects.length > 0;
 	const showEmptyState = !hasContent;
+
+	const requestDelete = useCallback((agent: Agent) => {
+		setDeleteTarget(agent);
+	}, []);
+
+	const handleDeleteDialogOpenChange = useCallback(
+		(open: boolean) => {
+			if (!open && !isDeleting) setDeleteTarget(null);
+		},
+		[isDeleting],
+	);
+
+	const confirmDelete = useCallback(async () => {
+		if (!deleteTarget || !onDeleteSession || isDeleting) return;
+		setIsDeleting(true);
+		try {
+			await onDeleteSession(deleteTarget);
+			toast.success(t("sidebar.sessionDeleted", { name: deleteTarget.name }));
+			if (selectedSessionId === deleteTarget.sessionId) {
+				navigate({ to: "/" });
+			}
+			setDeleteTarget(null);
+		} catch (err) {
+			toast.error(t("sidebar.deleteFailed"), {
+				description:
+					err instanceof Error ? err.message : t("common.errors.unexpected"),
+			});
+		} finally {
+			setIsDeleting(false);
+		}
+	}, [
+		deleteTarget,
+		onDeleteSession,
+		isDeleting,
+		t,
+		selectedSessionId,
+		navigate,
+	]);
 
 	return (
 		<>
@@ -277,7 +328,7 @@ export function AppSidebarContent({
 										agent={agent}
 										isSelected={agent.id === selectedSessionId}
 										onRename={onRenameSession}
-										onDelete={onDeleteSession}
+										onDelete={onDeleteSession ? requestDelete : undefined}
 										onFork={onForkSession}
 										showProject
 									/>
@@ -299,7 +350,7 @@ export function AppSidebarContent({
 										agent={agent}
 										isSelected={agent.id === selectedSessionId}
 										onRename={onRenameSession}
-										onDelete={onDeleteSession}
+										onDelete={onDeleteSession ? requestDelete : undefined}
 										onFork={onForkSession}
 										showProject
 									/>
@@ -410,7 +461,7 @@ export function AppSidebarContent({
 										project={project}
 										selectedSessionId={selectedSessionId}
 										onRename={onRenameSession}
-										onDelete={onDeleteSession}
+										onDelete={onDeleteSession ? requestDelete : undefined}
 										onFork={onForkSession}
 									/>
 								))}
@@ -451,6 +502,41 @@ export function AppSidebarContent({
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>
+			<AlertDialog
+				open={deleteTarget !== null}
+				onOpenChange={handleDeleteDialogOpenChange}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("sidebar.deleteTitle")}</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t("sidebar.deleteDescription", {
+								name: deleteTarget?.name ?? "",
+							})}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeleting}>
+							{t("common.actions.cancel")}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							disabled={isDeleting}
+							onClick={confirmDelete}
+						>
+							{isDeleting && (
+								<Loader2Icon
+									className="size-4 animate-spin"
+									aria-hidden="true"
+								/>
+							)}
+							{isDeleting
+								? t("sidebar.deleting")
+								: t("common.actions.delete")}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</>
 	);
 }
@@ -474,7 +560,7 @@ const ProjectSessionItem = memo(function ProjectSessionItem({
 	sessionId: string;
 	selectedSessionId: string | null;
 	onRename?: (agent: Agent, title: string) => Promise<void>;
-	onDelete?: (agent: Agent) => Promise<void>;
+	onDelete?: (agent: Agent) => void;
 	onFork?: (agent: Agent) => Promise<void>;
 }) {
 	const agent = useAtomValue(agentFamily(sessionId));
@@ -506,7 +592,7 @@ const ProjectFolder = memo(function ProjectFolder({
 	project: SidebarProject;
 	selectedSessionId: string | null;
 	onRename?: (agent: Agent, title: string) => Promise<void>;
-	onDelete?: (agent: Agent) => Promise<void>;
+	onDelete?: (agent: Agent) => void;
 	onFork?: (agent: Agent) => Promise<void>;
 }) {
 	const { t } = useTranslation();
@@ -598,7 +684,7 @@ const ProjectFolder = memo(function ProjectFolder({
 						{isLoading && projectSessions.length === 0 ? (
 							<p className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground/60">
 								<Loader2Icon className="size-3 animate-spin" />
-								Loading sessions...
+								{t("sidebar.loadingSessions")}
 							</p>
 						) : pagination.loaded && projectSessions.length === 0 ? (
 							<p className="px-2 py-1.5 text-xs text-muted-foreground/60">
@@ -626,12 +712,12 @@ const ProjectFolder = memo(function ProjectFolder({
 										{pagination.loading ? (
 											<span className="flex items-center gap-1">
 												<Loader2Icon className="size-3 animate-spin" />
-												Loading...
+												{t("common.states.loading")}
 											</span>
 										) : (
 											<span className="flex items-center gap-1">
 												<ChevronDownIcon className="size-3" />
-												Load more sessions
+												{t("sidebar.loadMoreSessions")}
 											</span>
 										)}
 									</button>
@@ -655,23 +741,27 @@ const ProjectFolder = memo(function ProjectFolder({
  * For idle/completed sessions, returns the static duration from the agent atom.
  */
 function useLiveLastActive(agent: Agent): string {
-	const isActive = agent.status === "running" || agent.status === "waiting";
-
-	const [display, setDisplay] = useState(agent.duration);
+	const { t } = useTranslation();
+	const [currentTime, setCurrentTime] = useState(() => Date.now());
 
 	useEffect(() => {
-		if (!isActive) {
-			setDisplay(agent.duration);
-			return;
-		}
-
-		// Active sessions: show "now" and tick every 60s to stay fresh
-		setDisplay("now");
-		const id = setInterval(() => setDisplay("now"), 60_000);
+		setCurrentTime(Date.now());
+		const id = setInterval(() => setCurrentTime(Date.now()), 60_000);
 		return () => clearInterval(id);
-	}, [isActive, agent.duration]);
+	}, []);
 
-	return display;
+	const seconds = Math.max(
+		0,
+		Math.floor((currentTime - agent.lastActiveAt) / 1000),
+	);
+	if (seconds < 60) return t("common.ui.now");
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return t("common.ui.minutesAgo", { count: minutes });
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return t("common.ui.hoursAgo", { count: hours });
+	const days = Math.floor(hours / 24);
+	if (days < 30) return t("common.ui.daysAgo", { count: days });
+	return t("common.ui.monthsAgo", { count: Math.floor(days / 30) });
 }
 
 const SessionItem = memo(function SessionItem({
@@ -686,11 +776,12 @@ const SessionItem = memo(function SessionItem({
 	agent: Agent;
 	isSelected: boolean;
 	onRename?: (agent: Agent, title: string) => Promise<void>;
-	onDelete?: (agent: Agent) => Promise<void>;
+	onDelete?: (agent: Agent) => void;
 	onFork?: (agent: Agent) => Promise<void>;
 	showProject?: boolean;
 	compact?: boolean;
 }) {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const [, startTransition] = useTransition();
 	const StatusIcon = STATUS_ICON[agent.status];
@@ -778,9 +869,18 @@ const SessionItem = memo(function SessionItem({
 							{agent.name}
 						</span>
 
-						{agent.status === "waiting" && agent.currentActivity && (
+						{agent.currentActivityType && (
 							<span className="block truncate text-[11px] leading-tight text-yellow-500">
-								{agent.currentActivity}
+								{agent.currentActivityType === "question"
+									? t("sidebar.asking", {
+											detail:
+												agent.currentActivity ?? t("sidebar.question"),
+										})
+									: agent.currentActivityType === "permission"
+										? t("sidebar.waitingApproval", {
+												detail: agent.currentActivity ?? "",
+											})
+										: t("sidebar.working")}
 							</span>
 						)}
 					</div>
@@ -801,14 +901,14 @@ const SessionItem = memo(function SessionItem({
 			<ContextMenuContent>
 				{onRename && (
 					<ContextMenuItem onSelect={startEditing}>
-						<PencilIcon className="size-4" />
-						Rename
+						<PencilIcon className="size-4" aria-hidden="true" />
+						{t("sidebar.rename")}
 					</ContextMenuItem>
 				)}
 				{onFork && (
 					<ContextMenuItem onSelect={() => onFork(agent)}>
-						<GitForkIcon className="size-4" />
-						Fork
+						<GitForkIcon className="size-4" aria-hidden="true" />
+						{t("sidebar.fork")}
 					</ContextMenuItem>
 				)}
 				{(onRename || onFork) && onDelete && <ContextMenuSeparator />}
@@ -817,8 +917,8 @@ const SessionItem = memo(function SessionItem({
 						variant="destructive"
 						onSelect={() => onDelete(agent)}
 					>
-						<TrashIcon className="size-4" />
-						Delete
+						<TrashIcon className="size-4" aria-hidden="true" />
+						{t("common.actions.delete")}
 					</ContextMenuItem>
 				)}
 			</ContextMenuContent>

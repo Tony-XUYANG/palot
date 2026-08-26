@@ -683,6 +683,7 @@ function ReadContent({ part }: { part: ToolPart }) {
 
 /** Search tools (glob/grep/list): shows pattern + results */
 function SearchContent({ part }: { part: ToolPart }) {
+	const { t } = useTranslation();
 	const pattern = (part.state.input?.pattern as string) ?? undefined;
 	const include = (part.state.input?.include as string) ?? undefined;
 	const path = (part.state.input?.path as string) ?? undefined;
@@ -694,19 +695,19 @@ function SearchContent({ part }: { part: ToolPart }) {
 			<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground/70">
 				{pattern && (
 					<span>
-						pattern:{" "}
+						{t("chat.tool.pattern")}:{" "}
 						<span className="font-mono text-foreground/60">{pattern}</span>
 					</span>
 				)}
 				{include && (
 					<span>
-						include:{" "}
+						{t("chat.tool.include")}:{" "}
 						<span className="font-mono text-foreground/60">{include}</span>
 					</span>
 				)}
 				{path && (
 					<span>
-						in:{" "}
+						{t("chat.tool.inPath")}:{" "}
 						<span className="font-mono text-foreground/60">
 							{shortenPath(path)}
 						</span>
@@ -1262,14 +1263,14 @@ export const ChatToolCall = memo(
 								onClick={() => onDeny?.(permission.id)}
 								className="shrink-0 text-xs text-muted-foreground hover:text-red-400"
 							>
-								Deny
+								{t("chat.permission.deny")}
 							</button>
 							<button
 								type="button"
 								onClick={() => onApprove?.(permission.id, "once")}
 								className="shrink-0 text-xs font-medium text-blue-400 hover:text-blue-300"
 							>
-								Approve
+								{t("chat.permission.approve")}
 							</button>
 						</div>
 					)}
@@ -1298,6 +1299,7 @@ export const ChatToolCall = memo(
 // ============================================================
 
 function ToolAttachments({ attachments }: { attachments: FilePart[] }) {
+	const { t } = useTranslation();
 	const imageAttachments = attachments.filter((a) =>
 		a.mime.startsWith("image/"),
 	);
@@ -1322,17 +1324,17 @@ function ToolAttachments({ attachments }: { attachments: FilePart[] }) {
 					>
 						<img
 							src={file.url}
-							alt={file.filename ?? "Tool output image"}
+							alt={file.filename ?? t("chat.attachment.outputImage")}
 							className="size-full object-cover"
 						/>
 					</DialogTrigger>
 					<DialogContent className="max-h-[90vh] max-w-4xl overflow-auto p-0">
 						<DialogTitle className="sr-only">
-							{file.filename ?? "Tool output preview"}
+							{file.filename ?? t("chat.attachment.outputPreview")}
 						</DialogTitle>
 						<img
 							src={file.url}
-							alt={file.filename ?? "Tool output image"}
+							alt={file.filename ?? t("chat.attachment.outputImage")}
 							className="max-h-[85vh] w-full object-contain"
 						/>
 					</DialogContent>

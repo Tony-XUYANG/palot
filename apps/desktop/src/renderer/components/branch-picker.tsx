@@ -247,7 +247,9 @@ export function BranchPicker({
 						<GitBranchIcon className="size-3" />
 					)}
 					<span className="max-w-[140px] truncate">
-						{switching ? "Switching..." : effectiveCurrent || "no branch"}
+						{switching
+							? t("branch.switching")
+							: effectiveCurrent || t("branch.noBranch")}
 					</span>
 					<ChevronsUpDownIcon className="size-3 opacity-50" />
 				</SearchableListPopoverTrigger>
@@ -285,7 +287,7 @@ export function BranchPicker({
 							onClick={() => setSwitchError(null)}
 							className="ml-auto text-xs hover:text-red-300"
 						>
-							Dismiss
+							{t("common.actions.close")}
 						</button>
 					</div>
 				</div>
@@ -325,6 +327,7 @@ function BranchList({
 	effectiveCurrent: string;
 	onSelectBranch: (branch: string) => void;
 }) {
+	const { t } = useTranslation();
 	const search = useSearchableListPopoverSearch();
 
 	const filteredLocal = useMemo(() => {
@@ -348,7 +351,7 @@ function BranchList({
 	return (
 		<SearchableListPopoverList maxHeight="max-h-[300px]">
 			{filteredLocal.length > 0 && (
-				<SearchableListPopoverGroup label="Local">
+				<SearchableListPopoverGroup label={t("common.ui.local")}>
 					{filteredLocal.map((branch: string) => (
 						<BranchItem
 							key={branch}
@@ -361,7 +364,7 @@ function BranchList({
 			)}
 
 			{filteredRemote.length > 0 && (
-				<SearchableListPopoverGroup label="Remote">
+				<SearchableListPopoverGroup label={t("common.ui.remote")}>
 					{filteredRemote.map((branch: string) => (
 						<BranchItem
 							key={branch}
@@ -376,7 +379,7 @@ function BranchList({
 
 			{filteredLocal.length === 0 && filteredRemote.length === 0 && (
 				<SearchableListPopoverEmpty>
-					{search ? "No matching branches" : "No branches found"}
+					{search ? t("branch.noMatching") : t("branch.noneFound")}
 				</SearchableListPopoverEmpty>
 			)}
 		</SearchableListPopoverList>
@@ -460,21 +463,23 @@ function DirtyStateDialog({
 					<div className="rounded-md border bg-muted/50 px-3 py-2">
 						<div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
 							{status.staged > 0 && (
-								<span className="text-green-500">{status.staged} staged</span>
+								<span className="text-green-500">
+									{t("branch.staged", { count: status.staged })}
+								</span>
 							)}
 							{status.modified > 0 && (
 								<span className="text-yellow-500">
-									{status.modified} modified
+									{t("branch.modified", { count: status.modified })}
 								</span>
 							)}
 							{status.untracked > 0 && (
 								<span className="text-muted-foreground">
-									{status.untracked} untracked
+									{t("branch.untracked", { count: status.untracked })}
 								</span>
 							)}
 							{status.conflicted > 0 && (
 								<span className="text-red-500">
-									{status.conflicted} conflicted
+									{t("branch.conflicted", { count: status.conflicted })}
 								</span>
 							)}
 						</div>
@@ -511,32 +516,29 @@ function ActiveSessionWarningDialog({
 	onProceed,
 	onCancel,
 }: ActiveSessionWarningDialogProps) {
+	const { t } = useTranslation();
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
 			<DialogContent showCloseButton={false} className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<AlertTriangleIcon className="size-5 text-orange-500" />
-						Active Sessions
+						{t("branch.activeSessions")}
 					</DialogTitle>
 					<DialogDescription>
-						There {sessionCount === 1 ? "is" : "are"}{" "}
-						<strong>{sessionCount}</strong> active{" "}
-						{sessionCount === 1 ? "session" : "sessions"} on this project.
-						Switching to{" "}
-						<code className="rounded bg-muted px-1.5 py-0.5 text-foreground">
-							{targetBranch}
-						</code>{" "}
-						will change the working directory for all of them.
+						{t("branch.activeSessionsDescription", {
+							count: sessionCount,
+							branch: targetBranch,
+						})}
 					</DialogDescription>
 				</DialogHeader>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={onCancel}>
-						Cancel
+						{t("common.actions.cancel")}
 					</Button>
 					<Button variant="destructive" onClick={onProceed}>
-						Switch Anyway
+						{t("branch.switchAnyway")}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

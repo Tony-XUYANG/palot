@@ -302,7 +302,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 						{t("common.errors.sessionNotFound")}
 					</p>
 					<p className="mt-1 text-xs text-muted-foreground/60">
-						This session may have been deleted or is not yet loaded
+						{t("common.errors.sessionNotFoundDescription")}
 					</p>
 				</div>
 			</div>

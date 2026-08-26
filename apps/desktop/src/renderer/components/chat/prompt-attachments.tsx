@@ -4,6 +4,7 @@ import {
 } from "@palot/ui/components/ai-elements/prompt-input";
 import { AlertTriangleIcon, FileIcon, XIcon } from "lucide-react";
 import { memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 interface PromptAttachmentPreviewProps {
 	/** Whether the selected model supports image input */
@@ -21,6 +22,7 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 	supportsImages,
 	supportsPdf,
 }: PromptAttachmentPreviewProps) {
+	const { t } = useTranslation();
 	const { files, remove } = usePromptInputAttachments();
 
 	// Check if any files are unsupported by the current model
@@ -29,11 +31,15 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 		const hasImages = files.some((f) => f.mediaType?.startsWith("image/"));
 		const hasPdf = files.some((f) => f.mediaType === "application/pdf");
 		const unsupported: string[] = [];
-		if (hasImages && supportsImages === false) unsupported.push("images");
-		if (hasPdf && supportsPdf === false) unsupported.push("PDFs");
+		if (hasImages && supportsImages === false) {
+			unsupported.push(t("chat.attachment.unsupportedImages"));
+		}
+		if (hasPdf && supportsPdf === false) {
+			unsupported.push(t("chat.attachment.unsupportedPdfs"));
+		}
 		if (unsupported.length === 0) return null;
-		return `Selected model may not support ${unsupported.join(" or ")}`;
-	}, [files, supportsImages, supportsPdf]);
+		return t("chat.attachment.unsupported", { types: unsupported.join(" / ") });
+	}, [files, supportsImages, supportsPdf, t]);
 
 	if (files.length === 0) return null;
 
@@ -51,14 +57,14 @@ export const PromptAttachmentPreview = memo(function PromptAttachmentPreview({
 								{isImage ? (
 									<img
 										src={file.url}
-										alt={file.filename ?? "Attachment"}
+									alt={file.filename ?? t("chat.attachment.generic")}
 										className="size-full object-cover"
 									/>
 								) : (
 									<div className="flex size-full flex-col items-center justify-center gap-0.5">
 										<FileIcon className="size-5 text-muted-foreground" />
 										<span className="max-w-[56px] truncate px-0.5 text-[8px] text-muted-foreground">
-											{file.filename ?? "File"}
+										{file.filename ?? t("chat.attachment.file")}
 										</span>
 									</div>
 								)}

@@ -652,7 +652,9 @@ export function SealosDeployPage() {
 					<Alert>
 						<LogInIcon aria-hidden="true" />
 						<AlertTitle>{t("deploy.authorize")}</AlertTitle>
-						<AlertDescription>Confirmation code: {loginCode}</AlertDescription>
+						<AlertDescription>
+							{t("deploy.confirmationCode", { code: loginCode })}
+						</AlertDescription>
 					</Alert>
 				) : null}
 
@@ -821,7 +823,7 @@ export function SealosDeployPage() {
 							{missingIds.has("auth") ? (
 								<div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
 									<select
-										aria-label="Sealos region"
+									aria-label={t("deploy.regionLabel")}
 										value={region}
 										onChange={(event) => setRegion(event.target.value)}
 										className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-auto"
@@ -922,7 +924,6 @@ export function SealosDeployPage() {
 							</h2>
 							<p className="mt-1 text-sm text-muted-foreground">
 								{t("deploy.workflowDescription")}
-								after a failure or app restart.
 							</p>
 							{pipelineSteps.length > 0 ? (
 								<div className="mt-4 divide-y rounded-md border">
@@ -993,10 +994,14 @@ export function SealosDeployPage() {
 										className="text-green-600"
 										aria-hidden="true"
 									/>
-									<AlertTitle>{t("deploy.submitted")}</AlertTitle>
-									<AlertDescription>
-										Instance {deployment.instanceName ?? "created"} in{" "}
-										{deployment.region}. Log: {deployment.logPath}
+								<AlertTitle>{t("deploy.submitted")}</AlertTitle>
+								<AlertDescription>
+									{t("deploy.deploymentSummary", {
+										instance:
+											deployment.instanceName ?? t("deploy.createdInstance"),
+										region: deployment.region,
+										log: deployment.logPath,
+									})}
 									</AlertDescription>
 								</Alert>
 							) : null}

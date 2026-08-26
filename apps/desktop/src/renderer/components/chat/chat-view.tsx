@@ -1170,7 +1170,7 @@ function ChatInputSection({
 				});
 			} catch (err) {
 				log.error("handleSend failed", { sessionId: agent.sessionId }, err);
-				toast.error("Could not send message", {
+				toast.error(t("chat.sendFailed"), {
 					description: formatRequestError(err),
 				});
 			} finally {
@@ -1410,8 +1410,7 @@ function ChatInputSection({
 						<div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/5 dark:text-amber-400">
 							<Undo2Icon className="size-3.5 shrink-0" />
 							<span className="flex-1">
-								Session reverted — type to continue from here, or redo to
-								restore
+								{t("chat.reverted")}
 							</span>
 							{canRedo && onRedo && (
 								<button
@@ -1420,7 +1419,7 @@ function ChatInputSection({
 									className="flex items-center gap-1 rounded-md bg-amber-200/60 px-2 py-1 text-[11px] font-medium text-amber-900 transition-colors hover:bg-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
 								>
 									<Redo2Icon className="size-3" />
-									Redo
+									{t("commandPalette.redo")}
 								</button>
 							)}
 						</div>
@@ -1530,8 +1529,8 @@ function ChatInputSection({
 										disabled={!isConnected}
 										placeholder={
 											isWorking
-												? "Send a follow-up message..."
-												: "What would you like to do?"
+												? t("chat.followUpPlaceholder")
+												: t("chat.promptPlaceholder")
 										}
 									/>
 
@@ -1661,16 +1660,16 @@ function LiveTurnTimer({
 // Worktree setup progress (shown in empty state during creation)
 // ============================================================
 
-const SETUP_PHASE_LABELS: Record<NonNullable<SessionSetupPhase>, string> = {
-	"creating-worktree": "Creating worktree...",
-	"starting-session": "Starting session...",
-};
-
 function WorktreeSetupProgress({
 	phase,
 }: {
 	phase: NonNullable<SessionSetupPhase>;
 }) {
+	const { t } = useTranslation();
+	const phaseLabel =
+		phase === "creating-worktree"
+			? t("chat.creatingWorktree")
+			: t("chat.startingSession");
 	return (
 		<div className="flex flex-col items-center justify-center gap-4 py-16">
 			<div className="flex size-12 items-center justify-center rounded-xl border border-border/50 bg-muted/30">
@@ -1679,12 +1678,10 @@ function WorktreeSetupProgress({
 			<div className="flex flex-col items-center gap-2">
 				<div className="flex items-center gap-2">
 					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
-					<p className="text-sm font-medium text-foreground">
-						{SETUP_PHASE_LABELS[phase]}
-					</p>
+					<p className="text-sm font-medium text-foreground">{phaseLabel}</p>
 				</div>
 				<p className="text-xs text-muted-foreground">
-					Setting up an isolated workspace for this session
+					{t("chat.settingUpWorkspace")}
 				</p>
 			</div>
 		</div>

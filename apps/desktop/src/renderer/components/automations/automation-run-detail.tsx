@@ -110,7 +110,10 @@ export function AutomationRunDetail() {
 
 	// Stub runs (no session yet) get a simple summary view
 	return (
-		<RunStubView run={run} automationName={automation?.name ?? "Automation"} />
+		<RunStubView
+			run={run}
+			automationName={automation?.name ?? t("automations.title")}
+		/>
 	);
 }
 

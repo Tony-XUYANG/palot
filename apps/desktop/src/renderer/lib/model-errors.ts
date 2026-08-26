@@ -25,6 +25,8 @@ const ACCOUNT_ACCESS_PATTERN =
 	/(project|organization|account).{0,32}(not found|disabled|not authorized|no access)|permission denied|does not have access|not authorized to (?:use|access)|model access/i;
 const OAUTH_PATTERN =
 	/(oauth|authorization).{0,32}(denied|expired|failed|incomplete)|access_denied|invalid_grant|redirect_uri_mismatch|device code expired/i;
+const SERVER_OFFLINE_PATTERN =
+	/not connected to (?:the )?(?:local |opencode )?server|server (?:is )?offline/i;
 
 function providerPhrase(providerName?: string): string {
 	return providerName
@@ -52,6 +54,9 @@ export function formatModelError(
 		case "APIError": {
 			const details = combinedApiMessage(error);
 			const status = error.data.statusCode;
+			if (SERVER_OFFLINE_PATTERN.test(details)) {
+				return appI18n.t("common.errors.serverOffline");
+			}
 			if (OAUTH_PATTERN.test(details)) {
 				return appI18n.t("common.errors.oauth", { provider });
 			}

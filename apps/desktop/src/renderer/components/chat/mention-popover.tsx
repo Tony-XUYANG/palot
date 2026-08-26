@@ -20,6 +20,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useFileSearch } from "../../hooks/use-file-search";
 import type { SdkAgent } from "../../hooks/use-opencode-data";
 
@@ -79,6 +80,7 @@ export const MentionPopover = memo(
 		{ query, open, directory, agents, onSelect, onClose },
 		ref,
 	) {
+		const { t } = useTranslation();
 		const [activeIndex, setActiveIndex] = useState(0);
 		const listRef = useRef<HTMLDivElement>(null);
 
@@ -196,7 +198,9 @@ export const MentionPopover = memo(
 				<div className="flex items-center gap-2 border-b px-3 py-2">
 					<SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
 					<span className="text-sm text-muted-foreground">
-						{query ? `Searching for "${query}"` : "Mention files or agents"}
+						{query
+							? t("chat.mention.searching", { query })
+							: t("chat.mention.prompt")}
 					</span>
 				</div>
 
@@ -205,7 +209,9 @@ export const MentionPopover = memo(
 					<div ref={listRef} className="py-1">
 						{!hasResults && (
 							<div className="py-4 text-center text-sm text-muted-foreground">
-								{query ? "No results found" : "No files or agents available"}
+								{query
+									? t("chat.mention.noResults")
+									: t("chat.mention.noneAvailable")}
 							</div>
 						)}
 
@@ -213,7 +219,7 @@ export const MentionPopover = memo(
 						{agentItems.length > 0 && (
 							<div>
 								<div className="sticky top-0 z-10 border-b bg-popover px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-									Agents
+									{t("chat.mention.agents")}
 								</div>
 								{agentItems.map((option) => {
 									const idx = globalIndex++;
@@ -234,7 +240,7 @@ export const MentionPopover = memo(
 						{fileItems.length > 0 && (
 							<div>
 								<div className="sticky top-0 z-10 border-b bg-popover px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-									Files
+									{t("chat.mention.files")}
 								</div>
 								{fileItems.map((option) => {
 									const idx = globalIndex++;

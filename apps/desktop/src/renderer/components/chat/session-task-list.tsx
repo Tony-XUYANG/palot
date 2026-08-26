@@ -7,6 +7,7 @@ import {
 	XCircleIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { messagesFamily } from "../../atoms/messages";
 import { partsFamily } from "../../atoms/parts";
 import { appStore } from "../../atoms/store";
@@ -76,6 +77,7 @@ interface SessionTaskListProps {
  * Subtly styled; task items animate in with stagger and re-animate on status change.
  */
 export function SessionTaskList({ sessionId }: SessionTaskListProps) {
+	const { t } = useTranslation();
 	const todos = useSessionTodos(sessionId);
 	const [isExpanded, setIsExpanded] = useState(true);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -123,7 +125,10 @@ export function SessionTaskList({ sessionId }: SessionTaskListProps) {
 					>
 						{completedCount}
 					</span>{" "}
-					out of {todos.length} tasks completed
+					{t("chat.tasksCompleted", {
+						completed: completedCount,
+						total: todos.length,
+					})}
 					{!isExpanded && activeTask && (
 						<>
 							{" · "}

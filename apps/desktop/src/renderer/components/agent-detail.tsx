@@ -164,6 +164,7 @@ export function AgentDetail({
 	onForkFromTurn,
 	onDeletePart,
 }: AgentDetailProps) {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { projectSlug } = useParams({ strict: false }) as {
 		projectSlug?: string;
@@ -288,10 +289,9 @@ export function AgentDetail({
 				>
 					<ArrowLeftIcon className="size-3" />
 					<span>
-						Back to{" "}
-						<span className="font-medium text-foreground">
-							{parentSessionName || "parent session"}
-						</span>
+						{t("agent.backToParent", {
+							name: parentSessionName || t("agent.parentSession"),
+						})}
 					</span>
 				</button>
 			)}
@@ -392,6 +392,7 @@ function SessionAppBarContent({
 	reviewPanelOpen: boolean;
 	onToggleReviewPanel: () => void;
 }) {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const diffStats = useAtomValue(sessionDiffStatsFamily(agent.sessionId));
 
@@ -501,7 +502,9 @@ function SessionAppBarContent({
 						)}
 					</TooltipTrigger>
 					<TooltipContent>
-						{reviewPanelOpen ? "Hide changes panel" : "Show changes panel"}{" "}
+						{reviewPanelOpen
+							? t("agent.hideChangesPanel")
+							: t("agent.showChangesPanel")}{" "}
 						(Cmd+Shift+D)
 					</TooltipContent>
 				</Tooltip>

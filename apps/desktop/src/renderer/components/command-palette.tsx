@@ -224,28 +224,34 @@ export function CommandPalette({
 					)}
 					<CommandItem onSelect={handleReloadConfig} disabled={reloading}>
 						<RefreshCwIcon />
-						<span>{reloading ? "Reloading..." : "Reload Config"}</span>
+						<span>
+							{reloading
+								? t("commandPalette.reloading")
+								: t("commandPalette.reloadConfig")}
+						</span>
 					</CommandItem>
 				</CommandGroup>
 
 				<CommandSeparator />
-				<CommandGroup heading="Appearance">
-					{availableThemes.map((t) => (
+				<CommandGroup heading={t("commandPalette.appearance")}>
+					{availableThemes.map((theme) => (
 						<CommandItem
-							key={t.id}
+							key={theme.id}
 							onSelect={() => {
-								setTheme(t.id);
+								setTheme(theme.id);
 								onOpenChange(false);
 							}}
 						>
 							<PaletteIcon />
-							<span>Theme: {t.name}</span>
-							{t.description && (
+							<span>
+								{t("commandPalette.theme", { name: theme.name })}
+							</span>
+							{theme.description && (
 								<span className="text-xs text-muted-foreground">
-									{t.description}
+									{theme.description}
 								</span>
 							)}
-							{currentTheme.id === t.id && (
+							{currentTheme.id === theme.id && (
 								<CheckIcon className="ml-auto h-4 w-4" />
 							)}
 						</CommandItem>
@@ -253,7 +259,7 @@ export function CommandPalette({
 				</CommandGroup>
 
 				<CommandSeparator />
-				<CommandGroup heading="Window">
+				<CommandGroup heading={t("commandPalette.window")}>
 					<CommandItem
 						onSelect={() => {
 							onOpenChange(false);
@@ -263,21 +269,31 @@ export function CommandPalette({
 					>
 						{opaqueWindows ? <EyeIcon /> : <EyeOffIcon />}
 						<span>
-							{opaqueWindows ? "Enable Transparency" : "Disable Transparency"}
+							{opaqueWindows
+								? t("commandPalette.enableTransparency")
+								: t("commandPalette.disableTransparency")}
 						</span>
 						{!opaqueWindows && <CheckIcon className="ml-auto h-4 w-4" />}
 					</CommandItem>
 				</CommandGroup>
 
 				<CommandSeparator />
-				<CommandGroup heading="Color Scheme">
+				<CommandGroup heading={t("commandPalette.colorScheme")}>
 					{(
 						[
-							{ scheme: "dark" as ColorScheme, label: "Dark", icon: MoonIcon },
-							{ scheme: "light" as ColorScheme, label: "Light", icon: SunIcon },
+							{
+								scheme: "dark" as ColorScheme,
+								label: t("settings.general.dark"),
+								icon: MoonIcon,
+							},
+							{
+								scheme: "light" as ColorScheme,
+								label: t("settings.general.light"),
+								icon: SunIcon,
+							},
 							{
 								scheme: "system" as ColorScheme,
-								label: "System",
+								label: t("settings.general.system"),
 								icon: SunMoonIcon,
 							},
 						] as const
@@ -299,7 +315,7 @@ export function CommandPalette({
 				</CommandGroup>
 
 				<CommandSeparator />
-				<CommandGroup heading="Features">
+				<CommandGroup heading={t("commandPalette.features")}>
 					<CommandItem
 						keywords={[
 							"automation",
@@ -316,15 +332,15 @@ export function CommandPalette({
 						<BotIcon />
 						<span>
 							{automationsEnabled
-								? "Disable Automations"
-								: "Enable Automations"}
+								? t("commandPalette.disableAutomations")
+								: t("commandPalette.enableAutomations")}
 						</span>
 						{automationsEnabled && <CheckIcon className="ml-auto h-4 w-4" />}
 					</CommandItem>
 				</CommandGroup>
 
 				<CommandSeparator />
-				<CommandGroup heading="Developer">
+				<CommandGroup heading={t("commandPalette.developer")}>
 					<CommandItem
 						keywords={["demo", "mock", "screenshot", "marketing"]}
 						onSelect={() => {
@@ -333,7 +349,11 @@ export function CommandPalette({
 						}}
 					>
 						<FilmIcon />
-						<span>{isMockMode ? "Disable Demo Mode" : "Enable Demo Mode"}</span>
+						<span>
+							{isMockMode
+								? t("commandPalette.disableDemoMode")
+								: t("commandPalette.enableDemoMode")}
+						</span>
 						{isMockMode && <CheckIcon className="ml-auto h-4 w-4" />}
 					</CommandItem>
 					{import.meta.env.DEV && (
@@ -353,7 +373,9 @@ export function CommandPalette({
 						>
 							<ScanEyeIcon />
 							<span>
-								{isReactScan ? "Disable React Scan" : "Enable React Scan"}
+								{isReactScan
+									? t("commandPalette.disableReactScan")
+									: t("commandPalette.enableReactScan")}
 							</span>
 							{isReactScan && <CheckIcon className="ml-auto h-4 w-4" />}
 						</CommandItem>
@@ -363,7 +385,7 @@ export function CommandPalette({
 				{activeSessions.length > 0 && (
 					<>
 						<CommandSeparator />
-						<CommandGroup heading="Active Sessions">
+						<CommandGroup heading={t("commandPalette.activeSessions")}>
 							{activeSessions.map((agent) => (
 								<CommandItem
 									key={agent.id}

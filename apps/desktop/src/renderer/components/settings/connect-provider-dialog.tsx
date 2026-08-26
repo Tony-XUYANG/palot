@@ -857,7 +857,7 @@ function ApiKeyView({
 		<form onSubmit={handleSubmit}>
 			<div className="space-y-4 py-2">
 				<div className="space-y-2">
-					<Label htmlFor="api-key">API Key</Label>
+					<Label htmlFor="api-key">{t("connect.apiKeyLabel")}</Label>
 					<Input
 						id="api-key"
 						type="password"
@@ -1285,7 +1285,7 @@ function ZenSetupView({
 
 				{/* API key input */}
 				<div className="space-y-2">
-					<Label htmlFor="zen-api-key">API Key</Label>
+					<Label htmlFor="zen-api-key">{t("connect.apiKeyLabel")}</Label>
 					<Input
 						id="zen-api-key"
 						type="password"

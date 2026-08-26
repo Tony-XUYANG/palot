@@ -913,6 +913,7 @@ const FileDiffHeader = memo(function FileDiffHeader({
 	isGenerated?: boolean;
 	loading?: boolean;
 }) {
+	const { t } = useTranslation();
 	return (
 		<button
 			type="button"
@@ -937,12 +938,12 @@ const FileDiffHeader = memo(function FileDiffHeader({
 			<span className="flex shrink-0 items-center gap-1.5 text-[11px]">
 				{isGenerated && (
 					<span className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium leading-none text-muted-foreground/60">
-						generated
+						{t("review.generated")}
 					</span>
 				)}
 				{isLarge && (
 					<span className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-medium leading-none text-amber-500">
-						LARGE
+						{t("review.large")}
 					</span>
 				)}
 				<span className="flex items-center gap-0.5 text-green-500">

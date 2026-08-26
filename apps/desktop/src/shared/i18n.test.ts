@@ -45,6 +45,24 @@ describe("translation resources", () => {
 			"{{count}}",
 		);
 		expect(zhCNResources.common.errors.connectionFailed).toContain("{{error}}");
+		expect(zhCNResources.sidebar.deleteDescription).toContain("{{name}}");
+	});
+
+	test("keeps session actions fully localized", () => {
+		expect(zhCNResources.sidebar.rename).toBe("重命名");
+		expect(zhCNResources.sidebar.fork).toBe("派生会话");
+		expect(zhCNResources.common.actions.delete).toBe("删除");
+		expect(zhCNResources.sidebar.deleteTitle).toBe("删除会话？");
+		expect(enUSResources.sidebar.deleteFailed).toBe(
+			"Could not delete the session",
+		);
+	});
+
+	test("keeps native application menus fully localized", () => {
+		expect(zhCNResources.native.menu.edit).toBe("编辑");
+		expect(zhCNResources.native.menu.view).toBe("视图");
+		expect(zhCNResources.native.menu.window).toBe("窗口");
+		expect(zhCNResources.native.menu.delete).toBe("删除");
 	});
 
 	test("resolves full resource paths and active language values", async () => {

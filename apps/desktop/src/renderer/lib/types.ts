@@ -138,6 +138,7 @@ export interface Agent {
 	branch: string;
 	/** Relative "last active" time, e.g. "5m" */
 	duration: string;
+	currentActivityType?: "question" | "permission" | "working";
 	currentActivity?: string;
 	activities: Activity[];
 	/** The underlying OpenCode session ID */

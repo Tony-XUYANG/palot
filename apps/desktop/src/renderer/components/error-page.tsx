@@ -48,14 +48,14 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
 						}}
 					>
 						<RefreshCwIcon />
-						Try again
+						{t("common.actions.retry")}
 					</Button>
 					<Button
 						variant="ghost"
 						size="sm"
 						onClick={() => router.navigate({ to: "/" })}
 					>
-						Go home
+						{t("common.actions.goHome")}
 					</Button>
 				</div>
 
@@ -70,7 +70,9 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
 							<ChevronDownIcon
 								className={`size-3 transition-transform ${showDetails ? "rotate-180" : ""}`}
 							/>
-							{showDetails ? "Hide" : "Show"} details
+							{showDetails
+								? t("common.ui.hideDetails")
+								: t("common.ui.showDetails")}
 						</button>
 
 						{showDetails && (

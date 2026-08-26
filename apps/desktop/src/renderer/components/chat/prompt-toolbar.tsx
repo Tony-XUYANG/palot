@@ -376,7 +376,7 @@ function ModelSelectorList({
 									</div>
 									{model.reasoning && (
 										<span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground/60">
-											reasoning
+											{t("chat.reasoning")}
 										</span>
 									)}
 									{model.value === activeValue && (
@@ -435,7 +435,7 @@ function ModelSelectorList({
 											</span>
 											{model.reasoning && (
 												<span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground/60">
-													reasoning
+													{t("chat.reasoning")}
 												</span>
 											)}
 											{model.value === activeValue && (

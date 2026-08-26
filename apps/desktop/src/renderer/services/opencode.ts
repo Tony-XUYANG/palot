@@ -368,7 +368,13 @@ export async function deleteSession(
 	client: OpencodeClient,
 	sessionId: string,
 ): Promise<void> {
-	await client.session.delete({ sessionID: sessionId });
+	const result = await client.session.delete(
+		{ sessionID: sessionId },
+		{ throwOnError: true },
+	);
+	if (result.data !== true) {
+		throw new Error("OpenCode did not confirm that the session was deleted");
+	}
 }
 
 /**

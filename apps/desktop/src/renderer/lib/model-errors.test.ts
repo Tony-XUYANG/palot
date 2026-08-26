@@ -71,6 +71,15 @@ describe("model error formatting", () => {
 		);
 	});
 
+	it("localizes disconnected OpenCode server errors", async () => {
+		await appI18n.changeLanguage("zh-CN");
+		assert.equal(
+			formatRequestError(new Error("Not connected to OpenCode server")),
+			"服务器未运行。",
+		);
+		await appI18n.changeLanguage("en-US");
+	});
+
 	it("distinguishes Codex OAuth, region, and project access failures", () => {
 		assert.match(
 			formatRequestError(

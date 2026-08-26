@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, Menu, session, shell } from "electron";
 import { initAutomations, shutdownAutomations } from "./automation";
 import { initCredentialStore } from "./credential-store";
-import { setMainLocale } from "./i18n";
+import { setMainLocale, tMain } from "./i18n";
 import { getOpaqueWindowsPref, registerIpcHandlers } from "./ipc-handlers";
 import { installLiquidGlass, resolveWindowChrome } from "./liquid-glass";
 import { createLogger } from "./logger";
@@ -33,16 +33,87 @@ const __dirname = path.dirname(__filename);
 // full PATH (e.g., spawning opencode) call waitForEnv() before proceeding.
 startEnvResolution();
 
-// Minimal menu — required on macOS for Cmd+C/V/X/A to work in web contents.
-// A null menu kills native Edit shortcuts on macOS. This minimal template is
-// negligible overhead compared to the full default menu.
-const menuTemplate: Electron.MenuItemConstructorOptions[] = [
-	...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
-	{ role: "editMenu" as const },
-	{ role: "viewMenu" as const },
-	{ role: "windowMenu" as const },
-];
-Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
+// Keep native shortcuts while providing Palot-owned labels. Electron's role menus
+// use the host OS language, which can leave English menus in an otherwise Chinese UI.
+function rebuildApplicationMenu(): void {
+	const menuTemplate: Electron.MenuItemConstructorOptions[] = [
+		...(process.platform === "darwin"
+			? [
+					{
+						label: tMain("native.menu.app"),
+						submenu: [
+							{ label: tMain("native.menu.about"), role: "about" as const },
+							{ type: "separator" as const },
+							{
+								label: tMain("native.menu.services"),
+								role: "services" as const,
+							},
+							{ type: "separator" as const },
+							{ label: tMain("native.menu.hide"), role: "hide" as const },
+							{
+								label: tMain("native.menu.hideOthers"),
+								role: "hideOthers" as const,
+							},
+							{ label: tMain("native.menu.showAll"), role: "unhide" as const },
+							{ type: "separator" as const },
+							{ label: tMain("native.menu.quit"), role: "quit" as const },
+						],
+					},
+				]
+			: []),
+		{
+			label: tMain("native.menu.edit"),
+			submenu: [
+				{ label: tMain("native.menu.undo"), role: "undo" },
+				{ label: tMain("native.menu.redo"), role: "redo" },
+				{ type: "separator" },
+				{ label: tMain("native.menu.cut"), role: "cut" },
+				{ label: tMain("native.menu.copy"), role: "copy" },
+				{ label: tMain("native.menu.paste"), role: "paste" },
+				{ label: tMain("native.menu.delete"), role: "delete" },
+				{ type: "separator" },
+				{ label: tMain("native.menu.selectAll"), role: "selectAll" },
+			],
+		},
+		{
+			label: tMain("native.menu.view"),
+			submenu: [
+				{ label: tMain("native.menu.reload"), role: "reload" },
+				{ label: tMain("native.menu.forceReload"), role: "forceReload" },
+				{
+					label: tMain("native.menu.toggleDevTools"),
+					role: "toggleDevTools",
+				},
+				{ type: "separator" },
+				{ label: tMain("native.menu.resetZoom"), role: "resetZoom" },
+				{ label: tMain("native.menu.zoomIn"), role: "zoomIn" },
+				{ label: tMain("native.menu.zoomOut"), role: "zoomOut" },
+				{ type: "separator" },
+				{
+					label: tMain("native.menu.toggleFullScreen"),
+					role: "togglefullscreen",
+				},
+			],
+		},
+		{
+			label: tMain("native.menu.window"),
+			submenu: [
+				{ label: tMain("native.menu.minimize"), role: "minimize" },
+				...(process.platform === "darwin"
+					? [
+							{ label: tMain("native.menu.zoom"), role: "zoom" as const },
+							{ type: "separator" as const },
+							{
+								label: tMain("native.menu.bringAllToFront"),
+								role: "front" as const,
+							},
+						]
+					: [{ label: tMain("native.menu.close"), role: "close" as const }]),
+			],
+		},
+	];
+	Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
+}
 
 // Collect Chromium feature flags — must be merged into a single --disable-features
 // switch because Electron's appendSwitch overwrites (not appends) duplicate keys.
@@ -309,9 +380,11 @@ if (!gotLock) {
 
 		initSettingsStore();
 		setMainLocale(getSettings().language ?? "en-US");
-		onSettingsChanged((settings) =>
-			setMainLocale(settings.language ?? "en-US"),
-		);
+		rebuildApplicationMenu();
+		onSettingsChanged((settings) => {
+			setMainLocale(settings.language ?? "en-US");
+			rebuildApplicationMenu();
+		});
 		initCredentialStore();
 		registerIpcHandlers();
 		initAutomations().catch(console.error);

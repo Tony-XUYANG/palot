@@ -77,12 +77,12 @@ export function AddProjectDialog({
 			setError(
 				err instanceof Error
 					? err.message
-					: "Failed to load project. Check that the path exists on the remote server.",
+					: t("projects.loadFailed"),
 			);
 		} finally {
 			setLoading(false);
 		}
-	}, [remotePath, onAdded, onOpenChange]);
+	}, [remotePath, onAdded, onOpenChange, t]);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -90,10 +90,9 @@ export function AddProjectDialog({
 				<DialogHeader>
 					<DialogTitle>{t("projects.addRemote")}</DialogTitle>
 					<DialogDescription>
-						Enter the absolute path to a project directory on{" "}
-						<span className="font-medium text-foreground">
-							{activeServer.name}
-						</span>
+						{t("projects.addRemoteDescription", {
+							server: activeServer.name,
+						})}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -125,8 +124,7 @@ export function AddProjectDialog({
 							/>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							The path must exist on the remote server. Sessions and project
-							data will be loaded from this directory.
+							{t("projects.remotePathHelp")}
 						</p>
 					</div>
 
@@ -148,7 +146,7 @@ export function AddProjectDialog({
 								className="size-3.5 animate-spin"
 							/>
 						)}
-						Add Project
+						{t("projects.add")}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

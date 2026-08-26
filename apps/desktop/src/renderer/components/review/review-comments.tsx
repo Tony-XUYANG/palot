@@ -217,7 +217,7 @@ export function ReviewPanelComments({
 		<div className="shrink-0 border-b border-border px-3 py-2">
 			<div className="flex items-center justify-between">
 				<span className="text-[11px] font-medium text-muted-foreground">
-					{comments.length} comment{comments.length !== 1 ? "s" : ""} attached
+					{t("review.commentsAttached", { count: comments.length })}
 				</span>
 				<button
 					type="button"

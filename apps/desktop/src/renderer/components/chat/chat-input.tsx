@@ -194,6 +194,7 @@ export function ChatInput({
 	onScrollToBottom,
 	handleSlashCommand,
 }: ChatInputProps) {
+	const { t } = useTranslation();
 	const isWorking = agent.status === "running";
 	const [sending, setSending] = useState(false);
 	const [mentions, setMentions] = useState<PromptMention[]>([]);
@@ -432,8 +433,8 @@ export function ChatInput({
 						onKeyDown={handleTextareaKeyDown}
 						placeholder={
 							isWorking
-								? "Send a follow-up message..."
-								: "What would you like to do?"
+								? t("chat.followUpPlaceholder")
+								: t("chat.promptPlaceholder")
 						}
 						disabled={!isConnected}
 					/>

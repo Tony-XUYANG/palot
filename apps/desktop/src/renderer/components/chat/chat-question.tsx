@@ -448,7 +448,7 @@ const QuestionRequestStepper = memo(function QuestionRequestStepper({
 				</span>
 				{totalRequests > 1 && (
 					<span className="shrink-0 text-[11px] text-muted-foreground">
-						+{totalRequests - 1} more
+						{t("chat.moreItems", { count: totalRequests - 1 })}
 					</span>
 				)}
 			</div>

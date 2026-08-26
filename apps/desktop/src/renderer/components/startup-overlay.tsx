@@ -15,6 +15,7 @@
 
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DiscoveryPhase } from "../atoms/discovery";
 import { discoveryPhaseAtom } from "../atoms/discovery";
 import { PalotWordmark } from "./palot-wordmark";
@@ -26,17 +27,6 @@ import { PalotWordmark } from "./palot-wordmark";
 /** Duration of the fade-out transition (ms). Must match the CSS transition. */
 const FADE_DURATION_MS = 400;
 
-/** Human-readable status messages for each discovery phase. */
-const PHASE_LABELS: Record<DiscoveryPhase, string> = {
-	idle: "Initializing...",
-	"starting-server": "Starting server...",
-	connecting: "Connecting...",
-	"loading-projects": "Loading projects...",
-	"loading-sessions": "Loading sessions...",
-	ready: "",
-	error: "Connection failed",
-};
-
 // ============================================================
 // Component
 // ============================================================
@@ -45,6 +35,7 @@ const PHASE_LABELS: Record<DiscoveryPhase, string> = {
 type OverlayState = "visible" | "fading" | "unmounted";
 
 export function StartupOverlay() {
+	const { t } = useTranslation();
 	const phase = useAtomValue(discoveryPhaseAtom);
 
 	// If discovery is already complete on first render (e.g., eager server
@@ -88,7 +79,16 @@ export function StartupOverlay() {
 	if (state === "unmounted") return null;
 
 	const isVisible = state === "visible";
-	const statusText = PHASE_LABELS[phase] ?? "";
+	const phaseLabels: Record<DiscoveryPhase, string> = {
+		idle: t("startup.initializing"),
+		"starting-server": t("startup.startingServer"),
+		connecting: t("startup.connecting"),
+		"loading-projects": t("startup.loadingProjects"),
+		"loading-sessions": t("startup.loadingSessions"),
+		ready: "",
+		error: t("startup.connectionFailed"),
+	};
+	const statusText = phaseLabels[phase];
 
 	return (
 		<div

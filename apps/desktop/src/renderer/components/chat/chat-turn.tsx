@@ -1023,8 +1023,7 @@ export const ChatTurnComponent = memo(
 							>
 								<ChevronDownIcon className="size-3 -rotate-90" />
 								<span>
-									Show {toolParts.length}{" "}
-									{toolParts.length === 1 ? "step" : "steps"}
+									{t("chat.showSteps", { count: toolParts.length })}
 								</span>
 								<span>
 									{turnModel && `· ${turnModel} `}
@@ -1045,8 +1044,7 @@ export const ChatTurnComponent = memo(
 							>
 								<ChevronDownIcon className="size-3" />
 								<span>
-									Hide {toolParts.length}{" "}
-									{toolParts.length === 1 ? "step" : "steps"}
+									{t("chat.hideSteps", { count: toolParts.length })}
 								</span>
 								<span>
 									{turnModel && `· ${turnModel} `}
